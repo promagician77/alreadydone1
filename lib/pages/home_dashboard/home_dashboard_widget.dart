@@ -41,6 +41,12 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Story data for "Today's Story" card — pass to player on tap
+    final storyCategoryLabel = '✦ LOVE · GENERATED TODAY';
+    final storyTitle = 'A Love That Was';
+    final storySubtitle = 'Always Yours';
+    final storyDurationLabel = '3 min 42 sec · In your voice';
+
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -58,9 +64,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
               focusColor: Colors.transparent,
               hoverColor: Colors.transparent,
               highlightColor: Colors.transparent,
-              onTap: () async {
-                context.pushNamed(DesiresWidget.routeName);
-              },
+              
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
@@ -349,9 +353,21 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                         topRight: Radius.circular(18.0),
                                       ),
                                     ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.max,
-                                      children: [
+                                    child: GestureDetector(
+                                      onTap: () async {
+                                        context.pushNamed(
+                                          PlayerWidget.routeName,
+                                          extra: {
+                                            'categoryLabel': storyCategoryLabel,
+                                            'title': storyTitle,
+                                            'subtitle': storySubtitle,
+                                            'durationLabel': storyDurationLabel,
+                                          },
+                                        );
+                                      },
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.max,
+                                        children: [
                                         Padding(
                                           padding: EdgeInsets.all(20.0),
                                           child: Column(
@@ -366,7 +382,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                                             .fromSTEB(0.0, 0.0,
                                                                 0.0, 5.0),
                                                     child: Text(
-                                                      '✦ LOVE · GENERATED TODAY',
+                                                      storyCategoryLabel,
                                                       style: FlutterFlowTheme
                                                               .of(context)
                                                           .bodyMedium
@@ -402,7 +418,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                                 alignment: AlignmentDirectional(
                                                     -1.0, 0.0),
                                                 child: Text(
-                                                  'A Love That Was',
+                                                  storyTitle,
                                                   style: FlutterFlowTheme.of(
                                                           context)
                                                       .bodyMedium
@@ -439,7 +455,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                                       .fromSTEB(
                                                           0.0, 0.0, 0.0, 3.0),
                                                   child: Text(
-                                                    'Always Yours',
+                                                    storySubtitle,
                                                     style: FlutterFlowTheme.of(
                                                             context)
                                                         .bodyMedium
@@ -473,7 +489,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                                 alignment: AlignmentDirectional(
                                                     -1.0, 0.0),
                                                 child: Text(
-                                                  '3 min 42 sec · In your voice',
+                                                  storyDurationLabel,
                                                   style: FlutterFlowTheme.of(
                                                           context)
                                                       .bodyMedium
@@ -514,7 +530,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                       ],
                                     ),
                                   ),
-                                  Row(
+                                ),
+                                Row(
                                     mainAxisSize: MainAxisSize.max,
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,

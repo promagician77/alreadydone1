@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
+import '/services/supabase_service.dart';
+import '/flutter_flow/nav/nav.dart';
 import 'password_reset_model.dart';
 export 'password_reset_model.dart';
 
@@ -73,7 +75,12 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 8),
-                      _primaryButton('Send Reset Link', () {}),
+                      _primaryButton('Send Reset Link', _handlePasswordReset),
+                      if (_model.isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16),
+                          child: Center(child: CircularProgressIndicator(color: AuthTheme.gold)),
+                        ),
                       const SizedBox(height: 32),
                       _footer('Remember your password? ', 'Log in', () => context.go('/login')),
                     ],
@@ -115,10 +122,10 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
 
   Widget _primaryButton(String label, VoidCallback? onPressed) {
     return Material(
-      color: AuthTheme.gold,
+      color: _model.isLoading ? AuthTheme.goldDark : AuthTheme.gold,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: onPressed,
+        onTap: _model.isLoading ? null : onPressed,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           width: double.infinity,
@@ -128,6 +135,40 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
         ),
       ),
     );
+  }
+
+  Future<void> _handlePasswordReset() async {
+    final email = _model.emailTextController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address')),
+      );
+      return;
+    }
+
+    setState(() => _model.isLoading = true);
+
+    try {
+      await SupabaseService.resetPasswordForEmail(email);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password reset link sent! Please check your email.')),
+        );
+        context.go('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _model.isLoading = false);
+      }
+    }
   }
 
   Widget _footer(String text, String linkText, VoidCallback onTap) {

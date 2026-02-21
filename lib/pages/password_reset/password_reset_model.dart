@@ -5,6 +5,7 @@ import 'password_reset_widget.dart' show PasswordResetWidget;
 class PasswordResetModel extends FlutterFlowModel<PasswordResetWidget> {
   final emailFocusNode = FocusNode();
   final emailTextController = TextEditingController();
+  bool isLoading = false;
 
   @override
   void initState(BuildContext context) {}

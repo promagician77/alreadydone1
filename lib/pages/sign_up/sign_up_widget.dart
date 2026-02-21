@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
+import '/services/supabase_service.dart' show SupabaseService, OAuthProvider;
+import '/flutter_flow/nav/nav.dart';
 import 'sign_up_model.dart';
 export 'sign_up_model.dart';
 
@@ -100,11 +102,16 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                       const SizedBox(height: 16),
                       _termsCheckbox(),
                       const SizedBox(height: 8),
-                      _primaryButton('Create Account', () {}),
+                      _primaryButton('Create Account', _handleSignUp),
                       const SizedBox(height: 20),
                       _divider(),
                       const SizedBox(height: 20),
                       _socialButtons(),
+                      if (_model.isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16),
+                          child: Center(child: CircularProgressIndicator(color: AuthTheme.gold)),
+                        ),
                       const SizedBox(height: 16),
                       _footer('Already have an account? ', 'Log in', () => context.go('/login')),
                     ],
@@ -184,10 +191,10 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
   Widget _primaryButton(String label, VoidCallback? onPressed) {
     return Material(
-      color: AuthTheme.gold,
+      color: _model.isLoading ? AuthTheme.goldDark : AuthTheme.gold,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: onPressed,
+        onTap: _model.isLoading ? null : onPressed,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           width: double.infinity,
@@ -197,6 +204,72 @@ class _SignUpWidgetState extends State<SignUpWidget> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleSignUp() async {
+    if (!_model.termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please accept the Terms of Service and Privacy Policy')),
+      );
+      return;
+    }
+
+    final name = _model.nameTextController.text.trim();
+    final email = _model.emailTextController.text.trim();
+    final password = _model.passwordTextController.text;
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    if (password.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 8 characters')),
+      );
+      return;
+    }
+
+    setState(() => _model.isLoading = true);
+
+    try {
+      final response = await SupabaseService.signUp(
+        email: email,
+        password: password,
+        fullName: name,
+      );
+
+      if (response.user != null) {
+        if (mounted) {
+          // Check if user is authenticated (email confirmation disabled) or needs email verification
+          if (SupabaseService.isAuthenticated) {
+            // Email confirmation disabled - user is immediately authenticated
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Account created successfully! Welcome!')),
+            );
+            context.go('/');
+          } else {
+            // Email confirmation enabled - user needs to verify email
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Account created! Please check your email to verify your account.')),
+            );
+            context.go('/login');
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _model.isLoading = false);
+      }
+    }
   }
 
   Widget _divider() {
@@ -217,7 +290,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: () {},
+            onPressed: () => _handleAppleSignIn(),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               side: const BorderSide(color: AuthTheme.stone),
@@ -238,7 +311,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
         const SizedBox(width: 10),
         Expanded(
           child: OutlinedButton(
-            onPressed: () {},
+            onPressed: () => _handleGoogleSignIn(),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               side: const BorderSide(color: AuthTheme.stone),
@@ -249,7 +322,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.g_mobiledata_rounded, size: 20, color: AuthTheme.inkMid),
+                const GoogleLogoIcon(size: 20),
                 const SizedBox(width: 8),
                 Text('Google', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w500, color: AuthTheme.inkMid)),
               ],
@@ -271,5 +344,29 @@ class _SignUpWidgetState extends State<SignUpWidget> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    try {
+      await SupabaseService.signInWithOAuth(provider: OAuthProvider.apple);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Apple sign in error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    try {
+      await SupabaseService.signInWithOAuth(provider: OAuthProvider.google);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google sign in error: ${e.toString()}')),
+        );
+      }
+    }
   }
 }

@@ -7,6 +7,7 @@ class LoginModel extends FlutterFlowModel<LoginWidget> {
   final emailTextController = TextEditingController();
   final passwordFocusNode = FocusNode();
   final passwordTextController = TextEditingController();
+  bool isLoading = false;
 
   @override
   void initState(BuildContext context) {}

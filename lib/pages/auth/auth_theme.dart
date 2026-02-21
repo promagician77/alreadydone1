@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// ALREADY auth design tokens — matches HTML design (pixel-perfect).
@@ -204,6 +205,36 @@ class KeyIcon extends StatelessWidget {
       ),
       child: const Center(
         child: Text('🔑', style: TextStyle(fontSize: 32), textAlign: TextAlign.center),
+      ),
+    );
+  }
+}
+
+/// Multi-colored Google "G" logo for social login button (matches design SVG).
+class GoogleLogoIcon extends StatelessWidget {
+  const GoogleLogoIcon({super.key, this.size = 20});
+
+  final double size;
+
+  static const String _svg = r'''
+<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M15.545 8.182C15.545 7.655 15.5 7.127 15.418 6.609H8V9.564H12.309C12.127 10.509 11.591 11.345 10.8 11.873V13.818H13.291C14.782 12.436 15.545 10.436 15.545 8.182Z" fill="#4285F4"/>
+  <path d="M8 15.636C10.018 15.636 11.709 14.973 13.291 13.818L10.8 11.873C10.127 12.327 9.236 12.591 8 12.591C6.055 12.591 4.418 11.2 3.836 9.364H1.255V11.382C2.855 14.564 5.273 15.636 8 15.636Z" fill="#34A853"/>
+  <path d="M3.836 9.364C3.491 8.418 3.491 7.391 3.836 6.445V4.427H1.255C0.073 6.782 0.073 9.027 1.255 11.382L3.836 9.364Z" fill="#FBBC04"/>
+  <path d="M8 3.218C9.309 3.2 10.564 3.691 11.527 4.582L13.745 2.364C11.636 0.382 8.8 -0.618 6.073 0.236C4.618 0.691 3.309 1.564 2.291 2.745C1.273 3.927 0.582 5.364 0.291 6.918L2.873 8.936C3.418 6.927 5.527 3.218 8 3.218Z" fill="#EA4335"/>
+</svg>
+''';
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: SvgPicture.string(
+        _svg,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
       ),
     );
   }

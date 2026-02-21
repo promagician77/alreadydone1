@@ -10,6 +10,7 @@ class SignUpModel extends FlutterFlowModel<SignUpWidget> {
   final passwordFocusNode = FocusNode();
   final passwordTextController = TextEditingController();
   bool termsAccepted = false;
+  bool isLoading = false;
 
   @override
   void initState(BuildContext context) {}

@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'flutter_flow/nav/nav.dart';
+import '/services/supabase_service.dart';
 import 'index.dart';
 
 void main() async {
@@ -15,6 +16,13 @@ void main() async {
   usePathUrlStrategy();
 
   await FlutterFlowTheme.initialize();
+
+  await SupabaseService.initialize(
+    url: 'https://apcovbcfhrmtcatarhhi.supabase.co', // e.g., 'https://xxxxx.supabase.co'
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwY292YmNmaHJtdGNhdGFyaGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTA3MzUsImV4cCI6MjA4NzI2NjczNX0.f2dQXn4_pk4fHua4Nc-J4uPQ5P6GgXNlEZLu9wxbr90', // Your anon/public key
+  );
+
+  AppStateNotifier.instance.initAuthListener();
 
   runApp(MyApp());
 }

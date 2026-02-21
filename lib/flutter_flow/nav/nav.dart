@@ -13,6 +13,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import 'serialization_util.dart';
 
 import '/index.dart';
+import '/services/supabase_service.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -29,9 +30,15 @@ class AppStateNotifier extends ChangeNotifier {
 
   bool showSplashImage = true;
 
+  bool get isAuthenticated => SupabaseService.isAuthenticated;
+
   void stopShowingSplashImage() {
     showSplashImage = false;
     notifyListeners();
+  }
+
+  void initAuthListener() {
+    SupabaseService.authStateChanges.listen((_) => notifyListeners());
   }
 }
 
@@ -40,6 +47,20 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
+      redirect: (context, state) {
+        final isAuth = appStateNotifier.isAuthenticated;
+        final isAuthRoute = state.matchedLocation == '/login' ||
+            state.matchedLocation == '/signUp' ||
+            state.matchedLocation == '/passwordReset';
+
+        if (!isAuth && !isAuthRoute) {
+          return '/login';
+        }
+        if (isAuth && isAuthRoute) {
+          return '/';
+        }
+        return null;
+      },
       errorBuilder: (context, state) => NavBarPage(),
       routes: [
         FFRoute(
@@ -66,7 +87,15 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: PlayerWidget.routePath,
           builder: (context, params) => params.isEmpty
               ? NavBarPage(initialPage: 'Player')
-              : PlayerWidget(),
+              : NavBarPage(
+                  initialPage: 'Player',
+                  page: PlayerWidget(
+                    categoryLabel: params.getParam('categoryLabel', ParamType.String),
+                    title: params.getParam('title', ParamType.String),
+                    subtitle: params.getParam('subtitle', ParamType.String),
+                    durationLabel: params.getParam('durationLabel', ParamType.String),
+                  ),
+                ),
         ),
         FFRoute(
           name: ProfileWidget.routeName,

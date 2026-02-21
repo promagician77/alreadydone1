@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
+import '/services/supabase_service.dart' show SupabaseService, OAuthProvider;
+import '/flutter_flow/nav/nav.dart';
 import 'login_model.dart';
 export 'login_model.dart';
 
@@ -83,11 +85,16 @@ class _LoginWidgetState extends State<LoginWidget> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      _primaryButton('Log In', () {}),
+                      _primaryButton('Log In', _handleLogin),
                       const SizedBox(height: 20),
                       _divider(),
                       const SizedBox(height: 20),
                       _socialButtons(),
+                      if (_model.isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16),
+                          child: Center(child: CircularProgressIndicator(color: AuthTheme.gold)),
+                        ),
                       const SizedBox(height: 16),
                       _footer("Don't have an account? ", 'Sign up', () => context.go('/signUp')),
                     ],
@@ -131,10 +138,10 @@ class _LoginWidgetState extends State<LoginWidget> {
 
   Widget _primaryButton(String label, VoidCallback? onPressed) {
     return Material(
-      color: AuthTheme.gold,
+      color: _model.isLoading ? AuthTheme.goldDark : AuthTheme.gold,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: onPressed,
+        onTap: _model.isLoading ? null : onPressed,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           width: double.infinity,
@@ -144,6 +151,65 @@ class _LoginWidgetState extends State<LoginWidget> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleLogin() async {
+    final email = _model.emailTextController.text.trim();
+    final password = _model.passwordTextController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    setState(() => _model.isLoading = true);
+
+    try {
+      final response = await SupabaseService.signIn(email: email, password: password);
+
+      if (response.user != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Welcome back!')),
+        );
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _model.isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    try {
+      await SupabaseService.signInWithOAuth(provider: OAuthProvider.apple);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Apple sign in error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    try {
+      await SupabaseService.signInWithOAuth(provider: OAuthProvider.google);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google sign in error: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   Widget _divider() {
@@ -164,7 +230,7 @@ class _LoginWidgetState extends State<LoginWidget> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: () {},
+            onPressed: () => _handleAppleSignIn(),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               side: const BorderSide(color: AuthTheme.stone),
@@ -185,7 +251,7 @@ class _LoginWidgetState extends State<LoginWidget> {
         const SizedBox(width: 10),
         Expanded(
           child: OutlinedButton(
-            onPressed: () {},
+            onPressed: () => _handleGoogleSignIn(),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               side: const BorderSide(color: AuthTheme.stone),
@@ -196,7 +262,7 @@ class _LoginWidgetState extends State<LoginWidget> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.g_mobiledata_rounded, size: 20, color: AuthTheme.inkMid),
+                const GoogleLogoIcon(size: 20),
                 const SizedBox(width: 8),
                 Text('Google', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w500, color: AuthTheme.inkMid)),
               ],

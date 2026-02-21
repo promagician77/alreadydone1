@@ -10,7 +10,18 @@ import 'player_model.dart';
 export 'player_model.dart';
 
 class PlayerWidget extends StatefulWidget {
-  const PlayerWidget({super.key});
+  const PlayerWidget({
+    super.key,
+    this.categoryLabel,
+    this.title,
+    this.subtitle,
+    this.durationLabel,
+  });
+
+  final String? categoryLabel;
+  final String? title;
+  final String? subtitle;
+  final String? durationLabel;
 
   static String routeName = 'Player';
   static String routePath = '/player';
@@ -122,7 +133,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                               padding: EdgeInsetsDirectional.fromSTEB(
                                   0.0, 22.0, 0.0, 9.0),
                               child: Text(
-                                '♡ Love · Today',
+                                widget.categoryLabel ?? '♡ Love · Today',
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
@@ -143,7 +154,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                               ),
                             ),
                             Text(
-                              'A Love That Was',
+                              widget.title ?? 'A Love That Was',
                               style: FlutterFlowTheme.of(context)
                                   .bodyMedium
                                   .override(
@@ -166,7 +177,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                               padding: EdgeInsetsDirectional.fromSTEB(
                                   0.0, 0.0, 0.0, 7.0),
                               child: Text(
-                                'Always Yours',
+                                widget.subtitle ?? 'Always Yours',
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
@@ -186,7 +197,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                               padding: EdgeInsetsDirectional.fromSTEB(
                                   0.0, 0.0, 0.0, 22.0),
                               child: Text(
-                                'Feb 14, 2026 · In your voice',
+                                widget.durationLabel ?? 'Feb 14, 2026 · In your voice',
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
