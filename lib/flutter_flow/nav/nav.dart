@@ -74,6 +74,21 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => params.isEmpty
               ? NavBarPage(initialPage: 'Profile')
               : ProfileWidget(),
+        ),
+        FFRoute(
+          name: SignUpWidget.routeName,
+          path: SignUpWidget.routePath,
+          builder: (context, params) => SignUpWidget(),
+        ),
+        FFRoute(
+          name: LoginWidget.routeName,
+          path: LoginWidget.routePath,
+          builder: (context, params) => LoginWidget(),
+        ),
+        FFRoute(
+          name: PasswordResetWidget.routeName,
+          path: PasswordResetWidget.routePath,
+          builder: (context, params) => PasswordResetWidget(),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

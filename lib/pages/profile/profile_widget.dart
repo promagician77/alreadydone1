@@ -2,6 +2,7 @@ import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/flutter_flow/nav/nav.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -167,6 +168,34 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                   height: 1.0,
                   decoration: BoxDecoration(
                     color: Color(0x1A1C1917),
+                  ),
+                ),
+                Padding(
+                  padding:
+                      EdgeInsetsDirectional.fromSTEB(14.0, 12.0, 14.0, 12.0),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      GoRouter.of(context).go('/login');
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12.0, horizontal: 4.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Log in',
+                            style: FlutterFlowTheme.of(context).bodyLarge,
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 14.0,
+                            color: FlutterFlowTheme.of(context).secondaryText,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 Padding(
