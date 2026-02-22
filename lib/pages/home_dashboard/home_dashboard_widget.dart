@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'dart:ui';
 import '/index.dart';
+import '/services/story_service.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -30,6 +31,27 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => HomeDashboardModel());
+    _loadTodayStory();
+  }
+
+  Future<void> _loadTodayStory() async {
+    setState(() => _model.isLoading = true);
+    try {
+      final story = await StoryService.fetchRandomStory();
+      if (mounted) {
+        setState(() {
+          _model.todayStory = story;
+          _model.isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _model.errorMessage = e.toString();
+          _model.isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -41,10 +63,17 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final storyCategoryLabel = '✦ LOVE · GENERATED TODAY';
-    final storyTitle = 'A Love That Was';
-    final storySubtitle = 'Always Yours';
-    final storyDurationLabel = '3 min 42 sec · In your voice';
+    final story = _model.todayStory;
+    final desireName = story?.desireName.toUpperCase() ?? '...';
+    final storyCategoryLabel = '✦ $desireName · GENERATED TODAY';
+    // Split the title roughly in half so the two-line layout still works.
+    final fullTitle = story?.title ?? 'Loading…';
+    final titleParts = fullTitle.split(' ');
+    final midpoint = (titleParts.length / 2).ceil();
+    final storyTitle = titleParts.take(midpoint).join(' ');
+    final storySubtitle = titleParts.skip(midpoint).join(' ');
+    final storyDurationLabel =
+        story != null ? '${story.playLength ?? '—'} · In your voice' : '...';
 
     return GestureDetector(
       onTap: () {
