@@ -88,4 +88,24 @@ class SupabaseService {
   }
 
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
+
+  /// Inserts a new row into the `users` table after email verification.
+  /// Defaults: morning_reminder=false, voice_id=null, speed='normal',
+  ///           bedtime_reminder=false, daily_story_alert=false.
+  static Future<void> createUserProfile({
+    required String id,
+    required String email,
+    String? name,
+  }) async {
+    await client.from('Users').insert({
+      'id': id,
+      'email': email,
+      'name': name,
+      'morning_reminder': false,
+      'voice_id': null,
+      'speed': 'normal',
+      'bedtime_reminder': false,
+      'daily_story_alert': false,
+    });
+  }
 }

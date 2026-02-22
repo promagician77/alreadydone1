@@ -181,6 +181,13 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
       );
 
       if (response.user != null && mounted) {
+        final user = response.user!;
+        await SupabaseService.createUserProfile(
+          id: user.id,
+          email: user.email ?? widget.email,
+          name: user.userMetadata?['full_name'] as String?,
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Email verified! Welcome.')),
         );

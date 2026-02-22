@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/flutter_flow/nav/nav.dart';
+import '/services/supabase_service.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -40,6 +41,13 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     _model.dispose();
 
     super.dispose();
+  }
+
+  Future<void> _handleLogout() async {
+    await SupabaseService.signOut();
+    if (mounted) {
+      context.go('/login');
+    }
   }
 
   @override
@@ -175,9 +183,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                       EdgeInsetsDirectional.fromSTEB(14.0, 12.0, 14.0, 12.0),
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      GoRouter.of(context).go('/login');
-                    },
+                    onTap: _handleLogout,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           vertical: 12.0, horizontal: 4.0),
@@ -185,13 +191,15 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Log in',
-                            style: FlutterFlowTheme.of(context).bodyLarge,
+                            'Log out',
+                            style: FlutterFlowTheme.of(context)
+                                .bodyLarge
+                                .copyWith(color: Color(0xFFD98B80)),
                           ),
                           Icon(
-                            Icons.arrow_forward_ios,
-                            size: 14.0,
-                            color: FlutterFlowTheme.of(context).secondaryText,
+                            Icons.logout,
+                            size: 16.0,
+                            color: Color(0xFFD98B80),
                           ),
                         ],
                       ),
