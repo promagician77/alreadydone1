@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'flutter_flow/nav/nav.dart';
+import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import 'index.dart';
 
@@ -21,6 +22,18 @@ void main() async {
     url: 'https://apcovbcfhrmtcatarhhi.supabase.co', // e.g., 'https://xxxxx.supabase.co'
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwY292YmNmaHJtdGNhdGFyaGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTA3MzUsImV4cCI6MjA4NzI2NjczNX0.f2dQXn4_pk4fHua4Nc-J4uPQ5P6GgXNlEZLu9wxbr90', // Your anon/public key
   );
+
+  // Connect to ALREADY backend (base URL only; no API calls yet).
+  // Default: Android emulator (10.0.2.2:8000). For physical device pass your machine IP, e.g. http://192.168.1.x:8000
+  BackendClient.initialize();
+
+  // Optional: test connection at startup (check debug console for result)
+  final connected = await BackendClient.checkConnection();
+  if (connected) {
+    debugPrint('Backend connected at ${BackendClient.baseUrl}');
+  } else {
+    debugPrint('Backend unreachable at ${BackendClient.baseUrl} — is the server running?');
+  }
 
   AppStateNotifier.instance.initAuthListener();
 

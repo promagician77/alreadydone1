@@ -293,28 +293,35 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                 ),
                                 Align(
                                   alignment: AlignmentDirectional(1.0, 0.0),
-                                  child: Text(
-                                    'See all →',
-                                    textAlign: TextAlign.end,
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.outfit(
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      context.pushNamed(
+                                        DesiresWidget.routeName,
+                                      );
+                                    },
+                                    child: Text(
+                                      'See all →',
+                                      textAlign: TextAlign.end,
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            font: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.w600,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontStyle,
+                                            ),
+                                            color: Color(0xFFB88612),
+                                            fontSize: 10.0,
+                                            letterSpacing: 0.0,
                                             fontWeight: FontWeight.w600,
                                             fontStyle:
                                                 FlutterFlowTheme.of(context)
                                                     .bodyMedium
                                                     .fontStyle,
                                           ),
-                                          color: Color(0xFFB88612),
-                                          fontSize: 10.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -990,28 +997,35 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                 ),
                                 Align(
                                   alignment: AlignmentDirectional(1.0, 0.0),
-                                  child: Text(
-                                    'Manage →',
-                                    textAlign: TextAlign.end,
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.outfit(
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      context.pushNamed(
+                                        DesiresWidget.routeName,
+                                      );
+                                    },
+                                    child: Text(
+                                      'Manage →',
+                                      textAlign: TextAlign.end,
+                                      style: FlutterFlowTheme.of(context)
+                                          .bodyMedium
+                                          .override(
+                                            font: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.w600,
+                                              fontStyle:
+                                                  FlutterFlowTheme.of(context)
+                                                      .bodyMedium
+                                                      .fontStyle,
+                                            ),
+                                            color: Color(0xFFD4A843),
+                                            fontSize: 10.0,
+                                            letterSpacing: 0.0,
                                             fontWeight: FontWeight.w600,
                                             fontStyle:
                                                 FlutterFlowTheme.of(context)
                                                     .bodyMedium
                                                     .fontStyle,
                                           ),
-                                          color: Color(0xFFD4A843),
-                                          fontSize: 10.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
+                                    ),
                                   ),
                                 ),
                               ],
