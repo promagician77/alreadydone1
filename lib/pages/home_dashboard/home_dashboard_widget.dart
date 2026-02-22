@@ -41,7 +41,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Story data for "Today's Story" card — pass to player on tap
     final storyCategoryLabel = '✦ LOVE · GENERATED TODAY';
     final storyTitle = 'A Love That Was';
     final storySubtitle = 'Always Yours';
@@ -789,25 +788,34 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget> {
                                         padding: EdgeInsetsDirectional.fromSTEB(
                                             15.0, 0.0, 11.0, 0.0),
                                         child: Container(
+                                          width: 38.0,
+                                          height: 38.0,
                                           decoration: BoxDecoration(
-                                            color: Color(0xFF2A1F0A),
+                                            color: Color.fromRGBO(
+                                                255, 255, 255, 0.06),
                                             borderRadius:
                                                 BorderRadius.circular(11.0),
                                           ),
-                                          child: FlutterFlowIconButton(
-                                            borderRadius: 8.0,
-                                            buttonSize: 38.0,
-                                            fillColor: Color(0xFF2A1F0A),
-                                            icon: FaIcon(
-                                              FontAwesomeIcons.moon,
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .info,
-                                              size: 20.0,
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () {
+                                                print('IconButton pressed ...');
+                                              },
+                                              borderRadius:
+                                                  BorderRadius.circular(11.0),
+                                              child: Center(
+                                                child: Text(
+                                                  '🌙',
+                                                  style: TextStyle(
+                                                    fontSize: 17.0,
+                                                    color: FlutterFlowTheme.of(
+                                                            context)
+                                                        .info,
+                                                  ),
+                                                ),
+                                              ),
                                             ),
-                                            onPressed: () {
-                                              print('IconButton pressed ...');
-                                            },
                                           ),
                                         ),
                                       ),

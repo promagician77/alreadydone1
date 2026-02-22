@@ -504,80 +504,155 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            FlutterFlowIconButton(
-                              borderColor: Color(0xFF1C1917),
-                              borderRadius: 50.0,
-                              borderWidth: 1.0,
-                              buttonSize: 38.0,
-                              fillColor: Color(0xFFF2EEE9),
-                              icon: Icon(
-                                Icons.skip_previous,
-                                color: Color(0xFF3D3530),
-                                size: 24.0,
+                            Container(
+                              width: 38.0,
+                              height: 38.0,
+                              decoration: BoxDecoration(
+                                color: Color(0xFFF2EEE9),
+                                borderRadius: BorderRadius.circular(19.0),
+                                border: Border.all(
+                                  color: Color(0xFF1C1917),
+                                  width: 1.0,
+                                ),
                               ),
-                              onPressed: () {
-                                print('IconButton pressed ...');
-                              },
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(19.0),
+                                  onTap: () {
+                                    print('IconButton pressed ...');
+                                  },
+                                  child: Center(
+                                    child: Text(
+                                      '⏮',
+                                      style: TextStyle(
+                                        fontSize: 17.0,
+                                        color: Color(0xFF3D3530),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            FlutterFlowIconButton(
-                              borderColor: Color(0xFF1C1917),
-                              borderRadius: 50.0,
-                              borderWidth: 1.0,
-                              buttonSize: 38.0,
-                              fillColor: Color(0xFFF2EEE9),
-                              icon: Icon(
-                                Icons.keyboard_double_arrow_left,
-                                color: Color(0xFF3D3530),
-                                size: 24.0,
+                            Container(
+                              width: 38.0,
+                              height: 38.0,
+                              decoration: BoxDecoration(
+                                color: Color(0xFFF2EEE9),
+                                borderRadius: BorderRadius.circular(19.0),
+                                border: Border.all(
+                                  color: Color(0xFF1C1917),
+                                  width: 1.0,
+                                ),
                               ),
-                              onPressed: () {
-                                print('IconButton pressed ...');
-                              },
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(19.0),
+                                  onTap: () {
+                                    print('IconButton pressed ...');
+                                  },
+                                  child: Center(
+                                    child: Text(
+                                      '⏪',
+                                      style: TextStyle(
+                                        fontSize: 17.0,
+                                        color: Color(0xFF3D3530),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            FlutterFlowIconButton(
-                              borderColor: Color(0xFF1C1917),
-                              borderRadius: 50.0,
-                              borderWidth: 1.0,
-                              buttonSize: 58.0,
-                              fillColor: Color(0xFF1C1917),
-                              icon: Icon(
-                                Icons.stop,
-                                color: Colors.white,
-                                size: 24.0,
+                            Container(
+                              width: 58.0,
+                              height: 58.0,
+                              decoration: BoxDecoration(
+                                color: Color(0xFF1C1917),
+                                borderRadius: BorderRadius.circular(29.0),
+                                border: Border.all(
+                                  color: Color(0xFF1C1917),
+                                  width: 1.0,
+                                ),
                               ),
-                              onPressed: () {
-                                print('IconButton pressed ...');
-                              },
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(29.0),
+                                  onTap: () {
+                                    print('IconButton pressed ...');
+                                  },
+                                  child: Center(
+                                    child: Text(
+                                      '⏸',
+                                      style: TextStyle(
+                                        fontSize: 24.0,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            FlutterFlowIconButton(
-                              borderColor: Color(0xFF1C1917),
-                              borderRadius: 50.0,
-                              borderWidth: 1.0,
-                              buttonSize: 38.0,
-                              fillColor: Color(0xFFF2EEE9),
-                              icon: Icon(
-                                Icons.keyboard_double_arrow_right_rounded,
-                                color: Color(0xFF3D3530),
-                                size: 24.0,
+                            Container(
+                              width: 38.0,
+                              height: 38.0,
+                              decoration: BoxDecoration(
+                                color: Color(0xFFF2EEE9),
+                                borderRadius: BorderRadius.circular(19.0),
+                                border: Border.all(
+                                  color: Color(0xFF1C1917),
+                                  width: 1.0,
+                                ),
                               ),
-                              onPressed: () {
-                                print('IconButton pressed ...');
-                              },
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(19.0),
+                                  onTap: () {
+                                    print('IconButton pressed ...');
+                                  },
+                                  child: Center(
+                                    child: Text(
+                                      '⏩',
+                                      style: TextStyle(
+                                        fontSize: 17.0,
+                                        color: Color(0xFF3D3530),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            FlutterFlowIconButton(
-                              borderColor: Color(0xFF1C1917),
-                              borderRadius: 50.0,
-                              borderWidth: 1.0,
-                              buttonSize: 38.0,
-                              fillColor: Color(0xFFF2EEE9),
-                              icon: Icon(
-                                Icons.refresh,
-                                color: Color(0xFF3D3530),
-                                size: 24.0,
+                            Container(
+                              width: 38.0,
+                              height: 38.0,
+                              decoration: BoxDecoration(
+                                color: Color(0xFFF2EEE9),
+                                borderRadius: BorderRadius.circular(19.0),
+                                border: Border.all(
+                                  color: Color(0xFF1C1917),
+                                  width: 1.0,
+                                ),
                               ),
-                              onPressed: () {
-                                print('IconButton pressed ...');
-                              },
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(19.0),
+                                  onTap: () {
+                                    print('IconButton pressed ...');
+                                  },
+                                  child: Center(
+                                    child: Text(
+                                      '↻',
+                                      style: TextStyle(
+                                        fontSize: 17.0,
+                                        color: Color(0xFF3D3530),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -614,30 +689,9 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                                         0.0, 10.0, 0.0, 3.0),
                                     child: Text(
                                       '☀️',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.inter(
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            fontSize: 15.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
+                                      style: const TextStyle(
+                                        fontSize: 15.0,
+                                      ),
                                     ),
                                   ),
                                   Text(

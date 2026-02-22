@@ -1720,19 +1720,35 @@ class _DesiresWidgetState extends State<DesiresWidget> {
                                 children: [
                                   Align(
                                     alignment: AlignmentDirectional(0.0, 0.0),
-                                    child: FlutterFlowIconButton(
-                                      borderRadius: 50.0,
-                                      buttonSize: 22.0,
-                                      fillColor: Color(0x19FFFFFF),
-                                      icon: Icon(
-                                        Icons.star_rate_rounded,
-                                        color:
-                                            FlutterFlowTheme.of(context).info,
-                                        size: 6.0,
+                                    child: Container(
+                                      width: 22.0,
+                                      height: 22.0,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0x19FFFFFF),
+                                        borderRadius:
+                                            BorderRadius.circular(11.0),
                                       ),
-                                      onPressed: () {
-                                        print('IconButton pressed ...');
-                                      },
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius:
+                                              BorderRadius.circular(11.0),
+                                          onTap: () {
+                                            print('IconButton pressed ...');
+                                          },
+                                          child: Center(
+                                            child: Text(
+                                              '✦',
+                                              style: TextStyle(
+                                                fontSize: 11.0,
+                                                color:
+                                                    FlutterFlowTheme.of(context)
+                                                        .info,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   Padding(

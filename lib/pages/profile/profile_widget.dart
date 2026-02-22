@@ -495,18 +495,33 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      FlutterFlowIconButton(
-                                        borderRadius: 8.0,
-                                        buttonSize: 30.0,
-                                        fillColor: Color(0xFFFBF4E6),
-                                        icon: Icon(
-                                          Icons.mic,
-                                          color: Color(0xFF1C1917),
-                                          size: 15.0,
+                                      Container(
+                                        width: 30.0,
+                                        height: 30.0,
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFFFBF4E6),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
                                         ),
-                                        onPressed: () {
-                                          print('IconButton pressed ...');
-                                        },
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
+                                            onTap: () {
+                                              print('IconButton pressed ...');
+                                            },
+                                            child: Center(
+                                              child: Text(
+                                                '🎙️',
+                                                style: TextStyle(
+                                                  fontSize: 15.0,
+                                                  color: Color(0xFF1C1917),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                       Expanded(
                                         child: Padding(
@@ -658,18 +673,33 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.max,
                                       children: [
-                                        FlutterFlowIconButton(
-                                          borderRadius: 8.0,
-                                          buttonSize: 30.0,
-                                          fillColor: Color(0xFFEAF4F6),
-                                          icon: Icon(
-                                            Icons.volume_up,
-                                            color: Color(0xFF1C1917),
-                                            size: 15.0,
+                                        Container(
+                                          width: 30.0,
+                                          height: 30.0,
+                                          decoration: BoxDecoration(
+                                            color: Color(0xFFEAF4F6),
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
                                           ),
-                                          onPressed: () {
-                                            print('IconButton pressed ...');
-                                          },
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              borderRadius:
+                                                  BorderRadius.circular(8.0),
+                                              onTap: () {
+                                                print('IconButton pressed ...');
+                                              },
+                                              child: Center(
+                                                child: Text(
+                                                  '🔊',
+                                                  style: TextStyle(
+                                                    fontSize: 15.0,
+                                                    color: Color(0xFF1C1917),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                         Expanded(
                                           child: Padding(
@@ -848,18 +878,33 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      FlutterFlowIconButton(
-                                        borderRadius: 8.0,
-                                        buttonSize: 30.0,
-                                        fillColor: Color(0xFFF5EDD8),
-                                        icon: Icon(
-                                          Icons.sunny_snowing,
-                                          color: Color(0xFF1C1917),
-                                          size: 15.0,
+                                      Container(
+                                        width: 30.0,
+                                        height: 30.0,
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFFF5EDD8),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
                                         ),
-                                        onPressed: () {
-                                          print('IconButton pressed ...');
-                                        },
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
+                                            onTap: () {
+                                              print('IconButton pressed ...');
+                                            },
+                                            child: Center(
+                                              child: Text(
+                                                '🌅',
+                                                style: TextStyle(
+                                                  fontSize: 15.0,
+                                                  color: Color(0xFF1C1917),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                       Expanded(
                                         child: Padding(
@@ -987,18 +1032,33 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      FlutterFlowIconButton(
-                                        borderRadius: 8.0,
-                                        buttonSize: 30.0,
-                                        fillColor: Color(0x0F19170D),
-                                        icon: Icon(
-                                          Icons.mode_night,
-                                          color: Color(0xFF1C1917),
-                                          size: 15.0,
+                                      Container(
+                                        width: 30.0,
+                                        height: 30.0,
+                                        decoration: BoxDecoration(
+                                          color: Color(0x0F19170D),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
                                         ),
-                                        onPressed: () {
-                                          print('IconButton pressed ...');
-                                        },
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
+                                            onTap: () {
+                                              print('IconButton pressed ...');
+                                            },
+                                            child: Center(
+                                              child: Text(
+                                                '🌙',
+                                                style: TextStyle(
+                                                  fontSize: 15.0,
+                                                  color: Color(0xFF1C1917),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                       Expanded(
                                         child: Padding(
@@ -1126,18 +1186,33 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
                                     children: [
-                                      FlutterFlowIconButton(
-                                        borderRadius: 8.0,
-                                        buttonSize: 30.0,
-                                        fillColor: Color(0xFFFDF0EE),
-                                        icon: Icon(
-                                          Icons.doorbell_outlined,
-                                          color: Color(0xFF1C1917),
-                                          size: 15.0,
+                                      Container(
+                                        width: 30.0,
+                                        height: 30.0,
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFFFDF0EE),
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
                                         ),
-                                        onPressed: () {
-                                          print('IconButton pressed ...');
-                                        },
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
+                                            onTap: () {
+                                              print('IconButton pressed ...');
+                                            },
+                                            child: Center(
+                                              child: Text(
+                                                '🔔',
+                                                style: TextStyle(
+                                                  fontSize: 15.0,
+                                                  color: Color(0xFF1C1917),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                       Expanded(
                                         child: Padding(
