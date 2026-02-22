@@ -19,7 +19,7 @@ class DesiresWidget extends StatefulWidget {
   State<DesiresWidget> createState() => _DesiresWidgetState();
 }
 
-class _DesiresWidgetState extends State<DesiresWidget> {
+class _DesiresWidgetState extends State<DesiresWidget> { 
   late DesiresModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();

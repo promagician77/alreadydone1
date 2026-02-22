@@ -241,23 +241,32 @@ class _SignUpWidgetState extends State<SignUpWidget> {
         fullName: name,
       );
 
-      if (response.user != null) {
-        if (mounted) {
-          // Check if user is authenticated (email confirmation disabled) or needs email verification
-          if (SupabaseService.isAuthenticated) {
-            // Email confirmation disabled - user is immediately authenticated
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Account created successfully! Welcome!')),
-            );
-            context.go('/');
+      if (response.user != null && mounted) {
+        String message =
+            'Account created! We sent a 6-digit code to your email.';
+
+        // Try to send OTP, but handle rate-limit gracefully and still
+        // move the user to the OTP page if the account was created.
+        try {
+          await SupabaseService.sendEmailOtp(email: email);
+        } catch (e) {
+          final errorText = e.toString();
+          if (errorText.contains('over_email_send_rate_limit') ||
+              errorText.contains('429')) {
+            message =
+                'Account created! We already sent a code recently. Please check your email or try again in a moment.';
           } else {
-            // Email confirmation enabled - user needs to verify email
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Account created! Please check your email to verify your account.')),
-            );
-            context.go('/login');
+            message =
+                'Account created, but we could not send a new code. Please check your email or try again shortly.';
           }
         }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+
+        // Navigate to the email verification screen, passing the email
+        context.go('/verifyEmailOtp?email=$email');
       }
     } catch (e) {
       if (mounted) {

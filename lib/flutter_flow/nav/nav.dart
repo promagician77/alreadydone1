@@ -49,12 +49,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       navigatorKey: appNavigatorKey,
       redirect: (context, state) {
         final isAuth = appStateNotifier.isAuthenticated;
-        final isAuthRoute = state.matchedLocation == '/login' ||
-            state.matchedLocation == '/signUp' ||
-            state.matchedLocation == '/passwordReset';
+        final isAuthRoute = state.matchedLocation == LoginWidget.routePath ||
+            state.matchedLocation == SignUpWidget.routePath ||
+            state.matchedLocation == PasswordResetWidget.routePath ||
+            state.matchedLocation == EmailVerificationWidget.routePath;
 
         if (!isAuth && !isAuthRoute) {
-          return '/login';
+          return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
           return '/';
@@ -118,6 +119,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: PasswordResetWidget.routeName,
           path: PasswordResetWidget.routePath,
           builder: (context, params) => PasswordResetWidget(),
+        ),
+        FFRoute(
+          name: EmailVerificationWidget.routeName,
+          path: EmailVerificationWidget.routePath,
+          builder: (context, params) => EmailVerificationWidget(
+            email: params.getParam('email', ParamType.String) ?? '',
+          ),
         )
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );

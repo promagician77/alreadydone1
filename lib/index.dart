@@ -7,3 +7,5 @@ export '/pages/profile/profile_widget.dart' show ProfileWidget;
 export '/pages/sign_up/sign_up_widget.dart' show SignUpWidget;
 export '/pages/login/login_widget.dart' show LoginWidget;
 export '/pages/password_reset/password_reset_widget.dart' show PasswordResetWidget;
+export '/pages/email_verification/email_verification_widget.dart'
+    show EmailVerificationWidget;

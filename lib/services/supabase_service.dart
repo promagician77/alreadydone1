@@ -2,15 +2,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
-/// Supabase service for authentication and database operations.
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
-  /// Initialize Supabase with your project credentials.
-  /// 
-  /// Get these from your Supabase project dashboard:
-  /// - Project URL: https://your-project.supabase.co
-  /// - Anon Key: Your anon/public key from Settings > API
   static Future<void> initialize({
     required String url,
     required String anonKey,
@@ -18,17 +12,13 @@ class SupabaseService {
     await Supabase.initialize(
       url: url,
       anonKey: anonKey,
-      debug: false, // Set to true for development debugging
+      debug: false, 
     );
   }
 
-  /// Get current user session
   static User? get currentUser => client.auth.currentUser;
-
-  /// Check if user is authenticated
   static bool get isAuthenticated => currentUser != null;
 
-  /// Sign up with email and password
   static Future<AuthResponse> signUp({
     required String email,
     required String password,
@@ -45,7 +35,27 @@ class SupabaseService {
     );
   }
 
-  /// Sign in with email and password
+  static Future<void> sendEmailOtp({
+    required String email,
+    String? redirectTo,
+  }) async {
+    await client.auth.signInWithOtp(
+      email: email,
+      emailRedirectTo: redirectTo,
+    );
+  }
+
+  static Future<AuthResponse> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
+    return await client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.email,
+    );
+  }
+
   static Future<AuthResponse> signIn({
     required String email,
     required String password,
@@ -56,20 +66,17 @@ class SupabaseService {
     );
   }
 
-  /// Sign out
   static Future<void> signOut() async {
     await client.auth.signOut();
   }
 
-  /// Reset password (send reset email)
   static Future<void> resetPasswordForEmail(String email) async {
     await client.auth.resetPasswordForEmail(
       email,
-      redirectTo: null, // You can set a custom redirect URL if needed
+      redirectTo: null, 
     );
   }
 
-  /// Sign in with OAuth provider (Google, Apple, etc.)
   static Future<bool> signInWithOAuth({
     required OAuthProvider provider,
     String? redirectTo,
@@ -80,6 +87,5 @@ class SupabaseService {
     );
   }
 
-  /// Listen to auth state changes
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 }
