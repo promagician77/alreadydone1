@@ -3,8 +3,10 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import 'dart:ui';
+import '/index.dart';
 import '/models/story.dart';
 import '/services/story_service.dart';
+import '/services/voice_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +27,41 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   late DesiresModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+
+  int? _loadingStoryId;
+
+  Future<void> _playStory(String desireName, Story s) async {
+    if (_loadingStoryId == s.id) return;
+    setState(() => _loadingStoryId = s.id);
+    try {
+      final url = await VoiceService.speak(storyId: s.id);
+      if (!mounted) return;
+      setState(() => _loadingStoryId = null);
+      if (url != null) {
+        context.pushNamed(
+          PlayerWidget.routeName,
+          extra: {
+            'categoryLabel': desireName,
+            'title': s.title,
+            'subtitle': s.desireName,
+            'durationLabel': s.playLength ?? 'In your voice',
+            'storyId': s.id,
+            'audioUrl': url,
+          },
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not generate audio')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingStoryId = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load voice: $e')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -185,64 +222,80 @@ class _DesiresWidgetState extends State<DesiresWidget> {
                     return Padding(
                       padding: EdgeInsetsDirectional.fromSTEB(
                           0.0, e.key == 0 ? 0.0 : 5.0, 0.0, 0.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Color(0xFFF9F7F4),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _playStory(desireName, s),
                           borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
-                              10.0, 8.0, 10.0, 8.0),
-                          child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Color(0xFFF9F7F4),
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsetsDirectional.fromSTEB(
+                                  10.0, 8.0, 10.0, 8.0),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Container(
-                                    width: 6.0,
-                                    height: 6.0,
-                                    decoration: BoxDecoration(
-                                      color: dot,
-                                      borderRadius:
-                                          BorderRadius.circular(50.0),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8.0),
-                                  SizedBox(
-                                    width: 160.0,
-                                    child: Text(
-                                      s.title,
-                                      style: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 11.0,
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 6.0,
+                                        height: 6.0,
+                                        decoration: BoxDecoration(
+                                          color: dot,
+                                          borderRadius:
+                                              BorderRadius.circular(50.0),
+                                        ),
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                      const SizedBox(width: 8.0),
+                                      SizedBox(
+                                        width: 160.0,
+                                        child: Text(
+                                          s.title,
+                                          style: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 11.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _relativeDate(s.lastPlayed),
+                                        style: GoogleFonts.dmMono(
+                                          color: Color(0xFF9E9189),
+                                          fontSize: 10.0,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6.0),
+                                      _loadingStoryId == s.id
+                                          ? SizedBox(
+                                              width: 12.0,
+                                              height: 12.0,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 1.5,
+                                                color: Color(0xFF9E9189),
+                                              ),
+                                            )
+                                          : Text(
+                                        '▶',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Color(0xFF9E9189),
+                                          fontSize: 10.0,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              Row(
-                                children: [
-                                  Text(
-                                    _relativeDate(s.lastPlayed),
-                                    style: GoogleFonts.dmMono(
-                                      color: Color(0xFF9E9189),
-                                      fontSize: 10.0,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6.0),
-                                  Text(
-                                    '▶',
-                                    style: TextStyle(
-                                      color: Color(0xFF9E9189),
-                                      fontSize: 10.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),

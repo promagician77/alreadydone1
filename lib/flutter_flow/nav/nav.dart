@@ -95,6 +95,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
                     title: params.getParam('title', ParamType.String),
                     subtitle: params.getParam('subtitle', ParamType.String),
                     durationLabel: params.getParam('durationLabel', ParamType.String),
+                    storyId: params.getParam('storyId', ParamType.int),
+                    audioUrl: params.getParam('audioUrl', ParamType.String),
                   ),
                 ),
         ),

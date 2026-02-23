@@ -140,55 +140,77 @@ class _NavBarPageState extends State<NavBarPage> {
     };
     final currentIndex = tabs.keys.toList().indexOf(_currentPageName);
 
+    final navItems = [
+      {'symbol': '⌂', 'label': 'Home'},
+      {'symbol': '✦', 'label': 'Desires'},
+      {'symbol': '◎', 'label': 'Player'},
+      {'symbol': null, 'label': 'Profile'},
+    ];
+
     return Scaffold(
       resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
       body: _currentPage ?? tabs[_currentPageName],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (i) => safeSetState(() {
-          _currentPage = null;
-          _currentPageName = tabs.keys.toList()[i];
-        }),
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: FlutterFlowTheme.of(context).secondaryText,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.home_outlined,
-              size: 18.0,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: FlutterFlowTheme.of(context).primaryBackground,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(4, (i) {
+                final isSelected = i == currentIndex;
+                final symbol = navItems[i]['symbol'] as String?;
+                final label = navItems[i]['label'] as String;
+                final color = isSelected
+                    ? Colors.black
+                    : FlutterFlowTheme.of(context).secondaryText;
+                return Expanded(
+                  child: InkWell(
+                    onTap: () => safeSetState(() {
+                      _currentPage = null;
+                      _currentPageName = tabs.keys.toList()[i];
+                    }),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        symbol != null
+                            ? Text(
+                                symbol,
+                                style: TextStyle(fontSize: 17, color: color),
+                              )
+                            : Icon(Icons.person, size: 17, color: color),
+                        SizedBox(height: 4),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: color,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        if (isSelected)
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: Colors.yellow.shade700,
+                              shape: BoxShape.circle,
+                            ),
+                          )
+                        else
+                          SizedBox(height: 6),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
-            label: 'Home',
-            tooltip: '',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.auto_awesome,
-              size: 11.0,
-            ),
-            label: 'Desires',
-            tooltip: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.trip_origin,
-              size: 24.0,
-            ),
-            label: 'Player',
-            tooltip: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.person,
-              size: 24.0,
-            ),
-            label: 'Profile',
-            tooltip: '',
-          )
-        ],
+        ),
       ),
     );
   }

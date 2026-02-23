@@ -12,8 +12,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
-  // Holds the randomly selected story of the day.
   Story? todayStory;
+  List<Story> recentStories = [];
   bool isLoading = false;
   String? errorMessage;
 

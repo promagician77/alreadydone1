@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:math' as math;
 import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/services/voice_service.dart';
 import 'dart:ui';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -16,12 +20,16 @@ class PlayerWidget extends StatefulWidget {
     this.title,
     this.subtitle,
     this.durationLabel,
+    this.storyId,
+    this.audioUrl,
   });
 
   final String? categoryLabel;
   final String? title;
   final String? subtitle;
   final String? durationLabel;
+  final int? storyId;
+  final String? audioUrl;
 
   static String routeName = 'Player';
   static String routePath = '/player';
@@ -35,16 +43,177 @@ class _PlayerWidgetState extends State<PlayerWidget> {
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  static const List<double> _staticWaveHeights = [
+    10, 20, 30, 16, 36, 24, 32, 12, 40, 22, 28, 38, 14, 24, 34,
+  ];
+  static const int _maxWaveBars = 32;
+  static const int _barWidth = 5;
+  static const double _barGap = 2.0;
+
+  bool _isWavePlaying = false;
+  List<double> _waveBars = List.from(_staticWaveHeights);
+  Timer? _waveTimer;
+  final math.Random _random = math.Random();
+
+  late AudioPlayer _audioPlayer;
+  String? _currentAudioUrl;
+  bool _isLoadingAudio = false;
+  Duration _currentPosition = Duration.zero;
+  Duration _totalDuration = Duration.zero;
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDurationFull(Duration d) {
+    final hours = d.inHours.toString().padLeft(2, '0');
+    final minutes = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
+  }
+
+  Future<void> _togglePlayPause() async {
+    final url = widget.audioUrl ?? _currentAudioUrl;
+    if (url != null) {
+      if (_isWavePlaying) {
+        await _audioPlayer.pause();
+        _stopWaveStream();
+      } else {
+        await _audioPlayer.play(UrlSource(url, mimeType: 'audio/mpeg'));
+        _startWaveStream();
+      }
+      return;
+    }
+    if (widget.storyId == null) return;
+    if (_isLoadingAudio) return;
+    setState(() => _isLoadingAudio = true);
+    try {
+      final newUrl = await VoiceService.speak(storyId: widget.storyId!);
+      if (!mounted) return;
+      setState(() {
+        _isLoadingAudio = false;
+        _currentAudioUrl = newUrl;
+      });
+      if (newUrl != null) {
+        await _audioPlayer.play(UrlSource(newUrl, mimeType: 'audio/mpeg'));
+        _startWaveStream();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not generate audio')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingAudio = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load voice: $e')),
+      );
+    }
+  }
+
+  void _startWaveStream() {
+    _waveTimer?.cancel();
+    setState(() {
+      _isWavePlaying = true;
+      _waveBars = List.from(_staticWaveHeights);
+    });
+    _waveTimer = Timer.periodic(const Duration(milliseconds: 90), (_) {
+      if (!mounted || !_isWavePlaying) return;
+      setState(() {
+        final h = 8.0 + _random.nextDouble() * 32.0;
+        _waveBars.add(h.clamp(8.0, 40.0));
+        if (_waveBars.length > _maxWaveBars) {
+          _waveBars.removeAt(0);
+        }
+      });
+    });
+  }
+
+  void _stopWaveStream() {
+    _waveTimer?.cancel();
+    _waveTimer = null;
+    setState(() {
+      _isWavePlaying = false;
+      _waveBars = List.from(_staticWaveHeights);
+    });
+  }
+
+  List<Widget> _buildWaveBars() {
+    return [
+      for (int i = 0; i < _waveBars.length; i++) ...[
+        if (i > 0) SizedBox(width: _barGap),
+        Container(
+          width: _barWidth.toDouble(),
+          height: _waveBars[i].clamp(8.0, 54.0),
+          decoration: BoxDecoration(
+            color: Color(
+              i % 2 == 0 ? 0xFF1C1917 : 0xFFE8E2DA,
+            ),
+            borderRadius: BorderRadius.circular(2.0),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _buildFullWidthWaveBars(double availableWidth) {
+    final barCount = ((availableWidth + _barGap) / (_barWidth + _barGap))
+        .floor()
+        .clamp(1, 200);
+    return [
+      for (int i = 0; i < barCount; i++) ...[
+        if (i > 0) SizedBox(width: _barGap),
+        Container(
+          width: _barWidth.toDouble(),
+          height: _staticWaveHeights[i % _staticWaveHeights.length]
+              .clamp(8.0, 54.0),
+          decoration: BoxDecoration(
+            color: Color(
+              i % 2 == 0 ? 0xFF1C1917 : 0xFFE8E2DA,
+            ),
+            borderRadius: BorderRadius.circular(2.0),
+          ),
+        ),
+      ],
+    ];
+  }
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => PlayerModel());
+    _audioPlayer = AudioPlayer();
+    _currentAudioUrl = widget.audioUrl;
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (state == PlayerState.completed || state == PlayerState.stopped) {
+        if (mounted) {
+          _stopWaveStream();
+          setState(() => _currentPosition = Duration.zero);
+        }
+      }
+    });
+    _audioPlayer.onPositionChanged.listen((position) {
+      if (mounted) setState(() => _currentPosition = position);
+    });
+    _audioPlayer.onDurationChanged.listen((duration) {
+      if (mounted) setState(() => _totalDuration = duration);
+    });
+    if (widget.audioUrl != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _audioPlayer.play(UrlSource(widget.audioUrl!, mimeType: 'audio/mpeg'));
+        _startWaveStream();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _waveTimer?.cancel();
+    _audioPlayer.dispose();
     _model.dispose();
-
     super.dispose();
   }
 
@@ -197,7 +366,9 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                               padding: EdgeInsetsDirectional.fromSTEB(
                                   0.0, 0.0, 0.0, 22.0),
                               child: Text(
-                                widget.durationLabel ?? 'Feb 14, 2026 · In your voice',
+                                _totalDuration > Duration.zero
+                                    ? _formatDurationFull(_totalDuration)
+                                    : (widget.durationLabel ?? '00:00:00'),
                                 style: FlutterFlowTheme.of(context)
                                     .bodyMedium
                                     .override(
@@ -238,191 +409,27 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                             color: Color(0x141C1917),
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  14.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 10.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF1C1917),
-                                  borderRadius: BorderRadius.circular(2.0),
+                        padding: EdgeInsetsDirectional.fromSTEB(
+                            14.0, 0.0, 14.0, 0.0),
+                        alignment: Alignment.center,
+                        child: _isWavePlaying
+                            ? SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: _buildWaveBars(),
                                 ),
+                              )
+                            : LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final w = constraints.maxWidth;
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: _buildFullWidthWaveBars(w),
+                                  );
+                                },
                               ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 20.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF1C1917),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 30.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF1C1917),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 16.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF1C1917),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 36.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF1C1917),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 24.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF1C1917),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 32.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFF1C1917),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 12.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 40.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 22.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 28.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 38.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 14.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 24.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  2.0, 0.0, 0.0, 0.0),
-                              child: Container(
-                                width: 5.0,
-                                height: 34.0,
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE8E2DA),
-                                  borderRadius: BorderRadius.circular(2.0),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                     Padding(
@@ -440,7 +447,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              '1:29',
+                              _formatDuration(_currentPosition),
                               style: FlutterFlowTheme.of(context)
                                   .bodyMedium
                                   .override(
@@ -464,7 +471,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                                   ),
                             ),
                             Text(
-                              '3:42',
+                              _formatDuration(_totalDuration),
                               style: FlutterFlowTheme.of(context)
                                   .bodyMedium
                                   .override(
@@ -579,12 +586,19 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(29.0),
-                                  onTap: () {
-                                    print('IconButton pressed ...');
-                                  },
+                                  onTap: _togglePlayPause,
                                   child: Center(
-                                    child: Text(
-                                      '⏸',
+                                    child: _isLoadingAudio
+                                        ? SizedBox(
+                                            width: 18.0,
+                                            height: 18.0,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.0,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Text(
+                                      _isWavePlaying ? '⏸' : '▶',
                                       style: TextStyle(
                                         fontSize: 24.0,
                                         color: Colors.white,
