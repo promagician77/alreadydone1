@@ -1,35 +1,62 @@
 import 'dart:async';
 import 'dart:math' as math;
-import '/flutter_flow/flutter_flow_icon_button.dart';
-import '/flutter_flow/flutter_flow_theme.dart';
-import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
-import '/services/voice_service.dart';
-import 'dart:ui';
+
 import 'package:audioplayers/audioplayers.dart';
+import 'package:screen_brightness/screen_brightness.dart';
+import '/flutter_flow/flutter_flow_util.dart';
+import '/services/last_played_service.dart';
+import '/services/theta_wave_generator.dart';
 import 'package:flutter/material.dart';
+import '/services/sleep_mode_notifier.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import '/services/backend_client.dart';
+import '/services/supabase_service.dart';
+import '/widgets/pressable.dart';
+import 'player_modals/player_modals.dart';
 import 'player_model.dart';
 export 'player_model.dart';
+
+/// Design tokens from HTML (Story Player)
+class _PlayerColors {
+  static const warmWhite = Color(0xFFF9F7F4);
+  static const surface = Color(0xFFFEFDFB);
+  static const ink = Color(0xFF1C1917);
+  static const inkMid = Color(0xFF44403C);
+  static const inkSoft = Color(0xFF78716C);
+  static const stone = Color(0xFFE8E2DA);
+  static const stoneMid = Color(0xFFD6D0C8);
+  static const gold = Color(0xFFB8861E);
+  static const goldDark = Color(0xFF8B6914);
+  static const goldLight = Color(0xFFD4A574);
+  static const goldPale = Color(0xFFFBF4E6);
+  static const blush = Color(0xFFD98B80);
+  static const lavender = Color(0xFF9B8FAA);
+  static const sleepPurple = Color(0xFF4A3B5F);
+  static const sleepBlue = Color(0xFF2A3B5F);
+  static const sleepDark = Color(0xFF1A1F3A);
+}
 
 class PlayerWidget extends StatefulWidget {
   const PlayerWidget({
     super.key,
+    this.storyId,
     this.categoryLabel,
     this.title,
     this.subtitle,
     this.durationLabel,
-    this.storyId,
-    this.audioUrl,
+    this.playUrl,
+    this.storyPreview,
   });
 
+  final int? storyId;
   final String? categoryLabel;
   final String? title;
   final String? subtitle;
   final String? durationLabel;
-  final int? storyId;
-  final String? audioUrl;
+  /// Voice URL from api/voice/speak. When provided, used directly for playback.
+  final String? playUrl;
+  /// Story text for preview. When provided, used for STORY PREVIEW section.
+  final String? storyPreview;
 
   static String routeName = 'Player';
   static String routePath = '/player';
@@ -38,36 +65,37 @@ class PlayerWidget extends StatefulWidget {
   State<PlayerWidget> createState() => _PlayerWidgetState();
 }
 
-class _PlayerWidgetState extends State<PlayerWidget> {
+class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderStateMixin {
   late PlayerModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final ThetaWaveGenerator _thetaGenerator = ThetaWaveGenerator(volume: 0.05);
 
-  static const List<double> _staticWaveHeights = [
-    10, 20, 30, 16, 36, 24, 32, 12, 40, 22, 28, 38, 14, 24, 34,
-  ];
-  static const int _maxWaveBars = 32;
-  static const int _barWidth = 5;
-  static const double _barGap = 2.0;
+  StreamSubscription? _playerCompleteSub;
+  StreamSubscription? _durationChangedSub;
+  StreamSubscription? _positionChangedSub;
+  bool _disposed = false;
 
-  bool _isWavePlaying = false;
-  List<double> _waveBars = List.from(_staticWaveHeights);
-  Timer? _waveTimer;
-  final math.Random _random = math.Random();
+  String? _categoryLabel;
+  String? _title;
+  String? _subtitle;
+  String? _durationLabel;
+  String? _previewContent;
+  String? _fullStoryContent;
+  String? _playUrl;
+  bool _loading = true;
+  String? _loadError;
+  bool _isPlaying = false;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
 
-  late AudioPlayer _audioPlayer;
-  String? _currentAudioUrl;
-  bool _isLoadingAudio = false;
-  Duration _currentPosition = Duration.zero;
-  Duration _totalDuration = Duration.zero;
+  bool _sleepModeActive = false;
+  int? _sleepTimerMinutes = 30;
+  DateTime? _sleepModeStartedAt;
+  Timer? _sleepCountdownTimer;
+  Timer? _sleepVolumeFadeTimer;
 
-<<<<<<< Updated upstream
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes;
-    final seconds = d.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-=======
   /// Sleep mode playback speed (only used when sleep mode is active).
   /// Default is 0.75x.
   static const List<double> _sleepSpeedOptions = [0.5, 0.75, 1.0];
@@ -79,152 +107,283 @@ class _PlayerWidgetState extends State<PlayerWidget> {
   static const int _sleepFadeOutSeconds = 60;
   /// Screen brightness when sleep mode active (~40%).
   static const double _sleepBrightness = 0.4;
->>>>>>> Stashed changes
 
-  String _formatDurationFull(Duration d) {
-    final hours = d.inHours.toString().padLeft(2, '0');
-    final minutes = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return '$hours:$minutes:$seconds';
-  }
-
-  Future<void> _togglePlayPause() async {
-    final url = widget.audioUrl ?? _currentAudioUrl;
-    if (url != null) {
-      if (_isWavePlaying) {
-        await _audioPlayer.pause();
-        _stopWaveStream();
-      } else {
-        await _audioPlayer.play(UrlSource(url, mimeType: 'audio/mpeg'));
-        _startWaveStream();
-      }
-      return;
-    }
-    if (widget.storyId == null) return;
-    if (_isLoadingAudio) return;
-    setState(() => _isLoadingAudio = true);
-    try {
-      final newUrl = await VoiceService.speak(storyId: widget.storyId!);
-      if (!mounted) return;
-      setState(() {
-        _isLoadingAudio = false;
-        _currentAudioUrl = newUrl;
-      });
-      if (newUrl != null) {
-        await _audioPlayer.play(UrlSource(newUrl, mimeType: 'audio/mpeg'));
-        _startWaveStream();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not generate audio')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoadingAudio = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load voice: $e')),
-      );
-    }
-  }
-
-  void _startWaveStream() {
-    _waveTimer?.cancel();
-    setState(() {
-      _isWavePlaying = true;
-      _waveBars = List.from(_staticWaveHeights);
-    });
-    _waveTimer = Timer.periodic(const Duration(milliseconds: 90), (_) {
-      if (!mounted || !_isWavePlaying) return;
-      setState(() {
-        final h = 8.0 + _random.nextDouble() * 32.0;
-        _waveBars.add(h.clamp(8.0, 40.0));
-        if (_waveBars.length > _maxWaveBars) {
-          _waveBars.removeAt(0);
-        }
-      });
-    });
-  }
-
-  void _stopWaveStream() {
-    _waveTimer?.cancel();
-    _waveTimer = null;
-    setState(() {
-      _isWavePlaying = false;
-      _waveBars = List.from(_staticWaveHeights);
-    });
-  }
-
-  List<Widget> _buildWaveBars() {
-    return [
-      for (int i = 0; i < _waveBars.length; i++) ...[
-        if (i > 0) SizedBox(width: _barGap),
-        Container(
-          width: _barWidth.toDouble(),
-          height: _waveBars[i].clamp(8.0, 54.0),
-          decoration: BoxDecoration(
-            color: Color(
-              i % 2 == 0 ? 0xFF1C1917 : 0xFFE8E2DA,
-            ),
-            borderRadius: BorderRadius.circular(2.0),
-          ),
-        ),
-      ],
-    ];
-  }
-
-  List<Widget> _buildFullWidthWaveBars(double availableWidth) {
-    final barCount = ((availableWidth + _barGap) / (_barWidth + _barGap))
-        .floor()
-        .clamp(1, 200);
-    return [
-      for (int i = 0; i < barCount; i++) ...[
-        if (i > 0) SizedBox(width: _barGap),
-        Container(
-          width: _barWidth.toDouble(),
-          height: _staticWaveHeights[i % _staticWaveHeights.length]
-              .clamp(8.0, 54.0),
-          decoration: BoxDecoration(
-            color: Color(
-              i % 2 == 0 ? 0xFF1C1917 : 0xFFE8E2DA,
-            ),
-            borderRadius: BorderRadius.circular(2.0),
-          ),
-        ),
-      ],
-    ];
-  }
+  late AnimationController _waveformController;
 
   @override
   void initState() {
     super.initState();
+    _waveformController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
     _model = createModel(context, () => PlayerModel());
-    _audioPlayer = AudioPlayer();
-    _currentAudioUrl = widget.audioUrl;
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (state == PlayerState.completed || state == PlayerState.stopped) {
-        if (mounted) {
-          _stopWaveStream();
-          setState(() => _currentPosition = Duration.zero);
-        }
+    _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
+    _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!_disposed && mounted && !_sleepModeActive) {
+        setState(() {
+          _isPlaying = false;
+          _position = Duration.zero;
+        });
       }
     });
-    _audioPlayer.onPositionChanged.listen((position) {
-      if (mounted) setState(() => _currentPosition = position);
+    _durationChangedSub = _audioPlayer.onDurationChanged.listen((d) {
+      if (!_disposed && mounted) setState(() => _duration = d);
     });
-    _audioPlayer.onDurationChanged.listen((duration) {
-      if (mounted) setState(() => _totalDuration = duration);
+    _positionChangedSub = _audioPlayer.onPositionChanged.listen((p) {
+      if (!_disposed && mounted) setState(() => _position = p);
     });
-    if (widget.audioUrl != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    _loadStoryData();
+  }
+
+  Future<void> _loadStoryData() async {
+    final previewFromWidget = (widget.storyPreview ?? '').trim();
+    if (previewFromWidget.isNotEmpty) {
+      setState(() {
+        _previewContent = previewFromWidget.length > 200
+            ? '${previewFromWidget.substring(0, 200)}...'
+            : previewFromWidget;
+      });
+    }
+
+    if (widget.storyId == null) {
+      if (widget.playUrl != null && widget.playUrl!.isNotEmpty) {
+        setState(() {
+          _categoryLabel = widget.categoryLabel;
+          _title = widget.title;
+          _subtitle = widget.subtitle;
+          _durationLabel = widget.durationLabel;
+          if (_previewContent == null && previewFromWidget.isEmpty) _previewContent = null;
+          _playUrl = widget.playUrl;
+          _loading = false;
+        });
+        _saveLastPlayed();
+        return;
+      }
+      final lastPlayed = await LastPlayedService.loadLastPlayed();
+      if (lastPlayed != null && lastPlayed['playUrl']?.toString().trim().isNotEmpty == true) {
+        final playUrl = lastPlayed['playUrl']!.toString().trim();
+        final title = lastPlayed['title']?.toString().trim();
+        final categoryLabel = lastPlayed['categoryLabel']?.toString().trim();
+        final durationLabel = lastPlayed['durationLabel']?.toString().trim();
+        final storyPreview = lastPlayed['storyPreview']?.toString().trim();
         if (!mounted) return;
-        _audioPlayer.play(UrlSource(widget.audioUrl!, mimeType: 'audio/mpeg'));
-        _startWaveStream();
+        setState(() {
+          _playUrl = playUrl;
+          _title = title;
+          _categoryLabel = categoryLabel ?? 'Love';
+          _subtitle = widget.subtitle;
+          _durationLabel = durationLabel;
+          if (storyPreview != null && storyPreview.isNotEmpty) {
+            _previewContent = storyPreview.length > 200 ? '${storyPreview.substring(0, 200)}...' : storyPreview;
+          }
+          _loading = false;
+          _loadError = null;
+        });
+        _maybeAutoPlayAndActivateSleepMode();
+        return;
+      }
+
+      final fallback = await _loadLastCreatedStory();
+      if (fallback != null && !mounted) return;
+      if (fallback != null) {
+        final playUrl = fallback['playUrl']!.toString().trim();
+        setState(() {
+          _playUrl = playUrl;
+          _title = fallback['title'];
+          _categoryLabel = fallback['categoryLabel'] ?? 'Love';
+          _durationLabel = fallback['durationLabel'];
+          _previewContent = fallback['storyPreview'];
+          _loading = false;
+          _loadError = null;
+        });
+        LastPlayedService.saveLastPlayed(
+          storyId: fallback['storyId'] as int?,
+          playUrl: playUrl,
+          title: _title,
+          categoryLabel: _categoryLabel,
+          durationLabel: _durationLabel,
+          storyPreview: _previewContent,
+          storyContent: fallback['storyContent']?.toString().trim(),
+        );
+        _maybeAutoPlayAndActivateSleepMode();
+        return;
+      }
+
+      setState(() {
+        _categoryLabel = widget.categoryLabel;
+        _title = widget.title;
+        _subtitle = widget.subtitle;
+        _durationLabel = widget.durationLabel;
+        if (_previewContent == null && previewFromWidget.isEmpty) _previewContent = null;
+        _playUrl = widget.playUrl;
+        _loading = false;
+      });
+      if (sleepModeNotifier.value) sleepModeNotifier.value = false;
+      return;
+    }
+
+    if (widget.playUrl != null && widget.playUrl!.isNotEmpty) {
+      setState(() {
+        _playUrl = widget.playUrl;
+        _categoryLabel = widget.categoryLabel;
+        _title = widget.title;
+        _subtitle = widget.subtitle;
+        _durationLabel = widget.durationLabel;
+      });
+    }
+
+    try {
+      final res = await SupabaseService.client
+          .from('Stories')
+          .select('theme, story, title, content, desire_name, category, playUrl, storage')
+          .eq('id', widget.storyId!)
+          .maybeSingle();
+
+      if (!mounted) return;
+      if (res == null) {
+        setState(() {
+          _loadError = widget.playUrl != null ? null : 'Story not found';
+          _loading = false;
+          _categoryLabel = widget.categoryLabel;
+          _title = widget.title;
+          _subtitle = widget.subtitle;
+          _durationLabel = widget.durationLabel;
+          if (widget.playUrl != null) _playUrl = widget.playUrl;
+        });
+        return;
+      }
+
+      final data = res as Map<String, dynamic>;
+      final content = (data['story'] ?? data['content'])?.toString().trim();
+      final playUrl = widget.playUrl ??
+          data['playUrl']?.toString() ??
+          data['play_url']?.toString();
+      final storage = data['storage']?.toString();
+
+      final preview = (content != null && content.isNotEmpty)
+          ? (content.length > 200 ? '${content.substring(0, 200)}...' : content)
+          : (_previewContent ?? widget.storyPreview?.trim());
+
+      setState(() {
+        _title = (data['theme'] ?? data['title'])?.toString() ?? widget.title;
+        _categoryLabel = (data['desire_name'] ?? data['category'])?.toString() ?? widget.categoryLabel ?? 'Love';
+        _subtitle = widget.subtitle;
+        _durationLabel = widget.durationLabel;
+        _previewContent = (preview != null && preview.toString().trim().isNotEmpty)
+            ? (preview.toString().length > 200 ? '${preview.toString().substring(0, 200)}...' : preview.toString())
+            : null;
+        _fullStoryContent = content;
+        _playUrl = playUrl;
+        _loading = false;
+        _loadError = null;
+      });
+      _saveLastPlayed();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e.toString();
+        _loading = false;
+        _categoryLabel = widget.categoryLabel;
+        _title = widget.title;
+        _subtitle = widget.subtitle;
+        _durationLabel = widget.durationLabel;
+        if (widget.playUrl != null) _playUrl = widget.playUrl;
       });
     }
   }
 
-<<<<<<< Updated upstream
-=======
+  /// Load the last created story when no last played exists. Returns map with
+  /// playUrl, title, categoryLabel, durationLabel, storyPreview, storyId or null.
+  Future<Map<String, dynamic>?> _loadLastCreatedStory() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return null;
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      final voiceId = profile['voice_id']?.toString().trim() ?? profile['voice_Id']?.toString().trim();
+      if (voiceId == null || voiceId.isEmpty) return null;
+
+      final res = await BackendClient.getStories(userId);
+      final list = (res['stories'] as List<dynamic>?)
+          ?.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+          .toList() ?? [];
+      if (list.isEmpty) return null;
+
+      list.sort((a, b) {
+        final aAt = a['created_at'] ?? a['id'] ?? 0;
+        final bAt = b['created_at'] ?? b['id'] ?? 0;
+        if (aAt == bAt) return 0;
+        return bAt.toString().compareTo(aAt.toString());
+      });
+      final story = list.first;
+      final storyId = story['id'] is int
+          ? story['id'] as int
+          : int.tryParse(story['id']?.toString() ?? '');
+      if (storyId == null) return null;
+
+      final speakRes = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
+      final playUrl = speakRes['url']?.toString().trim();
+      if (playUrl == null || playUrl.isEmpty) return null;
+
+      final content = (story['story'] ?? story['content'])?.toString().trim();
+      final preview = content != null && content.isNotEmpty
+          ? (content.length > 200 ? '${content.substring(0, 200)}...' : content)
+          : null;
+      final duration = story['play_length'] ?? story['duration'];
+      int secs = 0;
+      if (duration != null) {
+        if (duration is int) secs = duration;
+        else if (duration is num) secs = duration.round();
+        else secs = int.tryParse(duration.toString()) ?? 0;
+      }
+      final m = secs ~/ 60;
+      final s = secs % 60;
+      final durationLabel = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+
+      return {
+        'playUrl': playUrl,
+        'storyId': storyId,
+        'title': (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString(),
+        'categoryLabel': (story['desire_name'] ?? story['category'] ?? 'Love').toString(),
+        'durationLabel': durationLabel,
+        'storyPreview': preview,
+        'storyContent': content,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _saveLastPlayed() {
+    final url = _playUrl?.trim();
+    if (url == null || url.isEmpty) return;
+    LastPlayedService.saveLastPlayed(
+      storyId: widget.storyId,
+      playUrl: url,
+      title: _title,
+      categoryLabel: _categoryLabel,
+      durationLabel: _durationLabel,
+      storyPreview: _previewContent,
+      storyContent: _fullStoryContent,
+    );
+  }
+
+  /// When opened from navbar or Unlock Sleep Mode (no story params), auto-play last played.
+  /// If sleepModeNotifier is true (came from Unlock Sleep Mode), activate sleep mode first.
+  void _maybeAutoPlayAndActivateSleepMode() {
+    final url = _playUrl?.trim();
+    if (url == null || url.isEmpty || !mounted) return;
+    if (sleepModeNotifier.value) {
+      _activateSleepModeAndPlay(url);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _disposed) return;
+        _audioPlayer.play(UrlSource(url), mode: PlayerMode.mediaPlayer);
+        setState(() => _isPlaying = true);
+      });
+    }
+  }
+
   void _activateSleepModeAndPlay(String url) {
     setState(() {
       _sleepModeActive = true;
@@ -323,17 +482,28 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     }
   }
 
->>>>>>> Stashed changes
   @override
   void dispose() {
-    _waveTimer?.cancel();
+    _disposed = true;
+    _playerCompleteSub?.cancel();
+    _playerCompleteSub = null;
+    _durationChangedSub?.cancel();
+    _durationChangedSub = null;
+    _positionChangedSub?.cancel();
+    _positionChangedSub = null;
+    _sleepCountdownTimer?.cancel();
+    _sleepVolumeFadeTimer?.cancel();
+    if (_sleepModeActive) {
+      sleepModeNotifier.value = false;
+      _setSleepBrightness(false);
+    }
+    _thetaGenerator.stop();
+    _waveformController.dispose();
     _audioPlayer.dispose();
     _model.dispose();
     super.dispose();
   }
 
-<<<<<<< Updated upstream
-=======
   static const _totalWaveBars = 32;
 
   String _formatDuration(int seconds) {
@@ -543,7 +713,6 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     }
   }
 
->>>>>>> Stashed changes
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -551,60 +720,90 @@ class _PlayerWidgetState extends State<PlayerWidget> {
         FocusScope.of(context).unfocus();
         FocusManager.instance.primaryFocus?.unfocus();
       },
-      child: Scaffold(
+        child: Scaffold(
         key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
-        body: SafeArea(
-          top: true,
-          child: Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: BoxDecoration(
-              color: FlutterFlowTheme.of(context).secondaryBackground,
-              border: Border.all(
-                color: Color(0xFFE9E5DF),
+        backgroundColor: _sleepModeActive ? _PlayerColors.sleepDark : _PlayerColors.surface,
+        body: Stack(
+          children: [
+            if (_sleepModeActive) ...[
+              Positioned.fill(
+                child: ColoredBox(color: _PlayerColors.sleepDark),
               ),
+            ],
+            SafeArea(
+          top: true,
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Player header
+                        _buildPlayerHeader(),
+
+                        // Waveform
+                        _buildWaveform(),
+
+                        // Sleep info (when sleep mode active) - above progress per HTML design
+                        if (_sleepModeActive) _buildSleepInfo(),
+
+                        // Progress section (time + bar) - per HTML .progress-section
+                        _buildProgressSection(),
+
+                        // Controls (margin-bottom 0 in sleep mode per HTML)
+                        _buildControls(),
+                        SizedBox(height: _sleepModeActive ? 0 : 28),
+
+                        // Story preview card
+                        if (!_sleepModeActive) _buildStoryPreview(),
+                      ],
+                    ),
+                  ),
+                ),
             ),
-            child: Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(20.0, 0.0, 20.0, 0.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                      ),
-                      child: Padding(
-                        padding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 6.0, 0.0, 14.0),
-                        child: Text(
-                          '← Back',
-                          style:
-                              FlutterFlowTheme.of(context).bodyMedium.override(
-                                    font: GoogleFonts.inter(
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: Color(0xFF6B6460),
-                                    fontSize: 12.0,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w500,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerHeader() {
+    return Padding(
+      padding: EdgeInsets.only(top: 24, bottom: _sleepModeActive ? 16 : 24),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: _sleepModeActive ? Alignment.topCenter : Alignment.topLeft,
+        children: [
+          Align(
+            alignment: _sleepModeActive ? Alignment.topCenter : Alignment.topLeft,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: _sleepModeActive ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              children: [
+              if (_sleepModeActive) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _PlayerColors.sleepPurple.withValues(alpha: 0.3),
+                    border: Border.all(color: _PlayerColors.sleepPurple.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.nightlight_round, size: 14, color: _PlayerColors.goldLight),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Sleep Mode Active',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
-<<<<<<< Updated upstream
-                    ),
-                    Padding(
-                      padding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 18.0),
-=======
                     ],
                   ),
                 ),
@@ -1036,799 +1235,23 @@ class _PlayerWidgetState extends State<PlayerWidget> {
                     child: FractionallySizedBox(
                       alignment: Alignment.centerLeft,
                       widthFactor: progress,
->>>>>>> Stashed changes
                       child: Container(
-                        width: double.infinity,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Color(0xFFF5EDD8),
-                              Color(0xFFFDF0EE),
-                              Color(0xFFF9F7F4)
-                            ],
-                            stops: [0.0, 0.6, 1.0],
-                            begin: AlignmentDirectional(0.87, 1.0),
-                            end: AlignmentDirectional(-0.87, -1.0),
-                          ),
-                          borderRadius: BorderRadius.circular(20.0),
-                          border: Border.all(
-                            color: Color(0x19C9972A),
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  0.0, 22.0, 0.0, 9.0),
-                              child: Text(
-                                widget.categoryLabel ?? '♡ Love · Today',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.bold,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Color(0xFFB8861E),
-                                      fontSize: 9.0,
-                                      letterSpacing: 2.0,
-                                      fontWeight: FontWeight.bold,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                            Text(
-                              widget.title ?? 'A Love That Was',
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font: GoogleFonts.cormorantGaramond(
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: Color(0xFF1C1917),
-                                    fontSize: 22.0,
-                                    letterSpacing: 1.3,
-                                    fontWeight: FontWeight.w600,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  0.0, 0.0, 0.0, 7.0),
-                              child: Text(
-                                widget.subtitle ?? 'Always Yours',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.cormorantGaramond(
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                      color: Color(0xFFC9972A),
-                                      fontSize: 22.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  0.0, 0.0, 0.0, 22.0),
-                              child: Text(
-                                _totalDuration > Duration.zero
-                                    ? _formatDurationFull(_totalDuration)
-                                    : (widget.durationLabel ?? '00:00:00'),
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.dmMono(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Color(0xFF9E9189),
-                                      fontSize: 10.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ],
+                          gradient: _sleepModeActive
+                              ? const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [_PlayerColors.goldLight, _PlayerColors.gold, _PlayerColors.sleepPurple],
+                                  stops: [0.0, 0.5, 1.0],
+                                )
+                              : null,
+                          color: _sleepModeActive ? null : _PlayerColors.gold,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
-                    Padding(
-                      padding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 9.0),
-                      child: Container(
-                        width: double.infinity,
-                        height: 54.0,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFF9F7F4),
-                          borderRadius: BorderRadius.circular(14.0),
-                          border: Border.all(
-                            color: Color(0x141C1917),
-                          ),
-                        ),
-                        padding: EdgeInsetsDirectional.fromSTEB(
-                            14.0, 0.0, 14.0, 0.0),
-                        alignment: Alignment.center,
-                        child: _isWavePlaying
-                            ? SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: _buildWaveBars(),
-                                ),
-                              )
-                            : LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final w = constraints.maxWidth;
-                                  return Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: _buildFullWidthWaveBars(w),
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
-                    Padding(
-                      padding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 18.0),
-                      child: Container(
-                        width: double.infinity,
-                        height: 14.0,
-                        decoration: BoxDecoration(
-                          color:
-                              FlutterFlowTheme.of(context).secondaryBackground,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _formatDuration(_currentPosition),
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font: GoogleFonts.dmMono(
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: Color(0xFF9E9189),
-                                    fontSize: 10.0,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontWeight,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                            ),
-                            Text(
-                              _formatDuration(_totalDuration),
-                              style: FlutterFlowTheme.of(context)
-                                  .bodyMedium
-                                  .override(
-                                    font: GoogleFonts.dmMono(
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                                    color: Color(0xFF9E9189),
-                                    fontSize: 10.0,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontWeight,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .fontStyle,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 18.0),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color:
-                              FlutterFlowTheme.of(context).secondaryBackground,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              width: 38.0,
-                              height: 38.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFF2EEE9),
-                                borderRadius: BorderRadius.circular(19.0),
-                                border: Border.all(
-                                  color: Color(0xFF1C1917),
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(19.0),
-                                  onTap: () {
-                                    print('IconButton pressed ...');
-                                  },
-                                  child: Center(
-                                    child: Text(
-                                      '⏮',
-                                      style: TextStyle(
-                                        fontSize: 17.0,
-                                        color: Color(0xFF3D3530),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              width: 38.0,
-                              height: 38.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFF2EEE9),
-                                borderRadius: BorderRadius.circular(19.0),
-                                border: Border.all(
-                                  color: Color(0xFF1C1917),
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(19.0),
-                                  onTap: () {
-                                    print('IconButton pressed ...');
-                                  },
-                                  child: Center(
-                                    child: Text(
-                                      '⏪',
-                                      style: TextStyle(
-                                        fontSize: 17.0,
-                                        color: Color(0xFF3D3530),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              width: 58.0,
-                              height: 58.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFF1C1917),
-                                borderRadius: BorderRadius.circular(29.0),
-                                border: Border.all(
-                                  color: Color(0xFF1C1917),
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(29.0),
-                                  onTap: _togglePlayPause,
-                                  child: Center(
-                                    child: _isLoadingAudio
-                                        ? SizedBox(
-                                            width: 18.0,
-                                            height: 18.0,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.0,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : Text(
-                                      _isWavePlaying ? '⏸' : '▶',
-                                      style: TextStyle(
-                                        fontSize: 24.0,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              width: 38.0,
-                              height: 38.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFF2EEE9),
-                                borderRadius: BorderRadius.circular(19.0),
-                                border: Border.all(
-                                  color: Color(0xFF1C1917),
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(19.0),
-                                  onTap: () {
-                                    print('IconButton pressed ...');
-                                  },
-                                  child: Center(
-                                    child: Text(
-                                      '⏩',
-                                      style: TextStyle(
-                                        fontSize: 17.0,
-                                        color: Color(0xFF3D3530),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              width: 38.0,
-                              height: 38.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFF2EEE9),
-                                borderRadius: BorderRadius.circular(19.0),
-                                border: Border.all(
-                                  color: Color(0xFF1C1917),
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(19.0),
-                                  onTap: () {
-                                    print('IconButton pressed ...');
-                                  },
-                                  child: Center(
-                                    child: Text(
-                                      '↻',
-                                      style: TextStyle(
-                                        fontSize: 17.0,
-                                        color: Color(0xFF3D3530),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding:
-                          EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 18.0),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color:
-                              FlutterFlowTheme.of(context).secondaryBackground,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              width: 72.0,
-                              height: 58.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFF9F7F4),
-                                borderRadius: BorderRadius.circular(12.0),
-                                border: Border.all(
-                                  color: Color(0x151C1917),
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.max,
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
-                                        0.0, 10.0, 0.0, 3.0),
-                                    child: Text(
-                                      '☀️',
-                                      style: const TextStyle(
-                                        fontSize: 15.0,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    'Standard',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: Color(0xFF3D3530),
-                                          fontSize: 10.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 72.0,
-                              height: 58.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFFBF4E6),
-                                borderRadius: BorderRadius.circular(12.0),
-                                border: Border.all(
-                                  color: Color(0x151C1917),
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.max,
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
-                                        0.0, 10.0, 0.0, 3.0),
-                                    child: Text(
-                                      '🌙',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.inter(
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            fontSize: 15.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                    ),
-                                  ),
-                                  Text(
-                                    'Sleep',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: Color(0xFFB8861E),
-                                          fontSize: 10.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 72.0,
-                              height: 58.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFFF9F7F4),
-                                borderRadius: BorderRadius.circular(12.0),
-                                border: Border.all(
-                                  color: Color(0x151C1917),
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.max,
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
-                                        0.0, 10.0, 0.0, 3.0),
-                                    child: Text(
-                                      '🔁',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.inter(
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            fontSize: 15.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                    ),
-                                  ),
-                                  Text(
-                                    'Loop',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                          fontSize: 10.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(
-                          0.0, 0.0, 0.0, 14.0),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFF9F7F4),
-                          borderRadius: BorderRadius.circular(14.0),
-                          border: Border.all(
-                            color: Color(0x1A1C1917),
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
-                              13.0, 13.0, 0.0, 0.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.max,
-                            children: [
-                              Align(
-                                alignment: AlignmentDirectional(-1.0, 0.0),
-                                child: Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
-                                      0.0, 0.0, 0.0, 7.0),
-                                  child: Text(
-                                    'Story Preview',
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: Color(0xFF9E9189),
-                                          fontSize: 9.0,
-                                          letterSpacing: 2.0,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                  ),
-                                ),
-                              ),
-                              Align(
-                                alignment: AlignmentDirectional(-1.0, 0.0),
-                                child: Text(
-                                  '\"You wake beside someone who looks at you like you\'re the whole world. The morning light is warm, and Jordan, you feel it — this easy, certain love…\"',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.cormorantGaramond(
-                                          fontWeight:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontWeight,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                        color: Color(0xFF3D3530),
-                                        letterSpacing: 0.0,
-                                        fontWeight:
-                                            FlutterFlowTheme.of(context)
-                                                .bodyMedium
-                                                .fontWeight,
-                                        fontStyle: FontStyle.italic,
-                                        lineHeight: 1.72,
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: FlutterFlowTheme.of(context).secondaryBackground,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.max,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Color(0xFFF9F7F4),
-                              borderRadius: BorderRadius.circular(12.0),
-                              border: Border.all(
-                                color: Color(0x1A1C1917),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  6.0, 10.0, 6.0, 10.0),
-                              child: Text(
-                                '♡ Save',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Color(0xFF3D3530),
-                                      fontSize: 11.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Color(0xFFF9F7F4),
-                              borderRadius: BorderRadius.circular(12.0),
-                              border: Border.all(
-                                color: Color(0x1A1C1917),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  6.0, 10.0, 6.0, 10.0),
-                              child: Text(
-                                '↗ Share',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Color(0xFF3D3530),
-                                      fontSize: 11.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Color(0xFFF9F7F4),
-                              borderRadius: BorderRadius.circular(12.0),
-                              border: Border.all(
-                                color: Color(0x1A1C1917),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  6.0, 10.0, 6.0, 10.0),
-                              child: Text(
-                                '✦ New',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Color(0xFF3D3530),
-                                      fontSize: 11.0,
-                                      letterSpacing: 0.0,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-<<<<<<< Updated upstream
-              ),
-=======
               );
             },
           ),
@@ -1932,10 +1355,90 @@ class _PlayerWidgetState extends State<PlayerWidget> {
               fontSize: fontSize,
               color: primary ? Colors.white : secondaryColor,
               fontWeight: FontWeight.w400,
->>>>>>> Stashed changes
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // Widget _buildModeButtons() {
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 24),
+  //     child: Row(
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       children: [
+  //         _modeBtn('Standard', true),
+  //         const SizedBox(width: 8),
+  //         _modeBtn('Sleep', false),
+  //         const SizedBox(width: 8),
+  //         _modeBtn('Loop', false),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _modeBtn(String label, bool active) {
+    return Pressable(
+      onTap: () {
+        // TODO: switch mode (Standard/Sleep/Loop)
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? _PlayerColors.goldPale : _PlayerColors.surface,
+          border: Border.all(
+            color: active ? _PlayerColors.gold : _PlayerColors.stone,
+            width: 1.5,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? _PlayerColors.gold : _PlayerColors.inkSoft,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoryPreview() {
+    final preview = _previewContent;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 0),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _PlayerColors.warmWhite,
+        border: Border.all(color: _PlayerColors.stone),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'STORY PREVIEW',
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w600,
+              color: _PlayerColors.blush,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            preview ?? 'No preview available.',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: _PlayerColors.inkMid,
+              height: 1.6,
+            ),
+          ),
+        ],
       ),
     );
   }

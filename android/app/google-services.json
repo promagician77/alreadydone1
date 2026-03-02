@@ -1,0 +1,29 @@
+{
+    "project_info": {
+      "project_number": "868967879600",
+      "project_id": "already-done-app-a3e9a",
+      "storage_bucket": "already-done-app-a3e9a.firebasestorage.app"
+    },
+    "client": [
+      {
+        "client_info": {
+          "mobilesdk_app_id": "1:868967879600:android:6170c0db9916c14dd1bc75",
+          "android_client_info": {
+            "package_name": "com.alreadydone.app"
+          }
+        },
+        "oauth_client": [],
+        "api_key": [
+          {
+            "current_key": "AIzaSyBjQi6c3U2QGPqcNVKpluzDGY4sZb88nRs"
+          }
+        ],
+        "services": {
+          "appinvite_service": {
+            "other_platform_oauth_client": []
+          }
+        }
+      }
+    ],
+    "configuration_version": "1"
+  }

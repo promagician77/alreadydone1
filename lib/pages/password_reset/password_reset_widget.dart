@@ -3,6 +3,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
 import '/flutter_flow/nav/nav.dart';
+import '/services/app_toast.dart';
 import 'password_reset_model.dart';
 export 'password_reset_model.dart';
 
@@ -44,7 +45,6 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
-              const AuthStatusBar(),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -141,9 +141,7 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
     final email = _model.emailTextController.text.trim();
 
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email address')),
-      );
+      AppToast.info(context, 'Please enter your email address');
       return;
     }
 
@@ -153,16 +151,12 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
       await SupabaseService.resetPasswordForEmail(email);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset link sent! Please check your email.')),
-        );
+        AppToast.success(context, 'Password reset link sent! Please check your email.');
         context.go('/login');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        AppToast.error(context, 'Error: ${e.toString()}');
       }
     } finally {
       if (mounted) {

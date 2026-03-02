@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart' show SupabaseService, OAuthProvider;
 import '/flutter_flow/nav/nav.dart';
+import '/services/app_toast.dart';
 import 'login_model.dart';
 export 'login_model.dart';
 
@@ -45,7 +46,6 @@ class _LoginWidgetState extends State<LoginWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
-              const AuthStatusBar(),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -158,9 +158,7 @@ class _LoginWidgetState extends State<LoginWidget> {
     final password = _model.passwordTextController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+      AppToast.info(context, 'Please fill in all fields');
       return;
     }
 
@@ -170,16 +168,12 @@ class _LoginWidgetState extends State<LoginWidget> {
       final response = await SupabaseService.signIn(email: email, password: password);
 
       if (response.user != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Welcome back!')),
-        );
-        context.go('/');
+        AppToast.success(context, 'Welcome back!');
+        context.go('/?fromLogin=1');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${e.toString()}')),
-        );
+        AppToast.error(context, 'Login failed: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -193,21 +187,17 @@ class _LoginWidgetState extends State<LoginWidget> {
       await SupabaseService.signInWithOAuth(provider: OAuthProvider.apple);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Apple sign in error: ${e.toString()}')),
-        );
+        AppToast.error(context, 'Apple sign in error: ${e.toString()}');
       }
     }
   }
 
   Future<void> _handleGoogleSignIn() async {
     try {
-      await SupabaseService.signInWithOAuth(provider: OAuthProvider.google);
+      await SupabaseService.signInWithGoogle();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google sign in error: ${e.toString()}')),
-        );
+        AppToast.error(context, 'Google sign in error: ${e.toString()}');
       }
     }
   }

@@ -9,3 +9,10 @@ export '/pages/login/login_widget.dart' show LoginWidget;
 export '/pages/password_reset/password_reset_widget.dart' show PasswordResetWidget;
 export '/pages/email_verification/email_verification_widget.dart'
     show EmailVerificationWidget;
+export '/pages/onboarding/onboarding_splash_widget.dart' show OnboardingSplashWidget;
+export '/pages/onboarding/onboarding_personalize_widget.dart' show OnboardingPersonalizeWidget;
+export '/pages/onboarding/onboarding_desire_widget.dart' show OnboardingDesireWidget;
+export '/pages/onboarding/onboarding_voice_widget.dart' show OnboardingVoiceWidget;
+export '/pages/onboarding/onboarding_voice_complete_widget.dart' show OnboardingVoiceCompleteWidget;
+export '/pages/onboarding/onboarding_player_widget.dart' show OnboardingPlayerWidget;
+export '/pages/subscription/subscription_widget.dart' show SubscriptionWidget;

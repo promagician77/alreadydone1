@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart' show SupabaseService, OAuthProvider;
 import '/flutter_flow/nav/nav.dart';
+import '/services/app_toast.dart';
 import 'sign_up_model.dart';
 export 'sign_up_model.dart';
 
@@ -45,7 +46,6 @@ class _SignUpWidgetState extends State<SignUpWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
-              const AuthStatusBar(),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -208,9 +208,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
   Future<void> _handleSignUp() async {
     if (!_model.termsAccepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please accept the Terms of Service and Privacy Policy')),
-      );
+      AppToast.info(context, 'Please accept the Terms of Service and Privacy Policy');
       return;
     }
 
@@ -219,16 +217,12 @@ class _SignUpWidgetState extends State<SignUpWidget> {
     final password = _model.passwordTextController.text;
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+      AppToast.info(context, 'Please fill in all fields');
       return;
     }
 
     if (password.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 8 characters')),
-      );
+      AppToast.info(context, 'Password must be at least 8 characters');
       return;
     }
 
@@ -261,18 +255,14 @@ class _SignUpWidgetState extends State<SignUpWidget> {
           }
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        AppToast.info(context, message);
 
         // Navigate to the email verification screen, passing the email
         context.go('/verifyEmailOtp?email=$email');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        AppToast.error(context, 'Error: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -360,21 +350,17 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       await SupabaseService.signInWithOAuth(provider: OAuthProvider.apple);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Apple sign in error: ${e.toString()}')),
-        );
+        AppToast.error(context, 'Apple sign in error: ${e.toString()}');
       }
     }
   }
 
   Future<void> _handleGoogleSignIn() async {
     try {
-      await SupabaseService.signInWithOAuth(provider: OAuthProvider.google);
+      await SupabaseService.signInWithGoogle();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google sign in error: ${e.toString()}')),
-        );
+        AppToast.error(context, 'Google sign in error: ${e.toString()}');
       }
     }
   }

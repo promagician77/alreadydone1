@@ -13,7 +13,10 @@ import '/flutter_flow/flutter_flow_util.dart';
 import 'serialization_util.dart';
 
 import '/index.dart';
+import '/services/fcm_service.dart';
 import '/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+import '/services/onboarding_service.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -38,7 +41,15 @@ class AppStateNotifier extends ChangeNotifier {
   }
 
   void initAuthListener() {
-    SupabaseService.authStateChanges.listen((_) => notifyListeners());
+    SupabaseService.authStateChanges.listen((state) async {
+      final isSignedIn = state.event == AuthChangeEvent.signedIn ||
+          state.event == AuthChangeEvent.initialSession;
+      if (isSignedIn && state.session != null) {
+        await SupabaseService.ensureUserProfileFromAuth();
+        await FcmService.onUserSignedIn();
+      }
+      notifyListeners();
+    });
   }
 }
 
@@ -47,20 +58,19 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
-      redirect: (context, state) {
+      redirect: (context, state) async {
         final isAuth = appStateNotifier.isAuthenticated;
-        final isAuthRoute = state.matchedLocation == LoginWidget.routePath ||
-            state.matchedLocation == SignUpWidget.routePath ||
-            state.matchedLocation == PasswordResetWidget.routePath ||
-            state.matchedLocation == EmailVerificationWidget.routePath;
+        final path = state.uri.path;
+        final isAuthRoute = path == LoginWidget.routePath ||
+            path == SignUpWidget.routePath ||
+            path == PasswordResetWidget.routePath ||
+            path == EmailVerificationWidget.routePath;
+        final isOnboardingRoute = path.startsWith('/onboarding');
 
         if (!isAuth && !isAuthRoute) {
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
-<<<<<<< Updated upstream
-          return '/';
-=======
           if (path == LoginWidget.routePath) {
             return '/?fromLogin=1';
           }
@@ -89,17 +99,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           if (completed && path == OnboardingSplashWidget.routePath) {
             return '/';
           }
->>>>>>> Stashed changes
         }
         return null;
       },
       errorBuilder: (context, state) => NavBarPage(),
       routes: [
-        FFRoute(
-          name: '_initialize',
-          path: '/',
-          builder: (context, _) => NavBarPage(),
-        ),
         FFRoute(
           name: HomeDashboardWidget.routeName,
           path: HomeDashboardWidget.routePath,
@@ -122,12 +126,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
               : NavBarPage(
                   initialPage: 'Player',
                   page: PlayerWidget(
+                    storyId: params.getParam('storyId', ParamType.int) as int?,
                     categoryLabel: params.getParam('categoryLabel', ParamType.String),
                     title: params.getParam('title', ParamType.String),
                     subtitle: params.getParam('subtitle', ParamType.String),
                     durationLabel: params.getParam('durationLabel', ParamType.String),
-                    storyId: params.getParam('storyId', ParamType.int),
-                    audioUrl: params.getParam('audioUrl', ParamType.String),
+                    playUrl: params.getParam('playUrl', ParamType.String),
+                    storyPreview: params.getParam('storyPreview', ParamType.String),
                   ),
                 ),
         ),
@@ -156,10 +161,62 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: EmailVerificationWidget.routeName,
           path: EmailVerificationWidget.routePath,
-          builder: (context, params) => EmailVerificationWidget(
-            email: params.getParam('email', ParamType.String) ?? '',
+          builder: (context, params) {
+            final userIdStr = params.getParam('userId', ParamType.String);
+            final userId = userIdStr != null && userIdStr.isNotEmpty
+                ? int.tryParse(userIdStr)
+                : null;
+            return EmailVerificationWidget(
+              email: params.getParam('email', ParamType.String) ?? '',
+              isEmailChange: params.getParam('changeEmail', ParamType.String) == '1',
+              userId: userId,
+            );
+          },
+        ),
+        // Onboarding: most specific paths FIRST so /onboarding doesn't prefix-match /onboarding/complete
+        FFRoute(
+          name: OnboardingVoiceCompleteWidget.routeName,
+          path: OnboardingVoiceCompleteWidget.routePath,
+          builder: (context, params) => OnboardingVoiceCompleteWidget(),
+        ),
+        FFRoute(
+          name: OnboardingVoiceWidget.routeName,
+          path: OnboardingVoiceWidget.routePath,
+          builder: (context, params) => OnboardingVoiceWidget(),
+        ),
+        FFRoute(
+          name: OnboardingPlayerWidget.routeName,
+          path: OnboardingPlayerWidget.routePath,
+          builder: (context, params) => OnboardingPlayerWidget(),
+        ),
+        FFRoute(
+          name: OnboardingDesireWidget.routeName,
+          path: OnboardingDesireWidget.routePath,
+          builder: (context, params) => OnboardingDesireWidget(
+            fromDesires: params.state.extraMap['fromDesires'] == true,
           ),
-        )
+        ),
+        FFRoute(
+          name: OnboardingPersonalizeWidget.routeName,
+          path: OnboardingPersonalizeWidget.routePath,
+          builder: (context, params) => OnboardingPersonalizeWidget(),
+        ),
+        FFRoute(
+          name: OnboardingSplashWidget.routeName,
+          path: OnboardingSplashWidget.routePath,
+          builder: (context, params) => OnboardingSplashWidget(),
+        ),
+        FFRoute(
+          name: SubscriptionWidget.routeName,
+          path: SubscriptionWidget.routePath,
+          builder: (context, params) => SubscriptionWidget(),
+        ),
+        // Root path last so prefix matching doesn't catch /onboarding/complete etc.
+        FFRoute(
+          name: '_initialize',
+          path: '/',
+          builder: (context, _) => NavBarPage(),
+        ),
       ].map((r) => r.toRoute(appStateNotifier)).toList(),
     );
 

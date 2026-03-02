@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/widgets/animated_waveform_icon.dart';
 
 /// ALREADY auth design tokens — matches HTML design (pixel-perfect).
 abstract class AuthTheme {
@@ -104,81 +105,15 @@ abstract class AuthTheme {
       );
 }
 
-class AuthStatusBar extends StatelessWidget {
-  const AuthStatusBar({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 34, 18, 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('9:41', style: AuthTheme.statusBarStyle),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('●●●', style: AuthTheme.statusBarStyle),
-              const SizedBox(width: 4),
-              Text('WiFi', style: AuthTheme.statusBarStyle),
-              const SizedBox(width: 4),
-              Text('▮', style: AuthTheme.statusBarStyle),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+/// Animated waveform icon for auth screens (login, sign up, email verification).
 class WaveformIcon extends StatelessWidget {
   const WaveformIcon({super.key});
 
-  static const List<double> _heights = [8, 12, 18, 24, 32, 36, 32, 24, 18, 12, 8];
-  static const List<double> _opacities = [0.3, 0.45, 0.6, 0.75, 0.9, 1, 0.9, 0.75, 0.6, 0.45, 0.3];
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        color: AuthTheme.warmWhite,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AuthTheme.stone),
-        boxShadow: [
-          BoxShadow(
-            color: AuthTheme.ink.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: List.generate(11, (i) {
-            return Container(
-              width: 3,
-              height: _heights[i],
-              margin: EdgeInsets.only(left: i == 0 ? 0 : 1.5),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AuthTheme.goldLight.withValues(alpha: _opacities[i]),
-                    AuthTheme.gold.withValues(alpha: _opacities[i]),
-                    AuthTheme.goldDark.withValues(alpha: _opacities[i]),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
+    return const AnimatedWaveformIcon(
+      size: AnimatedWaveformSize.auth,
+      wrapped: true,
     );
   }
 }

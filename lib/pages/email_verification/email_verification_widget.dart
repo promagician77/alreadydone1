@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
+import '/services/backend_client.dart';
 import '/services/supabase_service.dart' show SupabaseService;
 import '/flutter_flow/nav/nav.dart';
+import '/pages/onboarding/onboarding_splash_widget.dart';
+import '/services/app_toast.dart';
 import 'email_verification_model.dart';
 export 'email_verification_model.dart';
 
@@ -11,9 +14,13 @@ class EmailVerificationWidget extends StatefulWidget {
   const EmailVerificationWidget({
     super.key,
     required this.email,
+    this.isEmailChange = false,
+    this.userId,
   });
 
   final String email;
+  final bool isEmailChange;
+  final int? userId;
 
   static String routeName = 'EmailVerification';
   static String routePath = '/verifyEmailOtp';
@@ -50,7 +57,6 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
-              const AuthStatusBar(),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -166,38 +172,41 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     final code = _model.codeTextController.text.trim();
 
     if (code.length < 6 || code.length > 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the 6–8 digit code from your email')),
-      );
+      AppToast.info(context, 'Please enter the 6–8 digit code from your email');
       return;
     }
 
     setState(() => _model.isLoading = true);
 
     try {
-      final response = await SupabaseService.verifyEmailOtp(
-        email: widget.email,
-        token: code,
-      );
+      final response = widget.isEmailChange
+          ? await SupabaseService.verifyEmailChangeOtp(
+              email: widget.email,
+              token: code,
+            )
+          : await SupabaseService.verifyEmailOtp(
+              email: widget.email,
+              token: code,
+            );
 
       if (response.user != null && mounted) {
-        final user = response.user!;
-        await SupabaseService.createUserProfile(
-          id: user.id,
-          email: user.email ?? widget.email,
-          name: user.userMetadata?['full_name'] as String?,
-        );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email verified! Welcome.')),
-        );
-        context.go('/');
+        if (widget.isEmailChange && widget.userId != null) {
+          try {
+            await BackendClient.updateUserProfile(widget.userId!, email: widget.email);
+          } catch (_) {}
+        }
+        if (mounted) {
+          AppToast.success(
+            context,
+            widget.isEmailChange ? 'Email updated successfully!' : 'Email verified! Welcome.',
+          );
+          context.go(widget.isEmailChange ? '/' : OnboardingSplashWidget.routePath);
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: ${e.toString()}')),
-        );
+        final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
+        AppToast.error(context, msg.isEmpty ? 'Verification failed' : msg);
       }
     } finally {
       if (mounted) {
@@ -210,17 +219,18 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     setState(() => _model.isLoading = true);
 
     try {
-      await SupabaseService.sendEmailOtp(email: widget.email);
+      if (widget.isEmailChange) {
+        await SupabaseService.updateUserEmail(widget.email);
+      } else {
+        await SupabaseService.sendEmailOtp(email: widget.email);
+      }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('A new code has been sent to your email.')),
-        );
+        AppToast.success(context, 'A new code has been sent to your email.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to resend code: ${e.toString()}')),
-        );
+        final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
+        AppToast.error(context, msg.isEmpty ? 'Failed to resend code' : msg);
       }
     } finally {
       if (mounted) {

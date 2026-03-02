@@ -18,6 +18,13 @@ class ProfileModel extends FlutterFlowModel<ProfileWidget> {
   // State field(s) for Switch widget.
   bool? switchValue3;
 
+  /// Profile data from /api/users/{user_id}. Null until loaded.
+  Map<String, dynamic>? profileData;
+  /// True while loading profile.
+  bool profileLoading = true;
+  /// Non-null if profile fetch failed.
+  String? profileError;
+
   @override
   void initState(BuildContext context) {}
 

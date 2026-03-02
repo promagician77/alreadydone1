@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class BackendClient {
   BackendClient._();
@@ -30,5 +34,283 @@ class BackendClient {
     } catch (_) {
       return false;
     }
+  }
+
+  /// PATCH api/users/{user_id} - update user profile.
+  /// Body: { speed?, is_MorningTime_Reminder?, is_BedTime_Reminder?, name?, location?, energyWord?, lovedOne?, fcm_token?, ... }.
+  static Future<Map<String, dynamic>> updateUserProfile(
+    int userId, {
+    String? speed,
+    bool? isMorningReminder,
+    bool? isBedtimeReminder,
+    String? morningTimeReminder,
+    String? bedtimeReminder,
+    String? name,
+    String? email,
+    String? dreamPlace,
+    String? location,
+    String? energyWord,
+    String? someoneYouLove,
+    String? fcmToken,
+  }) async {
+    final body = <String, dynamic>{};
+    if (speed != null) body['speed'] = speed;
+    if (isMorningReminder != null) body['is_MorningTime_Reminder'] = isMorningReminder;
+    if (isBedtimeReminder != null) body['is_BedTime_Reminder'] = isBedtimeReminder;
+    if (morningTimeReminder != null) body['morningTime_Reminder'] = morningTimeReminder;
+    if (bedtimeReminder != null) body['bedTime_Reminder'] = bedtimeReminder;
+    if (name != null) body['name'] = name;
+    if (email != null) body['email'] = email;
+    if (dreamPlace != null) body['dream_place'] = dreamPlace;
+    if (location != null) body['location'] = location;
+    if (energyWord != null) body['energyWord'] = energyWord;
+    if (someoneYouLove != null) body['lovedOne'] = someoneYouLove;
+    if (fcmToken != null) body['fcm_token'] = fcmToken;
+    if (body.isEmpty) return {'updated': true};
+    final response = await client
+        .patch(
+          resolve('/api/users/$userId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Profile update timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception('Profile update failed: ${response.statusCode} ${response.body}');
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'updated': true};
+  }
+
+  /// GET api/users/{user_id} - get user profile.
+  /// Returns { id, name, email, voice_id, speed, is_MorningTime_Reminder, is_BedTime_Reminder, location, energyWord, lovedOne, ... }.
+  static Future<Map<String, dynamic>> getUserProfile(int userId) async {
+    final uri = resolve('/api/users/$userId');
+    final response = await client.get(uri).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw Exception('Profile request timeout'),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception('Profile failed: ${response.statusCode} ${response.body}');
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {};
+  }
+
+  /// GET api/stories?user_id=<int> - list stories for user.
+  /// Returns { "stories": [ { id, theme, story, desire_id, user_id, last_played, play_length?, playUrl, storage, desire_name, ... } ] }
+  static Future<Map<String, dynamic>> getStories(int userId) async {
+    final uri = resolve('/api/stories').replace(queryParameters: {'user_id': userId.toString()});
+    final response = await client.get(uri).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw Exception('Stories request timeout'),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception('Stories failed: ${response.statusCode} ${response.body}');
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'stories': []};
+  }
+
+  /// GET api/desires - list desire categories. Returns [ { id, desireCategory, name }, ... ].
+  /// API uses desireCategory; we also expose as name for compatibility.
+  static Future<List<Map<String, dynamic>>> getDesires() async {
+    final uri = resolve('/api/desires');
+    final response = await client.get(uri).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw Exception('Desires request timeout'),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception('Desires failed: ${response.statusCode} ${response.body}');
+    }
+    final decoded = jsonDecode(response.body);
+    final list = decoded is List
+        ? decoded
+        : (decoded is Map ? decoded['desires'] : null);
+    if (list is! List) return [];
+    return list
+        .map<Map<String, dynamic>>((e) {
+          if (e is! Map) return {'id': '', 'name': '', 'desireCategory': ''};
+          final cat = (e['desireCategory'] ?? e['name'] ?? '').toString();
+          return {
+            'id': (e['id'] ?? '').toString(),
+            'desireCategory': cat,
+            'name': cat,
+          };
+        })
+        .where((m) => m['id']!.isNotEmpty || m['name']!.isNotEmpty)
+        .toList();
+  }
+
+  /// POST api/stories/generate - generate story from onboarding data.
+  /// Sends body: { user_id, name, location, energyWord, desireCategory,
+  ///   desireDescription, lovedOne? }.
+  /// Returns decoded JSON (e.g. id, content, category, title).
+  static Future<Map<String, dynamic>> generateStory(
+    Map<String, dynamic> body,
+  ) async {
+    final response = await client
+        .post(
+          resolve('/api/stories/generate'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception('Generation timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception('Generate failed: ${response.statusCode} ${response.body}');
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'story': decoded};
+  }
+
+  /// POST api/voice/clone - upload audio file(s) for voice cloning.
+  /// Matches backend: Form fields user_id, name, gender (optional); File field "files" with audio/* Content-Type.
+  /// Returns { "voice_id": "...", "requires_verification": bool }.
+  static Future<Map<String, dynamic>> uploadVoiceClone({
+    required int userId,
+    required String name,
+    required File audioFile,
+    String? gender,
+  }) async {
+    final uri = resolve('/api/voice/clone');
+    final filename = audioFile.path.split(RegExp(r'[/\\]')).last;
+    final isM4a = filename.toLowerCase().endsWith('.m4a');
+    final contentType = isM4a
+        ? MediaType('audio', 'mp4')
+        : MediaType('audio', 'mpeg');
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['user_id'] = userId.toString()
+      ..fields['name'] = name;
+    if (gender != null && gender.isNotEmpty) {
+      request.fields['gender'] = gender;
+    }
+    request.files.add(await http.MultipartFile.fromPath(
+      'files',
+      audioFile.path,
+      filename: filename,
+      contentType: contentType,
+    ));
+
+    final streamed = await request.send().timeout(
+          const Duration(seconds: 120),
+          onTimeout: () => throw Exception('Voice upload timeout'),
+        );
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Voice upload failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'voice_id': null};
+  }
+
+  /// POST api/voice/speak - get public URL for story audio.
+  /// Input: voice_id, story_id (int).
+  /// Returns { "url": public_url }.
+  static Future<Map<String, dynamic>> voiceSpeak({
+    required String voiceId,
+    required int storyId,
+  }) async {
+    final response = await client
+        .post(
+          resolve('/api/voice/speak'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'voice_id': voiceId, 'story_id': storyId}),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception('Voice speak timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Voice speak failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'url': null};
+  }
+
+  /// GET api/subscription/status?user_id=<int>
+  /// Returns { stripe_customer_id, stripe_subscription_id, intent_id, subscription_status, subscription_plan }.
+  static Future<Map<String, dynamic>> getSubscriptionStatus(int userId) async {
+    final uri = resolve('/api/subscription/status')
+        .replace(queryParameters: {'user_id': userId.toString()});
+    final response = await client.get(uri).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw Exception('Subscription status timeout'),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Subscription status failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {};
+  }
+
+  static Future<Map<String, dynamic>> createSetupIntent({
+    required int userId,
+    required String customerEmail,
+  }) async {
+    final response = await client
+        .post(
+          resolve('/api/subscription/setup-intent'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': userId,
+            'customer_email': customerEmail.trim(),
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Setup intent timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Setup intent failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {};
+  }
+
+  static Future<Map<String, dynamic>> createSubscription({
+    required int userId,
+    required String plan,
+    required String setupIntentId,
+    String? customerEmail,
+  }) async {
+    final body = <String, dynamic>{
+      'user_id': userId,
+      'plan': plan,
+      'setup_intent_id': setupIntentId.trim(),
+    };
+    if (customerEmail != null && customerEmail.trim().isNotEmpty) {
+      body['customer_email'] = customerEmail.trim();
+    }
+    final response = await client
+        .post(
+          resolve('/api/subscription/create'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Create subscription timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Create subscription failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {};
   }
 }

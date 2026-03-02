@@ -1,21 +1,39 @@
-import 'dart:async';
 import 'dart:math' as math;
-import '/flutter_flow/flutter_flow_icon_button.dart';
-import '/flutter_flow/flutter_flow_theme.dart';
-import '/flutter_flow/flutter_flow_util.dart';
-import '/flutter_flow/flutter_flow_widgets.dart';
-import 'dart:ui';
-import '/index.dart';
-import '/models/story.dart';
-import '/services/story_service.dart';
-import '/services/voice_service.dart';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+
+import '/flutter_flow/flutter_flow_util.dart';
+import '/flutter_flow/nav/nav.dart';
+import '/index.dart';
+import '/pages/subscription/subscription_widget.dart';
+import '/widgets/pressable.dart';
+import '/services/app_toast.dart';
+import '/services/backend_client.dart';
+import '/services/sleep_mode_notifier.dart';
+import '/services/supabase_service.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
+
+/// Design tokens from HTML (pixel-perfect match)
+class _AppColors {
+  static const warmWhite = Color(0xFFF9F7F4);
+  static const surface = Color(0xFFFEFDFB);
+  static const ink = Color(0xFF1C1917);
+  static const inkMid = Color(0xFF44403C);
+  static const inkSoft = Color(0xFF78716C);
+  static const stone = Color(0xFFE8E2DA);
+  static const gold = Color(0xFFB8861E);
+  static const goldLight = Color(0xFFD4A574);
+  static const goldPale = Color(0xFFFBF4E6);
+  static const blush = Color(0xFFD98B80);
+  static const blushLight = Color(0xFFFDF0EE);
+  static const sage = Color(0xFF7FA882);
+  static const sageLight = Color(0xFFEEF4EE);
+  static const teal = Color(0xFF4E8F9C);
+  static const tealLight = Color(0xFFEAF4F6);
+}
 
 class HomeDashboardWidget extends StatefulWidget {
   const HomeDashboardWidget({super.key});
@@ -32,232 +50,309 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   late HomeDashboardModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
-
-  bool _isWavePlaying = false;
-  late AnimationController _waveController;
-
-  // Recent-story inline playback
-  late AudioPlayer _recentAudioPlayer;
-  int? _playingStoryId;
-  bool _isLoadingRecentAudio = false;
-  final Map<int, String> _storyAudioCache = {};
-
-  static const List<double> _waveBaseHeights = [8, 14, 10, 18, 12, 20, 9, 16, 11, 14];
-  static const List<int> _waveColors = [
-    0xFFC9972A, 0xFFC9972A, 0xFFC9972A, 0xFFC9972A, 0xFFC9972A,
-    0xFFE8E2DA, 0xFFE8E2DA, 0xFFE8E2DA, 0xFFE8E2DA, 0xFFE8E2DA,
-  ];
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  late final AnimationController _idleWaveController;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => HomeDashboardModel());
-    _loadTodayStory();
-    _waveController = AnimationController(
+    _idleWaveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 1800),
     )..repeat();
-    _waveController.stop();
-  }
-
-  void _toggleWavePlaying() {
-    setState(() {
-      _isWavePlaying = !_isWavePlaying;
-      if (_isWavePlaying) {
-        _waveController.repeat();
-      } else {
-        _waveController.stop();
-        _waveController.reset();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) safeSetState(() {
+        _model.isPlaying = false;
+        _model.playingStoryId = null;
+        _model.playbackPosition = Duration.zero;
+      });
+    });
+    _audioPlayer.onDurationChanged.listen((d) {
+      final sid = _model.playingStoryId;
+      if (sid != null && mounted) {
+        safeSetState(() {
+          _model.durationCache[sid] = d.inSeconds;
+          _model.playbackDuration = d;
+        });
       }
     });
+    _audioPlayer.onPositionChanged.listen((p) {
+      if (mounted) safeSetState(() => _model.playbackPosition = p);
+    });
+    _loadData();
   }
 
-  Future<void> _loadTodayStory() async {
-    setState(() => _model.isLoading = true);
+  Future<void> _loadData() async {
+    await Future.wait([_loadStories(), _loadUserProfile(), _loadDesires()]);
+    if (!mounted) return;
+    await _prefetchVoiceUrls();
+    if (!mounted) return;
+    // Reload stories so we get play_length that was written when voice URLs were generated
+    await _loadStories();
+  }
+
+  Future<void> _loadDesires() async {
+    if (!mounted) return;
     try {
-      final all = await StoryService.fetchStories();
-      final played = all.where((s) => s.lastPlayed != null).toList()
-        ..sort((a, b) => b.lastPlayed!.compareTo(a.lastPlayed!));
-      if (mounted) {
-        setState(() {
-          _model.todayStory = played.isNotEmpty ? played.first : (all.isNotEmpty ? all.first : null);
-          _model.recentStories = played.take(2).toList();
-          _model.isLoading = false;
-        });
+      final list = await BackendClient.getDesires();
+      if (!mounted) return;
+      safeSetState(() {
+        _model.desires = list;
+        _model.desiresLoading = false;
+      });
+    } catch (_) {
+      if (mounted) safeSetState(() { _model.desires = []; _model.desiresLoading = false; });
+    }
+  }
+
+  Future<void> _prefetchVoiceUrls() async {
+    final voiceId = _model.voiceId;
+    if (voiceId == null || voiceId.isEmpty) return;
+    final storiesToPrefetch = _model.stories.isEmpty
+        ? <Map<String, dynamic>>[]
+        : _model.stories.take(3).toList();
+    for (final story in storiesToPrefetch) {
+      final storyId = story['id'] is int
+          ? story['id'] as int
+          : int.tryParse(story['id']?.toString() ?? '');
+      if (storyId == null || _model.voicePlayUrlCache.containsKey(storyId)) continue;
+      try {
+        final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
+        final url = res['url']?.toString();
+        if (url != null && url.isNotEmpty && mounted) {
+          safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
+        }
+      } catch (_) {
+        // ignore; will fetch on tap
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _model.errorMessage = e.toString();
-          _model.isLoading = false;
-        });
-      }
+    }
+  }
+
+  Future<void> _loadUserProfile() async {
+    if (!mounted) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return;
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      if (!mounted) return;
+      final name = (profile['name'] as String? ?? '').toString().trim();
+      final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
+      safeSetState(() {
+        _model.userName = name.isNotEmpty ? name : null;
+        _model.voiceId = voiceId.isNotEmpty ? voiceId : null;
+      });
+    } catch (_) {
+      // ignore; keep userName/voiceId null
+    }
+  }
+
+  Future<void> _loadStories() async {
+    if (!mounted) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) {
+      if (mounted) safeSetState(() { _model.stories = []; _model.storiesLoading = false; });
+      return;
+    }
+    try {
+      final res = await BackendClient.getStories(userId);
+      final list = (res['stories'] as List<dynamic>?)
+          ?.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+          .toList() ?? [];
+      list.sort((a, b) {
+        final aAt = a['last_played'] ?? a['last_played_at'] ?? a['created_at'] ?? a['id'] ?? 0;
+        final bAt = b['last_played'] ?? b['last_played_at'] ?? b['created_at'] ?? b['id'] ?? 0;
+        if (aAt == bAt) return 0;
+        if (aAt is int && bAt is int) return bAt.compareTo(aAt);
+        return bAt.toString().compareTo(aAt.toString());
+      });
+      if (mounted) safeSetState(() { _model.stories = list; _model.storiesLoading = false; });
+    } catch (_) {
+      if (mounted) safeSetState(() { _model.stories = []; _model.storiesLoading = false; });
     }
   }
 
   @override
   void dispose() {
-    _waveController.dispose();
+    _idleWaveController.dispose();
+    _audioPlayer.dispose();
     _model.dispose();
     super.dispose();
   }
 
-  Color _desireColor(String name) {
-    switch (name.toLowerCase()) {
-      case 'love':   return const Color(0xFFD98B80);
-      case 'money':  return const Color(0xFF7FA882);
-      case 'career': return const Color(0xFF4E8F9C);
-      default:       return const Color(0xFFC9972A);
+  Future<String?> _getPlayUrlForStory(Map<String, dynamic> story) async {
+    final storyId = story['id'] is int
+        ? story['id'] as int
+        : int.tryParse(story['id']?.toString() ?? '');
+    if (storyId == null) return null;
+
+    // Prefer voice/speak URL (user's cloned voice); check cache first
+    final cached = _model.voicePlayUrlCache[storyId];
+    if (cached != null && cached.isNotEmpty) return cached;
+
+    final voiceId = _model.voiceId;
+    if (voiceId != null && voiceId.isNotEmpty) {
+      try {
+        final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
+        final url = res['url']?.toString();
+        if (url != null && url.isNotEmpty) {
+          safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
+          return url;
+        }
+      } catch (_) {
+        // fall through to fallback
+      }
+    }
+
+    // Fallback: story playUrl from API or Supabase
+    final url = story['playUrl']?.toString() ?? story['play_url']?.toString();
+    if (url != null && url.isNotEmpty) return url;
+    try {
+      final res = await SupabaseService.client
+          .from('Stories')
+          .select('playUrl, play_url')
+          .eq('id', storyId)
+          .maybeSingle();
+      if (res == null) return null;
+      final data = res as Map<String, dynamic>;
+      return data['playUrl']?.toString() ?? data['play_url']?.toString();
+    } catch (_) {
+      return null;
     }
   }
 
-  String _relativeTime(DateTime? dt) {
-    if (dt == null) return 'Not played';
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    return '${diff.inDays}d ago';
+  Future<void> _toggleStoryPlayPause(Map<String, dynamic> story) async {
+    final storyId = story['id'] is int ? story['id'] as int : int.tryParse(story['id']?.toString() ?? '');
+    if (storyId == null) return;
+    if (_model.playingStoryId == storyId && _model.isPlaying) {
+      await _audioPlayer.pause();
+      if (mounted) safeSetState(() { _model.isPlaying = false; });
+      return;
+    }
+    if (_model.playingStoryId == storyId) {
+      await _audioPlayer.resume();
+      if (mounted) safeSetState(() { _model.isPlaying = true; });
+      return;
+    }
+    final playUrl = await _getPlayUrlForStory(story);
+    if (playUrl == null || playUrl.isEmpty) {
+      if (mounted) {
+        AppToast.info(context, 'No audio available for this story');
+      }
+      return;
+    }
+    if (mounted) safeSetState(() => _model.playingStoryId = storyId);
+    await _audioPlayer.play(UrlSource(playUrl), mode: PlayerMode.mediaPlayer);
+    if (mounted) safeSetState(() => _model.isPlaying = true);
   }
 
-  Widget _buildRecentStoryRow(BuildContext context, Story story) {
-    final titleParts = story.title.split(' ');
-    final mid = (titleParts.length / 2).ceil();
-    final displayTitle = titleParts.take(mid).join(' ');
-    final meta =
-        '${story.desireName.isEmpty ? '' : '${story.desireName} · '}${story.playLength ?? '—'} · ${_relativeTime(story.lastPlayed)}';
-    return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(14.0, 0.0, 14.0, 0.0),
-      child: Container(
-        width: 100.0,
-        decoration: BoxDecoration(
-          color: FlutterFlowTheme.of(context).secondaryBackground,
-          boxShadow: [
-            BoxShadow(
-              blurRadius: 32.0,
-              color: Color(0x1A1C1917),
-              offset: Offset(0.0, 8.0),
-            )
-          ],
-          borderRadius: BorderRadius.circular(14.0),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(13.0, 11.0, 0.0, 11.0),
-                  child: Container(
-                    width: 3.0,
-                    height: 34.0,
-                    decoration: BoxDecoration(
-                      color: _desireColor(story.desireName),
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(10.0, 11.0, 0.0, 11.0),
-                  child: Container(
-                    width: 165.0,
-                    decoration: BoxDecoration(
-                      color: FlutterFlowTheme.of(context).secondaryBackground,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      children: [
-                        Align(
-                          alignment: AlignmentDirectional(-1.0, 0.0),
-                          child: Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 2.0),
-                            child: Text(
-                              displayTitle,
-                              style: FlutterFlowTheme.of(context).bodyMedium.override(
-                                    font: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FlutterFlowTheme.of(context).bodyMedium.fontStyle,
-                                    ),
-                                    color: Color(0xFF1C1917),
-                                    fontSize: 11.0,
-                                    letterSpacing: 0.0,
-                                    fontWeight: FontWeight.w600,
-                                    fontStyle: FlutterFlowTheme.of(context).bodyMedium.fontStyle,
-                                  ),
-                            ),
-                          ),
-                        ),
-                        Align(
-                          alignment: AlignmentDirectional(-1.0, 0.0),
-                          child: Text(
-                            meta,
-                            style: FlutterFlowTheme.of(context).bodyMedium.override(
-                                  font: GoogleFonts.dmMono(
-                                    fontWeight: FlutterFlowTheme.of(context).bodyMedium.fontWeight,
-                                    fontStyle: FlutterFlowTheme.of(context).bodyMedium.fontStyle,
-                                  ),
-                                  color: Color(0xFF9E9189),
-                                  fontSize: 10.0,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FlutterFlowTheme.of(context).bodyMedium.fontWeight,
-                                  fontStyle: FlutterFlowTheme.of(context).bodyMedium.fontStyle,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(10.0, 0.0, 13.0, 0.0),
-              child: FlutterFlowIconButton(
-                borderColor: Color(0xFF9E9393),
-                borderRadius: 50.0,
-                buttonSize: 28.0,
-                fillColor: Color(0xFFF2EEE7),
-                icon: Icon(
-                  Icons.play_arrow,
-                  color: Colors.black,
-                  size: 14.0,
-                ),
-                onPressed: () {
-                  final parts = story.title.split(' ');
-                  final m = (parts.length / 2).ceil();
-                  context.pushNamed(
-                    PlayerWidget.routeName,
-                    extra: {
-                      'categoryLabel': '✦ ${story.desireName.toUpperCase()} · GENERATED TODAY',
-                      'title': parts.take(m).join(' '),
-                      'subtitle': parts.skip(m).join(' '),
-                      'durationLabel': '${story.playLength ?? '—'} · In your voice',
-                      'storyId': story.id,
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _navigateToPlayerWithVoice(Map<String, dynamic> story) async {
+    final storyId = story['id'] is int ? story['id'] as int : int.tryParse(story['id']?.toString() ?? '');
+    if (storyId == null) return;
+
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in')));
+      return;
+    }
+
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
+      if (voiceId.isEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice not available')));
+        return;
+      }
+
+      final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
+      final playUrl = res['url']?.toString();
+      if (playUrl == null || playUrl.isEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load audio')));
+        return;
+      }
+
+      if (mounted) {
+        final storyText = (story['story'] ?? story['content'])?.toString().trim();
+        context.pushNamed(PlayerWidget.routeName, extra: {
+          'storyId': storyId,
+          'categoryLabel': (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
+          'title': (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString(),
+          'subtitle': '',
+          'durationLabel': _durationFromStory(story),
+          'playUrl': playUrl,
+          if (storyText != null && storyText.isNotEmpty) 'storyPreview': storyText,
+        });
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  String _durationFromStory(Map<String, dynamic> story) {
+    final storyId = story['id'] is int ? story['id'] as int : int.tryParse(story['id']?.toString() ?? '');
+    final cached = storyId != null ? _model.durationCache[storyId] : null;
+    final d = cached ?? story['play_length'] ?? story['playLength'] ?? story['duration'];
+    if (d == null) return '--:--';
+    int secs;
+    if (d is int) {
+      secs = d;
+    } else if (d is num) {
+      secs = d.round();
+    } else {
+      final parsed = num.tryParse(d.toString());
+      if (parsed == null) return '--:--';
+      secs = parsed.round();
+    }
+    final m = secs ~/ 60;
+    final s = secs % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  List<Map<String, dynamic>> _getFilteredStories() {
+    final selected = _model.selectedDesireFilter;
+    if (selected == null || selected.isEmpty) return _model.stories;
+    return _model.stories
+        .where((s) => (s['desire_name'] ?? s['category'] ?? '').toString() == selected)
+        .toList();
+  }
+
+  int _countByDesire(String? desireName) {
+    if (desireName == null || desireName.isEmpty) return _model.stories.length;
+    return _model.stories
+        .where((s) => (s['desire_name'] ?? s['category'] ?? '').toString() == desireName)
+        .length;
+  }
+
+  Future<void> _handleUnlockSleepMode() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+    try {
+      final status = await BackendClient.getSubscriptionStatus(userId);
+      final subId = status['stripe_subscription_id']?.toString().trim();
+      final hasSubscription = subId != null && subId.isNotEmpty;
+      if (!mounted) return;
+      if (hasSubscription) {
+        sleepModeNotifier.value = true;
+        context.go('/player');
+      } else {
+        AppToast.info(context, 'Subscribe to unlock Sleep Mode');
+        context.go(SubscriptionWidget.routePath);
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.info(context, 'Subscribe to unlock Sleep Mode');
+        context.go(SubscriptionWidget.routePath);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final story = _model.todayStory;
-    final desireName = story?.desireName.toUpperCase() ?? '...';
-    final storyCategoryLabel = '✦ $desireName · GENERATED TODAY';
-    // Split the title roughly in half so the two-line layout still works.
-    final fullTitle = story?.title ?? 'Loading…';
-    final titleParts = fullTitle.split(' ');
-    final midpoint = (titleParts.length / 2).ceil();
-    final storyTitle = titleParts.take(midpoint).join(' ');
-    final storySubtitle = titleParts.skip(midpoint).join(' ');
-    final storyDurationLabel =
-        story != null ? '${story.playLength ?? '—'} · In your voice' : '...';
+    final filtered = _getFilteredStories();
+    final lastPlayed = _model.stories.isEmpty ? null : _model.stories.first;
+    final recentStories = filtered.isEmpty
+        ? <Map<String, dynamic>>[]
+        : filtered.sublist(0, filtered.length > 3 ? 3 : filtered.length);
 
     return GestureDetector(
       onTap: () {
@@ -266,1418 +361,556 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       },
       child: Scaffold(
         key: scaffoldKey,
-        backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+        backgroundColor: _AppColors.surface,
         body: SafeArea(
           top: true,
-          child: Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(1.0, 0.0, 0.0, 0.0),
-            child: InkWell(
-              splashColor: Colors.transparent,
-              focusColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    height: 160.0,
-                    decoration: BoxDecoration(
-                      color: Color(0xFF1C1917),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(
-                          20.0, 18.0, 20.0, 24.0),
+              // Hero section (full width, outside padded area)
+              _buildHero(),
+              // Scrollable content with horizontal padding
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsetsDirectional.fromSTEB(20, 24, 20, 80),
                       child: Column(
-                        mainAxisSize: MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Align(
-                            alignment: AlignmentDirectional(-1.0, 0.0),
-                            child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  0.0, 0.0, 0.0, 5.0),
-                              child: Text(
-                                'GOOD MORNING',
-                                textAlign: TextAlign.start,
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.w500,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Color(0x4FFFFFFF),
-                                      fontSize: 10.0,
-                                      letterSpacing: 2.5,
-                                      fontWeight: FontWeight.w500,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
+                      // Story card (last played from API) — play in-page, no navigation
+                      _model.storiesLoading
+                          ? _buildStoryCardLoading()
+                          : _buildStoryCard(
+                              context: context,
+                              story: lastPlayed,
+                              categoryLabel: lastPlayed != null
+                                  ? (lastPlayed['desire_name'] ?? lastPlayed['category'] ?? 'Story').toString() + " · Today's Story"
+                                  : "Today's Story",
+                              title: lastPlayed != null
+                                  ? (lastPlayed['theme'] ?? lastPlayed['title'] ?? lastPlayed['desire_name'] ?? 'Your Story').toString()
+                                  : 'No story yet',
+                              durationLabel: lastPlayed != null ? _durationFromStory(lastPlayed) : '--:--',
+                              isPlaying: lastPlayed != null && _model.playingStoryId == (lastPlayed['id'] is int ? lastPlayed['id'] : int.tryParse(lastPlayed['id']?.toString() ?? '')) && _model.isPlaying,
+                              onTap: lastPlayed != null ? () => _toggleStoryPlayPause(lastPlayed) : () {},
+                              isPlayingStory: lastPlayed != null && _model.playingStoryId == (lastPlayed['id'] is int ? lastPlayed['id'] : int.tryParse(lastPlayed['id']?.toString() ?? '')),
+                            ),
+                      const SizedBox(height: 16),
+
+                      // Sleep card
+                      _buildSleepCard(context),
+                      const SizedBox(height: 20),
+
+                      // Your Manifestations
+                              Text(
+                        'Your Manifestations',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                          color: _AppColors.inkMid,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDesireChips(),
+                      const SizedBox(height: 20),
+
+                      // Recent Stories (last two from API)
+                              Text(
+                        'Recent Stories',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _AppColors.inkMid,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildRecentStories(context, recentStories),
+                    ],
+                  ),
+                ),
+              ),
+            ],
                               ),
                             ),
                           ),
-                          Row(
-                            mainAxisSize: MainAxisSize.max,
-                            children: [
-                              Text(
-                                'Hello, ',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.cormorantGaramond(
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Colors.white,
-                                      fontSize: 24.0,
-                                      letterSpacing: 1.25,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                              Text(
-                                'Jordan.',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.cormorantGaramond(
-                                        fontWeight: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontWeight,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                      color: Color(0xFFC9972A),
-                                      fontSize: 24.0,
-                                      letterSpacing: 1.25,
-                                      fontWeight: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontWeight,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                              ),
-                            ],
-                          ),
-                          Align(
-                            alignment: AlignmentDirectional(-1.0, 0.0),
-                            child: Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                  0.0, 0.0, 0.0, 14.0),
-                              child: Text(
-                                'Your reality awaits.',
-                                style: FlutterFlowTheme.of(context)
-                                    .bodyMedium
-                                    .override(
-                                      font: GoogleFonts.cormorantGaramond(
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                      color: Colors.white,
-                                      fontSize: 24.0,
-                                      letterSpacing: 1.25,
-                                      fontWeight: FontWeight.w600,
-                                      fontStyle: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .fontStyle,
-                                    ),
-                              ),
-                            ),
-                          ),
-                          Align(
-                            alignment: AlignmentDirectional(-1.0, 0.0),
-                            child: Container(
-                              width: 160.0,
-                              decoration: BoxDecoration(
-                                color: Color(0x1FC9972A),
-                                borderRadius: BorderRadius.circular(20.0),
-                                shape: BoxShape.rectangle,
-                                border: Border.all(
-                                  color: Color(0x47C9972A),
-                                ),
-                              ),
-                              child: Padding(
-                                padding: EdgeInsetsDirectional.fromSTEB(
-                                    6.0, 6.0, 6.0, 6.0),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.center,
+    );
+  }
+
+  Widget _buildStoryCardLoading() {
+    return Container(
+      height: 180,
+      decoration: BoxDecoration(
+        color: _AppColors.surface,
+        border: Border.all(color: _AppColors.stone),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Center(child: CircularProgressIndicator(color: _AppColors.gold)),
+    );
+  }
+
+  Widget _buildHero() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 28, 20, 28),
+      decoration: const BoxDecoration(color: _AppColors.ink),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '🔥',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.inter(
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            fontSize: 10.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontWeight,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                    ),
-                                    Text(
-                                      '14-day streak · Keep going',
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.outfit(
-                                              fontWeight: FontWeight.w600,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            color: Color(0xFFC9972A),
-                                            fontSize: 10.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+            'GOOD MORNING',
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w500,
+              color: _AppColors.stone,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            (_model.userName ?? '').trim().isNotEmpty ? (_model.userName ?? '').trim() : 'there',
+            style: GoogleFonts.cormorantGaramond(
+              fontSize: 32,
+              fontWeight: FontWeight.w300,
+              color: _AppColors.warmWhite,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+                            child: Row(
+              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                  '✓',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                    color: _AppColors.goldLight,
                   ),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.max,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                                18.0, 16.0, 18.0, 8.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Today\'s Story',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.cormorantGaramond(
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: Color(0xFF1C1917),
-                                        fontSize: 15.0,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                ),
-                                Align(
-                                  alignment: AlignmentDirectional(1.0, 0.0),
-                                  child: GestureDetector(
-                                    onTap: () async {
-                                      context.pushNamed(
-                                        DesiresWidget.routeName,
-                                      );
-                                    },
-                                    child: Text(
-                                      'See all →',
-                                      textAlign: TextAlign.end,
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.outfit(
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '7-day streak',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
                                               fontWeight: FontWeight.w600,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            color: Color(0xFFB88612),
-                                            fontSize: 10.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                    ),
+                    color: _AppColors.goldLight,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                                14.0, 0.0, 14.0, 6.0),
-                            child: Card(
-                              clipBehavior: Clip.antiAliasWithSaveLayer,
-                              color: Colors.white,
-                              elevation: 0.0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18.0),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.max,
-                                children: [
-                                  Container(
-                                    width: double.infinity,
-                                    height: 120.0,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Color(0xFFF5EDD8),
-                                          Color(0xFFFDF0EE)
-                                        ],
-                                        stops: [0.0, 1.0],
-                                        begin: AlignmentDirectional(0.98, 1.0),
-                                        end: AlignmentDirectional(-0.98, -1.0),
-                                      ),
-                                      borderRadius: BorderRadius.only(
-                                        bottomLeft: Radius.circular(0.0),
-                                        bottomRight: Radius.circular(0.0),
-                                        topLeft: Radius.circular(18.0),
-                                        topRight: Radius.circular(18.0),
-                                      ),
-                                    ),
-                                    child: GestureDetector(
-                                      onTap: () async {
-                                        context.pushNamed(
-                                          PlayerWidget.routeName,
-                                          extra: {
-                                            'categoryLabel': storyCategoryLabel,
-                                            'title': storyTitle,
-                                            'subtitle': storySubtitle,
-                                            'durationLabel': storyDurationLabel,
-                                            if (story != null) 'storyId': story!.id,
-                                          },
-                                        );
-                                      },
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.max,
-                                        children: [
-                                        Padding(
-                                          padding: EdgeInsets.all(20.0),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.max,
-                                            children: [
-                                              Row(
-                                                mainAxisSize: MainAxisSize.max,
-                                                children: [
-                                                  Padding(
-                                                    padding:
-                                                        EdgeInsetsDirectional
-                                                            .fromSTEB(0.0, 0.0,
-                                                                0.0, 5.0),
-                                                    child: Text(
-                                                      storyCategoryLabel,
-                                                      style: FlutterFlowTheme
-                                                              .of(context)
-                                                          .bodyMedium
-                                                          .override(
-                                                            font: GoogleFonts
-                                                                .outfit(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              fontStyle:
-                                                                  FlutterFlowTheme.of(
-                                                                          context)
-                                                                      .bodyMedium
-                                                                      .fontStyle,
-                                                            ),
-                                                            color: Color(
-                                                                0xFFB8861E),
-                                                            fontSize: 9.0,
-                                                            letterSpacing: 2.0,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            fontStyle:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .bodyMedium
-                                                                    .fontStyle,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              Align(
-                                                alignment: AlignmentDirectional(
-                                                    -1.0, 0.0),
-                                                child: Text(
-                                                  storyTitle,
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font: GoogleFonts
-                                                            .cormorantGaramond(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFF1A1208),
-                                                        fontSize: 16.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                              Align(
-                                                alignment: AlignmentDirectional(
-                                                    -1.0, 0.0),
-                                                child: Padding(
-                                                  padding: EdgeInsetsDirectional
-                                                      .fromSTEB(
-                                                          0.0, 0.0, 0.0, 3.0),
-                                                  child: Text(
-                                                    storySubtitle,
-                                                    style: FlutterFlowTheme.of(
-                                                            context)
-                                                        .bodyMedium
-                                                        .override(
-                                                          font: GoogleFonts
-                                                              .cormorantGaramond(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            fontStyle:
-                                                                FlutterFlowTheme.of(
-                                                                        context)
-                                                                    .bodyMedium
-                                                                    .fontStyle,
-                                                          ),
-                                                          color:
-                                                              Color(0xFF1A1208),
-                                                          fontSize: 16.0,
-                                                          letterSpacing: 0.0,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ),
-                                              Align(
-                                                alignment: AlignmentDirectional(
-                                                    -1.0, 0.0),
-                                                child: Text(
-                                                  storyDurationLabel,
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.dmMono(
-                                                          fontWeight:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontWeight,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFF9E9189),
-                                                        fontSize: 10.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontWeight,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
-                                            14.0, 11.0, 10.0, 11.0),
-                                        child: Container(
-                                          width: 130.0,
-                                          height: 24.0,
-                                          decoration: BoxDecoration(
-                                            color: FlutterFlowTheme.of(context)
-                                                .secondaryBackground,
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: AnimatedBuilder(
-                                            animation: _waveController,
-                                            builder: (context, _) {
-                                              return Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: List.generate(
-                                                  _waveBaseHeights.length,
-                                                  (i) {
-                                                    final baseH =
-                                                        _waveBaseHeights[i];
-                                                    final h = _isWavePlaying
-                                                        ? (baseH *
-                                                            (0.55 +
-                                                                0.45 *
-                                                                    math.sin(
-                                                                        _waveController.value *
-                                                                            2 *
-                                                                            math.pi +
-                                                                            i *
-                                                                                0.75)))
-                                                        .clamp(4.0, 24.0)
-                                                        : baseH;
-                                                    return Padding(
-                                                      padding: EdgeInsetsDirectional
-                                                          .fromSTEB(
-                                                              i == 0
-                                                                  ? 0.0
-                                                                  : 2.0,
-                                                              0.0,
-                                                              0.0,
-                                                              0.0),
-                                                      child: Container(
-                                                        width: 2.5,
-                                                        height: h,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: Color(
-                                                              _waveColors[i]),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(
-                                                                      10.0),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        '1 : 29',
-                                        style: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .override(
-                                              font: GoogleFonts.inter(
-                                                fontWeight:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontWeight,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .bodyMedium
-                                                        .fontStyle,
-                                              ),
-                                              color: Color(0xFF9E9189),
-                                              fontSize: 10.0,
-                                              letterSpacing: 0.0,
-                                              fontWeight:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontWeight,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
-                                            10.0, 0.0, 14.0, 0.0),
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: Color(0xFF1A1208),
-                                            borderRadius:
-                                                BorderRadius.circular(50.0),
-                                          ),
-                                          child: FlutterFlowIconButton(
-                                            borderRadius: 50.0,
-                                            buttonSize: 38.0,
-                                            fillColor: Color(0xFF1A1208),
-                                            icon: Icon(
-                                              _isWavePlaying
-                                                  ? Icons.pause
-                                                  : Icons.play_arrow,
-                                              color:
-                                                  FlutterFlowTheme.of(context)
-                                                      .info,
-                                              size: 20.0,
-                                            ),
-                                            onPressed: _toggleWavePlaying,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                                18.0, 0.0, 18.0, 6.0),
-                            child: Container(
-                              width: double.infinity,
-                              height: 67.0,
-                              decoration: BoxDecoration(
-                                color: Color(0xFF1A1208),
-                                borderRadius: BorderRadius.circular(16.0),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.max,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.max,
-                                    children: [
-                                      Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
-                                            15.0, 0.0, 11.0, 0.0),
-                                        child: Container(
-                                          width: 38.0,
-                                          height: 38.0,
-                                          decoration: BoxDecoration(
-                                            color: Color.fromRGBO(
-                                                255, 255, 255, 0.06),
-                                            borderRadius:
-                                                BorderRadius.circular(11.0),
-                                          ),
-                                          child: Material(
-                                            color: Colors.transparent,
-                                            child: InkWell(
-                                              onTap: () {
-                                                print('IconButton pressed ...');
-                                              },
-                                              borderRadius:
-                                                  BorderRadius.circular(11.0),
-                                              child: Center(
-                                                child: Text(
-                                                  '🌙',
-                                                  style: TextStyle(
-                                                    fontSize: 17.0,
-                                                    color: FlutterFlowTheme.of(
-                                                            context)
-                                                        .info,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
-                                            0.0, 0.0, 11.0, 0.0),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.max,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Padding(
-                                              padding: EdgeInsetsDirectional
-                                                  .fromSTEB(
-                                                      0.0, 13.0, 0.0, 0.0),
-                                              child: Text(
-                                                'Sleep Mode Ready',
-                                                style: FlutterFlowTheme.of(
-                                                        context)
-                                                    .bodyMedium
-                                                    .override(
-                                                      font: GoogleFonts.outfit(
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                      color: Colors.white,
-                                                      fontSize: 11.0,
-                                                      letterSpacing: 0.0,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontStyle:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .bodyMedium
-                                                              .fontStyle,
-                                                    ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  0.0, 0.0),
-                                              child: Text(
-                                                'Slow pace · theta',
-                                                style: FlutterFlowTheme.of(
-                                                        context)
-                                                    .bodyMedium
-                                                    .override(
-                                                      font: GoogleFonts.outfit(
-                                                        fontWeight:
-                                                            FontWeight.w300,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                      color: Color(0x4BFFFFFF),
-                                                      fontSize: 10.0,
-                                                      letterSpacing: 0.0,
-                                                      fontWeight:
-                                                          FontWeight.w300,
-                                                      fontStyle:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .bodyMedium
-                                                              .fontStyle,
-                                                    ),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: EdgeInsetsDirectional
-                                                  .fromSTEB(
-                                                      0.0, 0.0, 0.0, 13.0),
-                                              child: Text(
-                                                'waves',
-                                                style: FlutterFlowTheme.of(
-                                                        context)
-                                                    .bodyMedium
-                                                    .override(
-                                                      font: GoogleFonts.outfit(
-                                                        fontWeight:
-                                                            FontWeight.w300,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                      color: Color(0x4CFFFFFF),
-                                                      fontSize: 10.0,
-                                                      letterSpacing: 0.0,
-                                                      fontWeight:
-                                                          FontWeight.w300,
-                                                      fontStyle:
-                                                          FlutterFlowTheme.of(
-                                                                  context)
-                                                              .bodyMedium
-                                                              .fontStyle,
-                                                    ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsetsDirectional.fromSTEB(
-                                        0.0, 0.0, 15.0, 0.0),
-                                    child: FFButtonWidget(
-                                      onPressed: () {
-                                        print('Button pressed ...');
-                                      },
-                                      text: 'Unlock',
-                                      options: FFButtonOptions(
-                                        padding: EdgeInsetsDirectional.fromSTEB(
-                                            9.0, 0.0, 9.0, 0.0),
-                                        iconPadding:
-                                            EdgeInsetsDirectional.fromSTEB(
-                                                0.0, 0.0, 0.0, 0.0),
-                                        color: Color(0x1AC9972A),
-                                        textStyle: FlutterFlowTheme.of(context)
-                                            .titleSmall
-                                            .override(
-                                              font: GoogleFonts.interTight(
-                                                fontWeight: FontWeight.bold,
-                                                fontStyle:
-                                                    FlutterFlowTheme.of(context)
-                                                        .titleSmall
-                                                        .fontStyle,
-                                              ),
-                                              color: Color(0xFFC9972A),
-                                              fontSize: 10.0,
-                                              letterSpacing: 0.0,
-                                              fontWeight: FontWeight.bold,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .titleSmall
-                                                      .fontStyle,
-                                              lineHeight: 1.0,
-                                            ),
-                                        elevation: 0.0,
-                                        borderSide: BorderSide(
-                                          color: Color(0x37C9972A),
-                                        ),
-                                        borderRadius:
-                                            BorderRadius.circular(20.0),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                                18.0, 16.0, 18.0, 6.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Your Desires',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.cormorantGaramond(
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: Colors.black,
-                                        fontSize: 15.0,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                ),
-                                Align(
-                                  alignment: AlignmentDirectional(1.0, 0.0),
-                                  child: GestureDetector(
-                                    onTap: () async {
-                                      context.pushNamed(
-                                        DesiresWidget.routeName,
-                                      );
-                                    },
-                                    child: Text(
-                                      'Manage →',
-                                      textAlign: TextAlign.end,
-                                      style: FlutterFlowTheme.of(context)
-                                          .bodyMedium
-                                          .override(
-                                            font: GoogleFonts.outfit(
-                                              fontWeight: FontWeight.w600,
-                                              fontStyle:
-                                                  FlutterFlowTheme.of(context)
-                                                      .bodyMedium
-                                                      .fontStyle,
-                                            ),
-                                            color: Color(0xFFD4A843),
-                                            fontSize: 10.0,
-                                            letterSpacing: 0.0,
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Align(
-                            alignment: AlignmentDirectional(0.0, 0.0),
-                            child: Container(
-                              width: double.infinity,
-                              height: 66.5,
-                              decoration: BoxDecoration(),
-                              alignment: AlignmentDirectional(0.0, 0.0),
-                              child: Align(
-                                alignment: AlignmentDirectional(0.0, -1.0),
-                                child: Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
-                                      18.0, 0.0, 0.0, 0.0),
-                                  child: ListView(
-                                    padding: EdgeInsets.zero,
-                                    scrollDirection: Axis.horizontal,
-                                    children: [
-                                      Container(
-                                        width: 108.0,
-                                        decoration: BoxDecoration(
-                                          color: Color(0xFFFBF4E6),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              blurRadius: 32.0,
-                                              color: Color(0x1A1C1917),
-                                              offset: Offset(
-                                                0.0,
-                                                8.0,
-                                              ),
-                                            )
-                                          ],
-                                          borderRadius:
-                                              BorderRadius.circular(12.0),
-                                          shape: BoxShape.rectangle,
-                                          border: Border.all(
-                                            color: Color(0x65B88612),
-                                            width: 1.0,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.max,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 12.0, 0.0, 0.0),
-                                                child: Text(
-                                                  '♡ LOVE',
-                                                  textAlign: TextAlign.justify,
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.outfit(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFFD98B80),
-                                                        fontSize: 9.0,
-                                                        letterSpacing: 1.5,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 0.0, 0.0, 0.0),
-                                                child: Text(
-                                                  'Deep connection',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font: GoogleFonts
-                                                            .cormorantGaramond(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        fontSize: 12.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 5.0, 0.0, 0.0),
-                                                child: Text(
-                                                  '12 stories',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.outfit(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFF9E9189),
-                                                        fontSize: 9.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 108.0,
-                                        decoration: BoxDecoration(
-                                          color: Color(0xE7FFFFFF),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              blurRadius: 32.0,
-                                              color: Color(0x191C1917),
-                                              offset: Offset(
-                                                0.0,
-                                                8.0,
-                                              ),
-                                            )
-                                          ],
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          border: Border.all(
-                                            color: Color(0x151C1917),
-                                            width: 1.0,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.max,
-                                          children: [
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 12.0, 0.0, 0.0),
-                                                child: Text(
-                                                  ' \$ MONEY',
-                                                  textAlign: TextAlign.justify,
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.outfit(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFF7FA882),
-                                                        fontSize: 9.0,
-                                                        letterSpacing: 1.5,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 0.0, 0.0, 0.0),
-                                                child: Text(
-                                                  'Financial freedom',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font: GoogleFonts
-                                                            .cormorantGaramond(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        fontSize: 12.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 5.0, 0.0, 0.0),
-                                                child: Text(
-                                                  '8 stories',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.outfit(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFF9E9189),
-                                                        fontSize: 9.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 108.0,
-                                        decoration: BoxDecoration(
-                                          color: FlutterFlowTheme.of(context)
-                                              .secondaryBackground,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              blurRadius: 32.0,
-                                              color: Color(0x1A1C1917),
-                                              offset: Offset(
-                                                0.0,
-                                                8.0,
-                                              ),
-                                            )
-                                          ],
-                                          borderRadius:
-                                              BorderRadius.circular(14.0),
-                                          border: Border.all(
-                                            color: Color(0x141C1917),
-                                            width: 1.0,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.max,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 12.0, 0.0, 0.0),
-                                                child: Text(
-                                                  '✦ CAREER',
-                                                  textAlign: TextAlign.justify,
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.outfit(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFF4E8F9C),
-                                                        fontSize: 9.0,
-                                                        letterSpacing: 1.5,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 0.0, 0.0, 0.0),
-                                                child: Text(
-                                                  'Dream role',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font: GoogleFonts
-                                                            .cormorantGaramond(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        fontSize: 12.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: AlignmentDirectional(
-                                                  -1.0, 0.0),
-                                              child: Padding(
-                                                padding: EdgeInsetsDirectional
-                                                    .fromSTEB(
-                                                        10.0, 5.0, 0.0, 0.0),
-                                                child: Text(
-                                                  '5 stories',
-                                                  style: FlutterFlowTheme.of(
-                                                          context)
-                                                      .bodyMedium
-                                                      .override(
-                                                        font:
-                                                            GoogleFonts.outfit(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontStyle:
-                                                              FlutterFlowTheme.of(
-                                                                      context)
-                                                                  .bodyMedium
-                                                                  .fontStyle,
-                                                        ),
-                                                        color:
-                                                            Color(0xFF9E9189),
-                                                        fontSize: 9.0,
-                                                        letterSpacing: 0.0,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontStyle:
-                                                            FlutterFlowTheme.of(
-                                                                    context)
-                                                                .bodyMedium
-                                                                .fontStyle,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ].divide(SizedBox(width: 8.0)),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(
-                                18.0, 14.0, 18.0, 8.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.max,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Recent',
-                                  style: FlutterFlowTheme.of(context)
-                                      .bodyMedium
-                                      .override(
-                                        font: GoogleFonts.cormorantGaramond(
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                        color: Colors.black,
-                                        fontSize: 15.0,
-                                        letterSpacing: 0.0,
-                                        fontWeight: FontWeight.w600,
-                                        fontStyle: FlutterFlowTheme.of(context)
-                                            .bodyMedium
-                                            .fontStyle,
-                                      ),
-                                ),
-                                Align(
-                                  alignment: AlignmentDirectional(1.0, 0.0),
-                                  child: Text(
-                                    'All →',
-                                    textAlign: TextAlign.end,
-                                    style: FlutterFlowTheme.of(context)
-                                        .bodyMedium
-                                        .override(
-                                          font: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w600,
-                                            fontStyle:
-                                                FlutterFlowTheme.of(context)
-                                                    .bodyMedium
-                                                    .fontStyle,
-                                          ),
-                                          color: Color(0xFFD4A843),
-                                          fontSize: 9.0,
-                                          letterSpacing: 0.0,
-                                          fontWeight: FontWeight.w600,
-                                          fontStyle:
-                                              FlutterFlowTheme.of(context)
-                                                  .bodyMedium
-                                                  .fontStyle,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            mainAxisSize: MainAxisSize.max,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (final s in _model.recentStories)
-                                _buildRecentStoryRow(context, s),
-                            ].divide(SizedBox(height: 12.0)),
-                          ),
-                        ],
-                      ),
+        ],
+      ),
+    );
+  }
+
+  static const List<double> _staticWaveHeights = [8.0, 16.0, 24.0, 14.0, 28.0, 20.0, 12.0, 22.0, 18.0, 10.0];
+  static const int _totalWaveBars = 56;
+
+  /// Waveform with water-flow animation: bar heights vary over time. Progress = first [visibleCount] bars in gold.
+  Widget _buildProgressWaveform(int visibleCount, int totalBars, {bool isAnimated = false}) {
+    const heights = [8.0, 20.0, 32.0, 16.0, 36.0, 12.0, 28.0, 24.0, 14.0, 30.0];
+    return AnimatedBuilder(
+      animation: _idleWaveController,
+      builder: (context, _) {
+        final t = _idleWaveController.value * 2 * math.pi;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: List.generate(totalBars, (i) {
+            final isPlayed = i < visibleCount;
+            final s1 = (math.sin(t + i * 0.4) + 1) / 2;
+            final s2 = (math.sin(t * 1.3 + i * 0.6) + 1) / 2;
+            final baseH = heights[i % heights.length];
+            final h = baseH * 0.6 + baseH * 0.4 * s1 + 4.0 * s2;
+            return Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                child: Container(
+                  width: double.infinity,
+                  height: h.clamp(6.0, 34.0),
+                  decoration: BoxDecoration(
+                    color: isPlayed
+                        ? _AppColors.gold
+                        : (isAnimated && visibleCount == 0
+                            ? _AppColors.gold.withValues(alpha: 0.5)
+                            : _AppColors.stone),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildStoryCard({
+    required BuildContext context,
+    Map<String, dynamic>? story,
+    required String categoryLabel,
+    required String title,
+    required String durationLabel,
+    required bool isPlaying,
+    required VoidCallback onTap,
+    bool isPlayingStory = false,
+  }) {
+    final pos = _model.playbackPosition.inMilliseconds;
+    final dur = _model.playbackDuration.inMilliseconds;
+    final visibleBars = (dur > 0 && isPlayingStory)
+        ? ((pos / dur) * _totalWaveBars).round().clamp(0, _totalWaveBars)
+        : 0;
+    return Container(
+      decoration: BoxDecoration(
+        color: _AppColors.surface,
+        border: Border.all(color: _AppColors.stone),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _AppColors.ink.withOpacity(0.06),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              categoryLabel.toUpperCase(),
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.w600,
+                color: _AppColors.blush,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 20,
+                fontWeight: FontWeight.w400,
+                color: _AppColors.ink,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Waveform: left-to-right by time flow (played=gold, unplayed=gray); animated when idle
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: _AppColors.warmWhite,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: _buildProgressWaveform(
+                      visibleBars,
+                      _totalWaveBars,
+                      isAnimated: !isPlayingStory,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            Pressable(
+              onTap: story != null ? onTap : null,
+              borderRadius: BorderRadius.circular(10),
+              splashColor: Colors.white.withValues(alpha: 0.3),
+              highlightColor: Colors.white.withValues(alpha: 0.15),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _AppColors.gold,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: _AppColors.surface,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isPlaying ? 'Pause' : 'Play Story · $durationLabel',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _AppColors.surface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSleepCard(BuildContext context) {
+    return Container(
+                              decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF4E5F9C), Color(0xFF2A3B5F)],
+        ),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 18,
+            right: 18,
+            child: Text(
+              '✓',
+              style: GoogleFonts.outfit(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white.withOpacity(0.2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                  'PREMIUM FEATURE',
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sleep Mode',
+                  style: GoogleFonts.cormorantGaramond(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Slower pacing, theta waves, fade to silence',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Pressable(
+                  onTap: _handleUnlockSleepMode,
+                  borderRadius: BorderRadius.circular(10),
+                  splashColor: Colors.white.withValues(alpha: 0.2),
+                  highlightColor: Colors.white.withValues(alpha: 0.1),
+                  child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Unlock Sleep Mode',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesireChips() {
+    final selected = _model.selectedDesireFilter;
+    final chips = <(String, String?)>[
+      ('All Stories', null),
+      ..._model.desires.map((d) {
+        final name = (d['desireCategory'] ?? d['name'] ?? '').toString();
+        return (name, name.isEmpty ? null : name);
+      }),
+    ].where((c) => c.$1.isNotEmpty).toList();
+
+    if (chips.isEmpty) {
+      chips.add(('All Stories', null));
+    }
+
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final (label, desireName) = chips[i];
+          final count = _countByDesire(desireName);
+          final isSelected = selected == desireName;
+          return Pressable(
+            onTap: () {
+              safeSetState(() => _model.selectedDesireFilter = desireName);
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? _AppColors.goldPale : _AppColors.surface,
+                border: Border.all(
+                  color: isSelected ? _AppColors.gold : _AppColors.stone,
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: Text(
+                  '$label ($count)',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? _AppColors.gold : _AppColors.inkSoft,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  static final List<Color> _recentStoryColors = [
+    _AppColors.blushLight,
+    _AppColors.goldPale,
+    _AppColors.tealLight,
+  ];
+
+  Widget _buildRecentStories(BuildContext context, List<Map<String, dynamic>> recentStories) {
+    if (recentStories.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'No recent stories yet.',
+          style: GoogleFonts.outfit(fontSize: 13, color: _AppColors.inkSoft),
+        ),
+      );
+    }
+    return Column(
+      children: List.generate(recentStories.length, (i) {
+        final story = recentStories[i];
+        final name = (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString();
+        final duration = _durationFromStory(story);
+        final meta = '· $duration';
+        final iconBg = _recentStoryColors[i % _recentStoryColors.length];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Pressable(
+            onTap: () => _navigateToPlayerWithVoice(story),
+            borderRadius: BorderRadius.circular(12),
+            child: _buildStoryItem(name: name, meta: meta, iconBg: iconBg),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildStoryItem({
+    required String name,
+    required String meta,
+    required Color iconBg,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+        color: _AppColors.surface,
+        border: Border.all(color: _AppColors.stone),
+        borderRadius: BorderRadius.circular(12),
+      ),
+                            child: Row(
+                              children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+                                  child: Text(
+                '✓',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                  color: _AppColors.ink,
+                ),
+                                        ),
+                                  ),
+                                ),
+          const SizedBox(width: 12),
+          Expanded(
+                                              child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                Text(
+                  name,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  meta,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    color: _AppColors.inkSoft,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+          Container(
+            width: 32,
+            height: 32,
+                                  decoration: BoxDecoration(
+              color: _AppColors.warmWhite,
+              border: Border.all(color: _AppColors.stone),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.play_arrow, size: 16, color: _AppColors.ink),
+          ),
+        ],
       ),
     );
   }
