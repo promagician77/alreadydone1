@@ -58,7 +58,38 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
+<<<<<<< Updated upstream
           return '/';
+=======
+          if (path == LoginWidget.routePath) {
+            return '/?fromLogin=1';
+          }
+          final completed = await OnboardingService.hasCompletedOnboarding();
+          return completed ? '/' : OnboardingSplashWidget.routePath;
+        }
+        if (isAuth && !isOnboardingRoute) {
+          final completed = await OnboardingService.hasCompletedOnboarding();
+          if (!completed) {
+            if (state.uri.queryParameters['fromLogin'] == '1') return null;
+            // Don't redirect when navigating to main app pages (e.g. Play → Player).
+            // Include / so that after subscription (context.go('/')) we don't send user to onboarding.
+            // Include /subscription so "Start free trial" does not send user to onboarding.
+            final isMainAppRoute = path == '/' ||
+                path == HomeDashboardWidget.routePath ||
+                path == PlayerWidget.routePath ||
+                path == DesiresWidget.routePath ||
+                path == ProfileWidget.routePath ||
+                path == SubscriptionWidget.routePath;
+            if (isMainAppRoute) return null;
+            return OnboardingSplashWidget.routePath;
+          }
+        }
+        if (isAuth && isOnboardingRoute) {
+          final completed = await OnboardingService.hasCompletedOnboarding();
+          if (completed && path == OnboardingSplashWidget.routePath) {
+            return '/';
+          }
+>>>>>>> Stashed changes
         }
         return null;
       },

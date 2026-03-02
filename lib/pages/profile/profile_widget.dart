@@ -171,7 +171,251 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                     ],
                   ),
                 ),
+<<<<<<< Updated upstream
                 Container(
+=======
+              ),
+              if (!isLast) const SizedBox(height: 8),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildSettingWithToggle(String label, bool value, ValueChanged<bool> onChanged) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _ProfileColors.surface,
+        border: Border.all(color: _ProfileColors.stone),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: _ProfileColors.ink,
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: _ProfileColors.gold,
+            activeThumbColor: Colors.white,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: _ProfileColors.stoneMid,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemindersSection() {
+    final morningEnabled = _model.switchValue1 ?? true;
+    final bedtimeEnabled = _model.switchValue2 ?? true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'REMINDERS',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: _ProfileColors.inkMid,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildSettingWithToggle(
+          'Morning Reminder',
+          morningEnabled,
+          (v) => _onMorningReminderChanged(v),
+        ),
+        if (morningEnabled) ...[
+          const SizedBox(height: 8),
+          _buildSettingItem(
+            'Morning Time',
+          '${formatTimeFromIso(_model.profileData?['morningTime_Reminder'] ?? _model.profileData?['morning_time'] ?? _model.profileData?['morning_Time'])} →',
+          subtitle: 'Daily story notification',
+          onTap: () async {
+            final userId = await SupabaseService.getCurrentUserTableId();
+            if (userId == null || !mounted) return;
+            showTimePickerModal(
+              context,
+              title: 'Morning Reminder Time',
+              subtitle: 'When should we send your daily story?',
+              currentTime: formatTimeFromIso(_model.profileData?['morningTime_Reminder'] ?? _model.profileData?['morning_time'] ?? _model.profileData?['morning_Time']),
+              userId: userId,
+              fieldType: TimeFieldType.morning,
+            ).then((newTime) {
+              if (mounted) {
+                if (newTime != null) AppToast.success(context, 'Morning reminder time updated');
+                _loadProfile();
+              }
+            });
+          },
+        ),
+        ],
+        const SizedBox(height: 8),
+        _buildSettingWithToggle(
+          'Bedtime Reminder',
+          bedtimeEnabled,
+          (v) => _onBedtimeReminderChanged(v),
+        ),
+        if (bedtimeEnabled) ...[
+          const SizedBox(height: 8),
+          _buildSettingItem(
+            'Bedtime Time',
+          '${formatTimeFromIso(_model.profileData?['bedTime_Reminder'] ?? _model.profileData?['bedtime_time'] ?? _model.profileData?['bedtime_Time'])} →',
+          subtitle: 'Evening reflection prompt',
+          onTap: () async {
+            final userId = await SupabaseService.getCurrentUserTableId();
+            if (userId == null || !mounted) return;
+            showTimePickerModal(
+              context,
+              title: 'Bedtime Reminder Time',
+              subtitle: 'When should we send your evening reflection?',
+              currentTime: formatTimeFromIso(_model.profileData?['bedTime_Reminder'] ?? _model.profileData?['bedtime_time'] ?? _model.profileData?['bedtime_Time']),
+              userId: userId,
+              fieldType: TimeFieldType.bedtime,
+            ).then((newTime) {
+              if (mounted) {
+                if (newTime != null) AppToast.success(context, 'Bedtime reminder time updated');
+                _loadProfile();
+              }
+            });
+          },
+        ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSettingItem(String label, String value, {String? subtitle, VoidCallback? onTap}) {
+    final content = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: _ProfileColors.ink,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  color: _ProfileColors.inkSoft,
+                ),
+              ),
+            ],
+          ],
+        ),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            color: _ProfileColors.inkSoft,
+          ),
+        ),
+      ],
+    );
+    final child = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _ProfileColors.surface,
+        border: Border.all(color: _ProfileColors.stone),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: content,
+    );
+    if (onTap != null) {
+      return Pressable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: child,
+      );
+    }
+    return child;
+  }
+
+  Widget _buildUpgradeCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF4E5F9C), Color(0xFF2A3B5F)],
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 18,
+            right: 18,
+            child: Text(
+              '✓',
+              style: GoogleFonts.outfit(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white.withValues(alpha: 0.2),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'UPGRADE TO UNLIMITED',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Unlimited stories,\nSleep Mode & more',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.white,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '\$9.99/month · \$69.99/year',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Pressable(
+                onTap: () => context.go(SubscriptionWidget.routePath),
+                borderRadius: BorderRadius.circular(10),
+                splashColor: Colors.white.withValues(alpha: 0.2),
+                highlightColor: Colors.white.withValues(alpha: 0.1),
+                child: Container(
+>>>>>>> Stashed changes
                   width: double.infinity,
                   height: 1.0,
                   decoration: BoxDecoration(
