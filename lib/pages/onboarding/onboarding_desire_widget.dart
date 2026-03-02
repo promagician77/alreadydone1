@@ -9,7 +9,7 @@ import '/widgets/pressable.dart';
 import '/flutter_flow/nav/nav.dart';
 import 'onboarding_state.dart';
 import 'onboarding_personalize_widget.dart';
-import 'onboarding_voice_widget.dart';
+import 'onboarding_voice_selection_widget.dart';
 
 Widget _progressBar(int activeSegments) {
   return Padding(
@@ -132,7 +132,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         if (existingVoiceId != null && existingVoiceId.isNotEmpty) {
           context.go('/');
         } else {
-          context.go(OnboardingVoiceWidget.routePath);
+          context.go(OnboardingVoiceSelectionWidget.routePath);
         }
       }
     } catch (e) {

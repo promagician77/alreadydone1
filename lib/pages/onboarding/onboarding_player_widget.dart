@@ -4,8 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/onboarding_service.dart';
+import 'onboarding_desire_widget.dart';
+import 'onboarding_voice_selection_widget.dart';
 import 'onboarding_state.dart';
-import 'onboarding_voice_complete_widget.dart';
 
 /// Formats seconds as "X min Y sec" (readable) or "0:00" (short).
 String _formatDurationReadable(int seconds) {
@@ -232,8 +233,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 22),
                   color: AuthTheme.gold,
-                  onPressed: () =>
-                      context.go(OnboardingVoiceCompleteWidget.routePath),
+                  onPressed: () => context.go(OnboardingVoiceSelectionWidget.routePath),
                 ),
               ),
             ),

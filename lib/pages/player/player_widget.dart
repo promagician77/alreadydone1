@@ -5,7 +5,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/last_played_service.dart';
-import '/services/theta_wave_generator.dart';
 import 'package:flutter/material.dart';
 import '/services/sleep_mode_notifier.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -70,7 +69,21 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final ThetaWaveGenerator _thetaGenerator = ThetaWaveGenerator(volume: 0.05);
+  /// Background theta track player (mp3 at ~20% volume).
+  final AudioPlayer _thetaTrackPlayer = AudioPlayer();
+
+  /// Available background theta tracks (files under assets/audios/theta/).
+  /// Path is relative to assets folder; audioplayers adds asset prefix automatically.
+  static const List<(String name, String assetPath)> _thetaTracks = [
+    ('Healing Therapy', 'audios/theta/Healing Therapy.mp3'),
+    ('The City in Dreams', 'audios/theta/The City in Dreams.mp3'),
+    ('Solar Drift', 'audios/theta/Solar Drift.mp3'),
+    ('Boyar', 'audios/theta/Boyar.mp3'),
+    ('Mantle', 'audios/theta/Mantle.mp3'),
+    ('Reflection', 'audios/theta/Reflection.mp3'),
+    ('Healing Spheres', 'audios/theta/Healing Spheres.mp3'),
+    ('Neptune', 'audios/theta/Neptune.mp3'),
+  ];
 
   StreamSubscription? _playerCompleteSub;
   StreamSubscription? _durationChangedSub;
@@ -103,12 +116,15 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
 
   /// Sleep mode: target narration volume (70% per client spec).
   static const double _sleepVolumeTarget = 0.7;
+  /// Sleep mode: background theta track volume (20% per client spec).
+  static const double _thetaVolumeTarget = 0.2;
   /// Fade-to-silence duration at end of sleep timer (seconds).
   static const int _sleepFadeOutSeconds = 60;
   /// Screen brightness when sleep mode active (~40%).
   static const double _sleepBrightness = 0.4;
 
   late AnimationController _waveformController;
+  int _selectedThetaIndex = 0;
 
   @override
   void initState() {
@@ -119,12 +135,15 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
     )..repeat();
     _model = createModel(context, () => PlayerModel());
     _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
+    _thetaTrackPlayer.setPlayerMode(PlayerMode.mediaPlayer);
+    _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
     _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
       if (!_disposed && mounted && !_sleepModeActive) {
         setState(() {
           _isPlaying = false;
           _position = Duration.zero;
         });
+        _stopThetaBackground();
       }
     });
     _durationChangedSub = _audioPlayer.onDurationChanged.listen((d) {
@@ -413,7 +432,7 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
       }
     });
 
-    _thetaGenerator.start();
+    _startThetaBackground();
     _setSleepBrightness(true);
 
     final minutes = _sleepTimerMinutes;
@@ -434,7 +453,8 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
           if (remaining <= _sleepFadeOutSeconds) {
             final vol = (remaining / _sleepFadeOutSeconds) * _sleepVolumeTarget;
             _audioPlayer.setVolume(vol.clamp(0.0, 1.0));
-            _thetaGenerator.setVolume((remaining / _sleepFadeOutSeconds) * 0.15);
+            final thetaVol = (remaining / _sleepFadeOutSeconds) * _thetaVolumeTarget;
+            _thetaTrackPlayer.setVolume(thetaVol.clamp(0.0, 1.0));
           }
           setState(() {});
         }
@@ -470,7 +490,7 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
     _audioPlayer.setPlaybackRate(1.0);
     _audioPlayer.setVolume(1.0);
     _audioPlayer.stop();
-    _thetaGenerator.stop();
+    _stopThetaBackground();
     _setSleepBrightness(false);
     if (mounted) {
       setState(() {
@@ -497,7 +517,7 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
       sleepModeNotifier.value = false;
       _setSleepBrightness(false);
     }
-    _thetaGenerator.stop();
+    _stopThetaBackground();
     _waveformController.dispose();
     _audioPlayer.dispose();
     _model.dispose();
@@ -587,7 +607,7 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
             _audioPlayer.setPlaybackRate(1.0);
             _audioPlayer.setVolume(1.0);
             _audioPlayer.stop();
-            _thetaGenerator.stop();
+            _stopThetaBackground();
             _setSleepBrightness(false);
             if (mounted) {
               setState(() {
@@ -600,7 +620,7 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
           }
         },
         onSleepSpeedTap: _openSleepSpeedSheet,
-        onBackgroundSoundTap: () {},
+        onBackgroundSoundTap: _openThetaBackgroundSheet,
         onClose: () => Navigator.of(context).pop(),
       );
     } else {
@@ -665,8 +685,8 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
                   }
                 });
 
-                // Theta wave background (4–8 Hz binaural) generated in real-time per ThetaWaveGenerator.js spec.
-                _thetaGenerator.start();
+                // Theta wave background track (mp3) at ~20% volume.
+                _startThetaBackground();
 
                 // Visual changes: dim screen to ~40%, blue light filter applied via overlay.
                 _setSleepBrightness(true);
@@ -690,7 +710,8 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
                       if (remaining <= _sleepFadeOutSeconds) {
                         final vol = (remaining / _sleepFadeOutSeconds) * _sleepVolumeTarget;
                         _audioPlayer.setVolume(vol.clamp(0.0, 1.0));
-                        _thetaGenerator.setVolume((remaining / _sleepFadeOutSeconds) * 0.15);
+                        final thetaVol = (remaining / _sleepFadeOutSeconds) * _thetaVolumeTarget;
+                        _thetaTrackPlayer.setVolume(thetaVol.clamp(0.0, 1.0));
                       }
                       setState(() {});
                     }
@@ -1000,6 +1021,141 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
         );
       }
     }
+  }
+
+  Future<void> _openThetaBackgroundSheet() async {
+    final currentIndex = _selectedThetaIndex;
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
+          decoration: const BoxDecoration(
+            color: _PlayerColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x261C1917),
+                blurRadius: 20,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: _PlayerColors.stoneMid,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Background Sound',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: _PlayerColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Choose a theta wave track for Sleep Mode.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: _PlayerColors.inkSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Column(
+                    children: List.generate(_thetaTracks.length, (index) {
+                      final track = _thetaTracks[index];
+                      final isSelected = index == currentIndex;
+                      return GestureDetector(
+                        onTap: () => Navigator.of(ctx).pop(index),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? _PlayerColors.goldPale : _PlayerColors.warmWhite,
+                            border: Border.all(
+                              color: isSelected ? _PlayerColors.gold : _PlayerColors.stone,
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                '🎵',
+                                style: GoogleFonts.outfit(fontSize: 16),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  track.$1,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: _PlayerColors.ink,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected)
+                                Icon(Icons.check, size: 18, color: _PlayerColors.gold),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected != null && selected != currentIndex) {
+      setState(() {
+        _selectedThetaIndex = selected;
+      });
+      if (_sleepModeActive) {
+        await _startThetaBackground();
+      }
+      if (mounted) {
+        final name = _thetaTracks[_selectedThetaIndex].$1;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Background sound set to $name'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _startThetaBackground() async {
+    final track = _thetaTracks[_selectedThetaIndex];
+    await _thetaTrackPlayer.stop();
+    await _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
+    await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
+    await _thetaTrackPlayer.play(AssetSource(track.$2));
+  }
+
+  Future<void> _stopThetaBackground() async {
+    await _thetaTrackPlayer.stop();
   }
 
   int? get _sleepRemainingMinutes {

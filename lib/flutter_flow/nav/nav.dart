@@ -102,7 +102,36 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         }
         return null;
       },
-      errorBuilder: (context, state) => NavBarPage(),
+      // Show routing errors explicitly instead of silently sending users home.
+      errorBuilder: (context, state) {
+        debugPrint('GoRouter error: ${state.error} at ${state.uri}');
+        return Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Something went wrong while opening this page.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${state.error ?? 'Unknown routing error'}\n\nPath: ${state.uri}',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => context.go('/'),
+                    child: const Text('Go to Home'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
       routes: [
         FFRoute(
           name: HomeDashboardWidget.routeName,
@@ -173,12 +202,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             );
           },
         ),
-        // Onboarding: most specific paths FIRST so /onboarding doesn't prefix-match /onboarding/complete
-        FFRoute(
-          name: OnboardingVoiceCompleteWidget.routeName,
-          path: OnboardingVoiceCompleteWidget.routePath,
-          builder: (context, params) => OnboardingVoiceCompleteWidget(),
-        ),
         FFRoute(
           name: OnboardingVoiceWidget.routeName,
           path: OnboardingVoiceWidget.routePath,
@@ -200,6 +223,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: OnboardingPersonalizeWidget.routeName,
           path: OnboardingPersonalizeWidget.routePath,
           builder: (context, params) => OnboardingPersonalizeWidget(),
+        ),
+        FFRoute(
+          name: OnboardingVoiceSelectionWidget.routeName,
+          path: OnboardingVoiceSelectionWidget.routePath,
+          builder: (context, params) => OnboardingVoiceSelectionWidget(),
         ),
         FFRoute(
           name: OnboardingSplashWidget.routeName,

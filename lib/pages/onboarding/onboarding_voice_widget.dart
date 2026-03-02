@@ -12,7 +12,8 @@ import '/services/voice_recording_service.dart';
 import '/services/app_toast.dart';
 import 'onboarding_state.dart';
 import 'onboarding_desire_widget.dart';
-import 'onboarding_voice_complete_widget.dart';
+import 'onboarding_player_widget.dart';
+import 'celebration_overlay.dart';
 import 'recording_circle.dart';
 
 /// Design-spec passage when no story content.
@@ -178,9 +179,41 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       );
       try { await file.delete(); } catch (_) {}
       OnboardingState.instance.recordingDurationSec = _recordingDurationSeconds;
+
+      // After clone upload, wait for voice_id to appear then generate the speak URL
+      // (this replaces the old "Continue" step on the next screen).
+      final voiceId = await _waitForVoiceId(userId);
+      final storyId = _getGeneratedStoryId();
+      if (voiceId == null || voiceId.isEmpty) {
+        if (mounted) {
+          AppToast.info(
+            context,
+            'Your voice is still processing. Please wait a bit and tap "Create Voice Clone" again.',
+          );
+          setState(() => _isUploading = false);
+        }
+        return;
+      }
+      if (storyId == null) {
+        if (mounted) {
+          AppToast.error(context, 'Story not found. Please go back and try again.');
+          setState(() => _isUploading = false);
+        }
+        return;
+      }
+
+      final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
+      final url = res['url']?.toString();
+      OnboardingState.instance.voicePlayUrl = url;
+
       if (!mounted) return;
       setState(() => _isUploading = false);
-      context.go(OnboardingVoiceCompleteWidget.routePath);
+      showCelebrationOverlay(
+        context,
+        message: 'Perfect! Your voice is cloned.',
+        onComplete: () => context.go(OnboardingPlayerWidget.routePath),
+        duration: const Duration(milliseconds: 2500),
+      );
     } catch (e) {
       try { await file.delete(); } catch (_) {}
       if (mounted) {
@@ -191,6 +224,32 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
         );
       }
     }
+  }
+
+  int? _getGeneratedStoryId() {
+    final story = OnboardingState.instance.generatedStory;
+    final storyIdRaw = story?['id'];
+    if (storyIdRaw is int) return storyIdRaw;
+    return int.tryParse(storyIdRaw?.toString() ?? '');
+  }
+
+  Future<String?> _waitForVoiceId(int userId) async {
+    // Voice cloning can take a bit; poll profile for up to ~40s.
+    const attempts = 20;
+    const delay = Duration(seconds: 2);
+    for (int i = 0; i < attempts; i++) {
+      try {
+        final profile = await BackendClient.getUserProfile(userId);
+        final voiceId = profile['voice_id']?.toString().trim() ??
+            profile['voice_Id']?.toString().trim() ??
+            '';
+        if (voiceId.isNotEmpty) return voiceId;
+      } catch (_) {
+        // ignore transient failures and retry
+      }
+      await Future<void>.delayed(delay);
+    }
+    return null;
   }
 
   void _reRecord() {
