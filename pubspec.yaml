@@ -114,6 +114,7 @@ flutter:
     - assets/images/
     - assets/videos/
     - assets/audios/
+    - assets/audios/theta/
     - assets/rive_animations/
     - assets/pdfs/
     - assets/jsons/

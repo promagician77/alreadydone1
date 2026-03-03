@@ -138,12 +138,21 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
     _thetaTrackPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
     _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
-      if (!_disposed && mounted && !_sleepModeActive) {
-        setState(() {
-          _isPlaying = false;
-          _position = Duration.zero;
-        });
-        _stopThetaBackground();
+      if (!_disposed && mounted) {
+        if (_sleepModeActive) {
+          // Sleep mode: story + theta end together (total = story length).
+          _stopThetaBackground();
+          setState(() {
+            _isPlaying = false;
+            _position = Duration.zero;
+          });
+        } else {
+          setState(() {
+            _isPlaying = false;
+            _position = Duration.zero;
+          });
+          _stopThetaBackground();
+        }
       }
     });
     _durationChangedSub = _audioPlayer.onDurationChanged.listen((d) {
@@ -409,7 +418,8 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
       sleepModeNotifier.value = true;
       _sleepModeStartedAt = DateTime.now();
     });
-    _audioPlayer.setReleaseMode(ReleaseMode.loop);
+    // Story plays once; theta runs for same duration, both stop when story ends.
+    _audioPlayer.setReleaseMode(ReleaseMode.stop);
     _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
 
     _sleepVolumeFadeTimer?.cancel();
@@ -661,7 +671,8 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
                   sleepModeNotifier.value = true;
                   _sleepModeStartedAt = DateTime.now();
                 });
-                _audioPlayer.setReleaseMode(ReleaseMode.loop);
+                // Story plays once; theta runs for same duration, both stop when story ends.
+                _audioPlayer.setReleaseMode(ReleaseMode.stop);
                 _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
 
                 // Softer volume: gradually fade to 70% over 2 minutes (client spec).
@@ -1150,8 +1161,17 @@ class _PlayerWidgetState extends State<PlayerWidget> with SingleTickerProviderSt
     final track = _thetaTracks[_selectedThetaIndex];
     await _thetaTrackPlayer.stop();
     await _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
-    await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
-    await _thetaTrackPlayer.play(AssetSource(track.$2));
+    await _thetaTrackPlayer.setVolume(_thetaVolumeTarget); // 20% per client spec
+    try {
+      await _thetaTrackPlayer.play(AssetSource(track.$2));
+      await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Background sound could not load: ${track.$1}')),
+        );
+      }
+    }
   }
 
   Future<void> _stopThetaBackground() async {
