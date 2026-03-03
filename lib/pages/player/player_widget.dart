@@ -834,6 +834,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         selectedMinutes: _sleepTimerMinutes ?? 30,
         onTimerSelect: (m) => setState(() => _sleepTimerMinutes = m),
         sleepSpeedLabel: _sleepSpeedLabel,
+        backgroundSoundName: _thetaTracks[_selectedThetaIndex].$1,
         onSleepModeChanged: (value) {
           if (!value) {
             Navigator.of(context).pop();
@@ -868,6 +869,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
         context,
         sleepModeEnabled: _sleepModeActive,
         sleepModeAllowed: sleepModeAllowed,
+        speedLabel: 'Normal (1.0x)',
+        loopEnabled: false,
         onSleepModeChanged: (value) {
           if (value) {
             Navigator.of(context).pop();
@@ -887,14 +890,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
             );
           }
         },
-        onSpeedTap: () {
-          Navigator.of(context).pop();
-          // TODO: open speed selector
-        },
-        onLoopTap: () {
-          Navigator.of(context).pop();
-          // TODO: open loop options
-        },
+        onSpeedTap: () => Navigator.of(context).pop(),
+        onLoopTap: () => Navigator.of(context).pop(),
       );
     }
   }
@@ -968,45 +965,47 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
               const SizedBox(height: 16),
               Column(
-                children: _sleepSpeedOptions.map((v) {
-                  final isSelected = v == current;
-                  return GestureDetector(
-                    onTap: () => Navigator.of(ctx).pop(v),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? _PlayerColors.goldPale
-                            : _PlayerColors.warmWhite,
-                        border: Border.all(
+                children: List<Widget>.from(
+                  _sleepSpeedOptions.map<Widget>((v) {
+                    final isSelected = v == current;
+                    return GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(v),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
                           color: isSelected
-                              ? _PlayerColors.gold
-                              : _PlayerColors.stone,
-                          width: 1.5,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            '${_formatSleepSpeed(v)}x',
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: _PlayerColors.ink,
-                            ),
+                              ? _PlayerColors.goldPale
+                              : _PlayerColors.warmWhite,
+                          border: Border.all(
+                            color: isSelected
+                                ? _PlayerColors.gold
+                                : _PlayerColors.stone,
+                            width: 1.5,
                           ),
-                          const Spacer(),
-                          if (isSelected)
-                            Icon(Icons.check,
-                                size: 18, color: _PlayerColors.gold),
-                        ],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              '${_formatSleepSpeed(v)}x',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _PlayerColors.ink,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (isSelected)
+                              Icon(Icons.check,
+                                  size: 18, color: _PlayerColors.gold),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }),
+                ),
               ),
             ],
           ),

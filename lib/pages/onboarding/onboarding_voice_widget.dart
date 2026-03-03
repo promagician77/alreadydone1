@@ -205,6 +205,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
       final url = res['url']?.toString();
       OnboardingState.instance.voicePlayUrl = url;
+      OnboardingState.instance.selectedVoiceName = name;
 
       if (!mounted) return;
       setState(() => _isUploading = false);
@@ -414,8 +415,10 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       size: circleSize,
       progress: isComplete ? 1.0 : (isRecording ? progress : 0),
       timerText: isComplete
-          ? '0:30'
-          : (isRecording ? _formatDuration(_elapsedSeconds) : '0:00'),
+          ? '0:00'
+          : (isRecording
+              ? _formatDuration(_recordingDurationSeconds - _elapsedSeconds)
+              : '0:30'),
       label: '',
       showCheckmark: isComplete,
     );
@@ -500,6 +503,8 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
               height: 1.5,
             ),
             textAlign: TextAlign.center,
+            maxLines: 8,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -626,7 +631,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
                   const Text('✨', style: TextStyle(fontSize: 18)),
                   const SizedBox(width: 10),
                   Text(
-                    'Create Voice Clone',
+                    'Create Clone Voice',
                     style: AuthTheme.primaryButtonStyle.copyWith(fontSize: 16),
                   ),
                 ],

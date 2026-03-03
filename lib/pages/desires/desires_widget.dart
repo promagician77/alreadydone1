@@ -514,16 +514,6 @@ class _DesiresWidgetState extends State<DesiresWidget> {
               color: cat.accentColor,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            cat.name,
-            style: GoogleFonts.cormorantGaramond(
-              fontSize: 20,
-              fontWeight: FontWeight.w400,
-              color: _DesiresColors.ink,
-              height: 1.3,
-            ),
-          ),
           const SizedBox(height: 14),
           Container(height: 1, color: _DesiresColors.stone),
           const SizedBox(height: 14),

@@ -60,11 +60,18 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
     final isCompactWidth = width < 360;
+    final padding = media.padding;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 30),
+      padding: EdgeInsets.fromLTRB(
+        20 + padding.left,
+        20,
+        20 + padding.right,
+        padding.bottom + 30,
+      ),
       decoration: const BoxDecoration(
         color: ModalColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -214,7 +221,14 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: verticalPadding),
         decoration: decoration,
-        child: Center(child: Text(label, style: textStyle)),
+        child: Center(
+          child: Text(
+            label,
+            style: textStyle,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
       ),
     );
   }

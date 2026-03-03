@@ -98,6 +98,12 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
 
   String? get _playUrl => _state.voicePlayUrl;
 
+  String get _voiceSubtitle {
+    final name = (_state.selectedVoiceName ?? '').trim();
+    if (name.isEmpty || name == 'My Voice') return 'In your voice';
+    return "${name}'s voice";
+  }
+
   @override
   void initState() {
     super.initState();
@@ -250,10 +256,24 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                     const SizedBox(height: 4),
                     Text(
                       _duration.inSeconds > 0
-                          ? '${_formatDurationReadable(_duration.inSeconds)} · In your voice'
-                          : 'In your voice',
+                          ? '${_formatDurationReadable(_duration.inSeconds)} · ${_voiceSubtitle}'
+                          : _voiceSubtitle,
                       style: AuthTheme.welcomeSubStyle,
                       textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () => context.go(OnboardingVoiceSelectionWidget.routePath),
+                      child: Text(
+                        'Change Voice',
+                        style: AuthTheme.welcomeSubStyle.copyWith(
+                          color: AuthTheme.gold,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AuthTheme.gold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     const SizedBox(height: 28),
                     Container(
@@ -384,7 +404,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       alignment: Alignment.center,
-                      child: Text('Start Free Trial', style: AuthTheme.primaryButtonStyle),
+                      child: Text('Continue', style: AuthTheme.primaryButtonStyle),
                     ),
                   ),
                 ),

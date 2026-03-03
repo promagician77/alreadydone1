@@ -17,6 +17,8 @@ void showPlaybackSettingsModal(
   required bool sleepModeEnabled,
   required bool sleepModeAllowed,
   required ValueChanged<bool> onSleepModeChanged,
+  required String speedLabel,
+  required bool loopEnabled,
   required VoidCallback onSpeedTap,
   required VoidCallback onLoopTap,
 }) {
@@ -27,6 +29,8 @@ void showPlaybackSettingsModal(
       sleepModeEnabled: sleepModeEnabled,
       sleepModeAllowed: sleepModeAllowed,
       onSleepModeChanged: onSleepModeChanged,
+      speedLabel: speedLabel,
+      loopEnabled: loopEnabled,
       onSpeedTap: onSpeedTap,
       onLoopTap: onLoopTap,
     ),
@@ -37,6 +41,8 @@ class _PlaybackSettingsSheet extends StatelessWidget {
   final bool sleepModeEnabled;
   final bool sleepModeAllowed;
   final ValueChanged<bool> onSleepModeChanged;
+  final String speedLabel;
+  final bool loopEnabled;
   final VoidCallback onSpeedTap;
   final VoidCallback onLoopTap;
 
@@ -44,6 +50,8 @@ class _PlaybackSettingsSheet extends StatelessWidget {
     required this.sleepModeEnabled,
     required this.sleepModeAllowed,
     required this.onSleepModeChanged,
+    required this.speedLabel,
+    required this.loopEnabled,
     required this.onSpeedTap,
     required this.onLoopTap,
   });
@@ -98,7 +106,7 @@ class _PlaybackSettingsSheet extends StatelessWidget {
           _settingRow(
             icon: '⚡',
             label: 'Speed',
-            value: 'Normal (1.0x) →',
+            value: '$speedLabel →',
             onTap: onSpeedTap,
           ),
           Padding(
@@ -139,7 +147,7 @@ class _PlaybackSettingsSheet extends StatelessWidget {
           _settingRow(
             icon: '🔁',
             label: 'Loop',
-            value: 'Off →',
+            value: loopEnabled ? 'On →' : 'Off →',
             onTap: onLoopTap,
           ),
         ],

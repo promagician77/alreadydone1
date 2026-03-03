@@ -16,6 +16,7 @@ void showSleepModeSettingsModal(
   required ValueChanged<int?> onTimerSelect,
   required ValueChanged<bool> onSleepModeChanged,
   required String sleepSpeedLabel,
+  required String backgroundSoundName,
   required VoidCallback onSleepSpeedTap,
   required VoidCallback onBackgroundSoundTap,
   required VoidCallback onClose,
@@ -29,6 +30,7 @@ void showSleepModeSettingsModal(
       onTimerSelect: onTimerSelect,
       onSleepModeChanged: onSleepModeChanged,
       sleepSpeedLabel: sleepSpeedLabel,
+      backgroundSoundName: backgroundSoundName,
       onSleepSpeedTap: onSleepSpeedTap,
       onBackgroundSoundTap: onBackgroundSoundTap,
       onClose: onClose,
@@ -41,6 +43,7 @@ class _SleepModeSettingsSheet extends StatefulWidget {
   final ValueChanged<int?> onTimerSelect;
   final ValueChanged<bool> onSleepModeChanged;
   final String sleepSpeedLabel;
+  final String backgroundSoundName;
   final VoidCallback onSleepSpeedTap;
   final VoidCallback onBackgroundSoundTap;
   final VoidCallback onClose;
@@ -50,6 +53,7 @@ class _SleepModeSettingsSheet extends StatefulWidget {
     required this.onTimerSelect,
     required this.onSleepModeChanged,
     required this.sleepSpeedLabel,
+    required this.backgroundSoundName,
     required this.onSleepSpeedTap,
     required this.onBackgroundSoundTap,
     required this.onClose,
@@ -136,7 +140,7 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
           ),
           const SizedBox(height: 20),
           _settingRow(icon: '⚡', label: 'Sleep Speed', value: '${widget.sleepSpeedLabel} →', onTap: widget.onSleepSpeedTap),
-          _settingRow(icon: '🎵', label: 'Background Sound', value: 'Theta Waves →', onTap: widget.onBackgroundSoundTap),
+          _settingRow(icon: '🎵', label: 'Background Sound', value: '${widget.backgroundSoundName} →', onTap: widget.onBackgroundSoundTap),
           _settingRow(
             icon: '🌙',
             label: 'Sleep Mode',

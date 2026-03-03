@@ -66,6 +66,17 @@ class _OnboardingVoiceSelectionWidgetState
 
   bool get _isMyVoiceSelected => _selectedId == 'my_voice';
 
+  String get _selectedVoiceDisplayName {
+    if (_selectedId == 'my_voice') return 'My Voice';
+    for (final t in _maleVoices) {
+      if (t.$1 == _selectedId) return t.$2;
+    }
+    for (final t in _femaleVoices) {
+      if (t.$1 == _selectedId) return t.$2;
+    }
+    return 'My Voice';
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -526,6 +537,7 @@ class _OnboardingVoiceSelectionWidgetState
               );
               final url = res['url']?.toString();
               OnboardingState.instance.voicePlayUrl = url;
+              OnboardingState.instance.selectedVoiceName = _selectedVoiceDisplayName;
 
               if (mounted) {
                 context.go(OnboardingPlayerWidget.routePath);
