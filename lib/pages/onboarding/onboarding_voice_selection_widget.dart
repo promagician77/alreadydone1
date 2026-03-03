@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
+import '/services/supabase_service.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_voice_widget.dart';
 import 'onboarding_player_widget.dart';
@@ -178,10 +179,76 @@ class _OnboardingVoiceSelectionWidgetState
     );
   }
 
+  Future<void> _onMyVoiceTapped() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) {
+      setState(() => _selectedId = 'my_voice');
+      return;
+    }
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      final voiceId = (profile['voice_id'] ?? profile['voice_Id'])?.toString().trim();
+      final hasRecordedVoice = (voiceId != null && voiceId.isNotEmpty);
+      if (!mounted) return;
+      if (hasRecordedVoice) {
+        _showAlreadyRecordedModal();
+        return;
+      }
+      setState(() => _selectedId = 'my_voice');
+    } catch (_) {
+      if (mounted) setState(() => _selectedId = 'my_voice');
+    }
+  }
+
+  void _showAlreadyRecordedModal() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Your voice is already recorded',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AuthTheme.ink,
+          ),
+        ),
+        content: Text(
+          'You can go to the home dashboard or choose a pre-made voice for this story.',
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: AuthTheme.inkSoft,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.go('/');
+            },
+            child: Text('To home', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AuthTheme.gold)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: FilledButton.styleFrom(
+              backgroundColor: AuthTheme.gold,
+              foregroundColor: AuthTheme.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Select the pre-made voice', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCustomVoiceCard(bool isNarrow) {
     final selected = _isMyVoiceSelected;
     return GestureDetector(
-      onTap: () => setState(() => _selectedId = 'my_voice'),
+      onTap: _onMyVoiceTapped,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,

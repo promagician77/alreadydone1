@@ -102,17 +102,6 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     try {
       setState(() => _state.isGenerating = true);
 
-      String? existingVoiceId;
-      if (userId != null) {
-        try {
-          final profile = await BackendClient.getUserProfile(userId);
-          existingVoiceId = (profile['voice_id'] ?? profile['voice_Id'])?.toString().trim();
-          if (existingVoiceId != null && existingVoiceId.isEmpty) existingVoiceId = null;
-        } catch (_) {
-          existingVoiceId = null;
-        }
-      }
-
       if (userId != null) {
         final loved = body['lovedOne'] as String?;
         await BackendClient.updateUserProfile(
@@ -129,11 +118,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       if (mounted) {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
-        if (existingVoiceId != null && existingVoiceId.isNotEmpty) {
-          context.go('/');
-        } else {
-          context.go(OnboardingVoiceSelectionWidget.routePath);
-        }
+        context.go(OnboardingVoiceSelectionWidget.routePath);
       }
     } catch (e) {
       if (mounted) {
