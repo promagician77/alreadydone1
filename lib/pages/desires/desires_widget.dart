@@ -5,11 +5,12 @@ import '/flutter_flow/nav/nav.dart';
 import '/index.dart';
 import '/services/supabase_service.dart';
 import '/services/backend_client.dart';
+import '/services/app_toast.dart';
 import '/pages/onboarding/onboarding_state.dart';
 import 'desires_model.dart';
 export 'desires_model.dart';
 
-/// Design tokens from HTML (03 — Already Done Library)
+/// Design tokens from HTML (03 — Already Done Library + delete mode)
 class _DesiresColors {
   static const warmWhite = Color(0xFFF9F7F4);
   static const surface = Color(0xFFFEFDFB);
@@ -17,13 +18,20 @@ class _DesiresColors {
   static const inkSoft = Color(0xFF78716C);
   static const stone = Color(0xFFE8E2DA);
   static const gold = Color(0xFFB8861E);
+  static const goldDark = Color(0xFF8B6914);
+  static const goldLight = Color(0xFFD4A574);
   static const goldPale = Color(0xFFFBF4E6);
+  static const offWhite = Color(0xFFF2F0ED);
   static const blush = Color(0xFFD98B80);
   static const blushLight = Color(0xFFFDF0EE);
   static const sage = Color(0xFF7FA882);
   static const sageLight = Color(0xFFEEF4EE);
   static const teal = Color(0xFF4E8F9C);
   static const tealLight = Color(0xFFEAF4F6);
+  // Delete mode (from HTML design)
+  static const red = Color(0xFFDC2626);
+  static const redDark = Color(0xFF991B1B);
+  static const redPale = Color(0xFFFEE2E2);
 }
 
 class _DesireCategory {
@@ -75,6 +83,11 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   String? _headerTitle;
   String? _headerCount;
   bool _loading = true;
+  /// Story id currently in "swipe left" delete mode (red card).
+  int? _storyIdInDeleteMode;
+  /// Story selected for delete confirmation modal.
+  _StoryItem? _storyToDeleteForModal;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -238,8 +251,17 @@ class _DesiresWidgetState extends State<DesiresWidget> {
         return;
       }
 
-      final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
-      final playUrl = res['url']?.toString();
+      String? playUrl;
+      try {
+        final res = await BackendClient.getStoryPlayUrl(storyId);
+        playUrl = res['playUrl']?.toString();
+      } catch (_) {
+        final res = await BackendClient.voiceGenerateAudio(
+          voiceId: voiceId,
+          storyId: storyId,
+        );
+        playUrl = res['url']?.toString();
+      }
       if (playUrl == null || playUrl.isEmpty) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load audio')));
         return;
@@ -359,35 +381,42 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           top: true,
           child: _loading
               ? const Center(child: CircularProgressIndicator())
-              : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 80),
-            child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                        // Desire header
-                        _buildHeader(),
-                        const SizedBox(height: 20),
-
-                        // Filter pills
-                        _buildFilterPills(),
-                        const SizedBox(height: 20),
-
-                        // Story cards
-                        ..._filteredCategories.map((c) => Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: _buildStoryCard(c),
-                            )),
-
-                        // Add button
-                        _buildAddButton(),
-                            ],
-                          ),
-                        ),
+              : Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _storyIdInDeleteMode = null;
+                      }),
+                      child: AnimatedOpacity(
+                        opacity: _storyToDeleteForModal != null ? 0.5 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 80),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildHeader(),
+                                const SizedBox(height: 20),
+                                _buildFilterPills(),
+                                const SizedBox(height: 20),
+                                ..._filteredCategories.map((c) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 14),
+                                      child: _buildStoryCard(c),
+                                    )),
+                                _buildAddButton(),
+                              ],
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                    if (_storyToDeleteForModal != null) _buildDeleteModal(),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 
@@ -408,7 +437,8 @@ class _DesiresWidgetState extends State<DesiresWidget> {
       categoryLabel = _headerCategory ?? 'Love · Already Complete';
       titleLabel = _headerTitle ?? 'A Deeply Loving\nRelationship';
     }
-    final countLabel = '$totalStories stories · All complete';
+    // Library view: "Your Stories" / "X manifestations created" (HTML design)
+    final countLabel = '$totalStories manifestations created';
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -428,13 +458,13 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           Text(
             titleLabel,
             style: GoogleFonts.cormorantGaramond(
-              fontSize: 26,
+              fontSize: 28,
               fontWeight: FontWeight.w400,
               color: _DesiresColors.ink,
               height: 1.2,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             countLabel,
             style: GoogleFonts.outfit(
@@ -490,27 +520,27 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   Widget _buildStoryCard(_DesireCategory cat) {
     return Container(
       padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
+      decoration: BoxDecoration(
         color: _DesiresColors.surface,
-        border: Border.all(color: _DesiresColors.stone),
+        border: Border.all(color: _DesiresColors.stone, width: 1.5),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: _DesiresColors.ink.withOpacity(0.06),
+            color: _DesiresColors.ink.withValues(alpha: 0.06),
             blurRadius: 3,
             offset: const Offset(0, 1),
           ),
         ],
-                            ),
-                            child: Column(
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+        children: [
           Text(
             '${cat.eyebrow} · Already Done',
             style: GoogleFonts.outfit(
               fontSize: 10,
               letterSpacing: 1.5,
-                                                  fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w600,
               color: cat.accentColor,
             ),
           ),
@@ -519,80 +549,341 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           const SizedBox(height: 14),
           ...cat.stories.map(
             (s) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _buildStoryItem(s, cat.iconBg, cat.accentColor, '${cat.eyebrow} · Already Done'),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildStoryRowWithSwipe(
+                story: s,
+                cat: cat,
+                categoryLabel: '${cat.eyebrow} · Already Done',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Wraps story row with horizontal drag: swipe left = delete mode, tap red card = modal, tap normal = play.
+  Widget _buildStoryRowWithSwipe({
+    required _StoryItem story,
+    required _DesireCategory cat,
+    required String categoryLabel,
+  }) {
+    final isDeleteMode = story.id != null && _storyIdInDeleteMode == story.id;
+    return GestureDetector(
+      onHorizontalDragEnd: (DragEndDetails d) {
+        if (story.id == null) return;
+        if (d.primaryVelocity != null && d.primaryVelocity! < -200) {
+          setState(() => _storyIdInDeleteMode = story.id);
+        } else if (d.primaryVelocity != null && d.primaryVelocity! > 100) {
+          setState(() => _storyIdInDeleteMode = null);
+        }
+      },
+      child: GestureDetector(
+        onTap: () {
+          if (isDeleteMode) {
+            setState(() => _storyToDeleteForModal = story);
+          } else if (story.id != null) {
+            _navigateToPlayerWithVoice(
+              story.id!,
+              story.name,
+              categoryLabel,
+              story.meta,
+              story.storyContent,
+            );
+          }
+        },
+        child: _buildStoryItem(
+          story,
+          cat.iconBg,
+          cat.accentColor,
+          categoryLabel,
+          isDeleteMode: isDeleteMode,
+        ),
+      ),
     );
   }
 
   Widget _buildStoryItem(
-      _StoryItem story, Color iconBg, Color accentColor, String categoryLabel) {
-    return GestureDetector(
-      onTap: () {
-        if (story.id != null) {
-          _navigateToPlayerWithVoice(story.id!, story.name, categoryLabel, story.meta, story.storyContent);
-        }
-      },
-                                        child: Row(
-                                          children: [
-                                            Container(
-            width: 42,
-            height: 42,
-                                              decoration: BoxDecoration(
-              color: iconBg,
+    _StoryItem story,
+    Color iconBg,
+    Color accentColor,
+    String categoryLabel, {
+    bool isDeleteMode = false,
+  }) {
+    // Delete mode: red card, trash icon, "Tap to delete", no play button (HTML screen 2)
+    if (isDeleteMode) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: _DesiresColors.red,
+          border: Border.all(color: _DesiresColors.redDark, width: 1.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: _DesiresColors.redDark,
+                border: Border.all(color: _DesiresColors.redDark),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Center(
+                child: Icon(Icons.delete_outline, size: 24, color: Colors.white),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    story.name,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Tap to delete',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    // Normal library card: icon (gold gradient), title, meta, gold play button (HTML screen 1)
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: _DesiresColors.surface,
+        border: Border.all(color: _DesiresColors.stone, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_DesiresColors.goldPale, _DesiresColors.warmWhite],
+              ),
+              border: Border.all(color: _DesiresColors.goldLight, width: 1.5),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
-                                                                  child: Text(
+              child: Text(
                 '✓',
                 style: GoogleFonts.outfit(
-                  fontSize: 18,
-                                                                              fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
                   color: _DesiresColors.ink,
                 ),
-                                                                          ),
-                                                                    ),
-                                                                  ),
+              ),
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
-                            child: Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+              children: [
                 Text(
                   story.name,
                   style: GoogleFonts.outfit(
-                    fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: _DesiresColors.ink,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   story.meta,
                   style: GoogleFonts.outfit(
                     fontSize: 11,
                     color: _DesiresColors.inkSoft,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-          ),
-                                      Container(
-            width: 32,
-            height: 32,
-                                        decoration: BoxDecoration(
-              color: _DesiresColors.warmWhite,
-              border: Border.all(color: _DesiresColors.stone),
-              shape: BoxShape.circle,
+                  ),
+                ),
+              ],
             ),
-            child: const Icon(Icons.play_arrow, size: 16, color: _DesiresColors.ink),
-                                                              ),
-                                                            ],
-                                                          ),
+          ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: _DesiresColors.gold,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _DesiresColors.ink.withValues(alpha: 0.06),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.play_arrow, size: 18, color: Colors.white),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildDeleteModal() {
+    final story = _storyToDeleteForModal!;
+    return Material(
+      color: _DesiresColors.ink.withValues(alpha: 0.6),
+      child: GestureDetector(
+        onTap: () {
+          if (!_isDeleting) {
+            setState(() {
+              _storyToDeleteForModal = null;
+              _storyIdInDeleteMode = null;
+            });
+          }
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: GestureDetector(
+            onTap: () {}, // prevent tap from closing when tapping modal content
+            child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _DesiresColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: _DesiresColors.ink.withValues(alpha: 0.12),
+                blurRadius: 32,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: _DesiresColors.redPale,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delete_outline, size: 28, color: _DesiresColors.red),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Delete Story?',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: _DesiresColors.ink,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Are you sure you want to delete "${story.name}"? This action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  color: _DesiresColors.inkSoft,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _isDeleting
+                          ? null
+                          : () => setState(() {
+                                _storyToDeleteForModal = null;
+                                _storyIdInDeleteMode = null;
+                              }),
+                      style: TextButton.styleFrom(
+                        backgroundColor: _DesiresColors.warmWhite,
+                        foregroundColor: _DesiresColors.ink,
+                        side: const BorderSide(color: _DesiresColors.stone, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _isDeleting ? null : () => _performDelete(story),
+                      style: TextButton.styleFrom(
+                        backgroundColor: _DesiresColors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: _isDeleting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text(
+                              'Delete',
+                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Future<void> _performDelete(_StoryItem story) async {
+    final storyId = story.id;
+    if (storyId == null) {
+      setState(() => _storyToDeleteForModal = null);
+      return;
+    }
+    setState(() => _isDeleting = true);
+    try {
+      await BackendClient.deleteStory(storyId);
+      if (!mounted) return;
+      setState(() {
+        _storyToDeleteForModal = null;
+        _storyIdInDeleteMode = null;
+        _isDeleting = false;
+      });
+      await _loadData();
+      if (mounted) AppToast.info(context, 'Story deleted');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isDeleting = false);
+      AppToast.error(context, 'Could not delete story. Please try again.');
+    }
   }
 
   /// Navigate to onboarding desire page (3rd step); prefill first name and someone you love from user profile.

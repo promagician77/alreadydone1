@@ -202,7 +202,10 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
         return;
       }
 
-      final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
+      final res = await BackendClient.voiceGenerateAudio(
+        voiceId: voiceId,
+        storyId: storyId,
+      );
       final url = res['url']?.toString();
       OnboardingState.instance.voicePlayUrl = url;
       OnboardingState.instance.selectedVoiceName = name;

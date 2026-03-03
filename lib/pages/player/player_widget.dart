@@ -411,9 +411,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
           : int.tryParse(story['id']?.toString() ?? '');
       if (storyId == null) return null;
 
-      final speakRes =
-          await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
-      final playUrl = speakRes['url']?.toString().trim();
+      String? playUrl;
+      try {
+        final res = await BackendClient.getStoryPlayUrl(storyId);
+        playUrl = res['playUrl']?.toString().trim();
+      } catch (_) {
+        final res = await BackendClient.voiceGenerateAudio(
+          voiceId: voiceId,
+          storyId: storyId,
+        );
+        playUrl = res['url']?.toString().trim();
+      }
       if (playUrl == null || playUrl.isEmpty) return null;
 
       final content =

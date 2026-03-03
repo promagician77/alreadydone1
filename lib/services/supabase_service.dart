@@ -218,7 +218,7 @@ class SupabaseService {
           (e.message?.contains('ApiException: 10') ?? false)) {
         throw Exception(
           'Google Sign-In setup error: add your app\'s SHA-1 and package name '
-          '(alreadydone.app) in Google Cloud Console → Credentials → '
+          '(com.alreadydone.app) in Google Cloud Console → Credentials → '
           'Create OAuth 2.0 Client ID → Android.',
         );
       }

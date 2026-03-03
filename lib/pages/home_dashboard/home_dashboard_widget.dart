@@ -118,13 +118,24 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
           : int.tryParse(story['id']?.toString() ?? '');
       if (storyId == null || _model.voicePlayUrlCache.containsKey(storyId)) continue;
       try {
-        final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
-        final url = res['url']?.toString();
+        final res = await BackendClient.getStoryPlayUrl(storyId);
+        final url = res['playUrl']?.toString();
         if (url != null && url.isNotEmpty && mounted) {
           safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
         }
       } catch (_) {
-        // ignore; will fetch on tap
+        try {
+          final res = await BackendClient.voiceGenerateAudio(
+            voiceId: voiceId,
+            storyId: storyId,
+          );
+          final url = res['url']?.toString();
+          if (url != null && url.isNotEmpty && mounted) {
+            safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
+          }
+        } catch (_) {
+          // ignore; will fetch on tap
+        }
       }
     }
   }
@@ -193,14 +204,26 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     final voiceId = _model.voiceId;
     if (voiceId != null && voiceId.isNotEmpty) {
       try {
-        final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
-        final url = res['url']?.toString();
+        final res = await BackendClient.getStoryPlayUrl(storyId);
+        final url = res['playUrl']?.toString();
         if (url != null && url.isNotEmpty) {
           safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
           return url;
         }
       } catch (_) {
-        // fall through to fallback
+        try {
+          final res = await BackendClient.voiceGenerateAudio(
+            voiceId: voiceId,
+            storyId: storyId,
+          );
+          final url = res['url']?.toString();
+          if (url != null && url.isNotEmpty) {
+            safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
+            return url;
+          }
+        } catch (_) {
+          // fall through to fallback
+        }
       }
     }
 
@@ -264,8 +287,17 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         return;
       }
 
-      final res = await BackendClient.voiceSpeak(voiceId: voiceId, storyId: storyId);
-      final playUrl = res['url']?.toString();
+      String? playUrl;
+      try {
+        final res = await BackendClient.getStoryPlayUrl(storyId);
+        playUrl = res['playUrl']?.toString();
+      } catch (_) {
+        final res = await BackendClient.voiceGenerateAudio(
+          voiceId: voiceId,
+          storyId: storyId,
+        );
+        playUrl = res['url']?.toString();
+      }
       if (playUrl == null || playUrl.isEmpty) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load audio')));
         return;

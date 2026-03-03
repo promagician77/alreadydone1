@@ -115,6 +115,19 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {'stories': []};
   }
 
+  /// DELETE api/stories/{story_id} - delete a story.
+  static Future<void> deleteStory(int storyId) async {
+    final response = await client
+        .delete(resolve('/api/stories/$storyId'))
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Delete story timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception('Delete failed: ${response.statusCode} ${response.body}');
+    }
+  }
+
   /// GET api/desires - list desire categories. Returns [ { id, desireCategory, name }, ... ].
   /// API uses desireCategory; we also expose as name for compatibility.
   static Future<List<Map<String, dynamic>>> getDesires() async {
@@ -236,6 +249,59 @@ class BackendClient {
     }
     final decoded = jsonDecode(response.body);
     return decoded is Map<String, dynamic> ? decoded : {'url': null};
+  }
+
+  /// POST api/voice/generate_audio - generate story audio (TTS), store, return URL.
+  /// Request: voice_id, story_id, model_id (default eleven_multilingual_v2), narration_speed (default normal).
+  /// Returns { "url": public_url, "content_type": content_type }. Use url for playback.
+  static Future<Map<String, dynamic>> voiceGenerateAudio({
+    required String voiceId,
+    required int storyId,
+    String modelId = 'eleven_multilingual_v2',
+    String narrationSpeed = 'normal',
+  }) async {
+    final response = await client
+        .post(
+          resolve('/api/voice/generate_audio'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'voice_id': voiceId,
+            'story_id': storyId,
+            'model_id': modelId,
+            'narration_speed': narrationSpeed,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 90),
+          onTimeout: () => throw Exception('Voice generate audio timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Voice generate audio failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'url': null, 'content_type': null};
+  }
+
+  /// GET api/voice/speak/{story_id} - return existing play URL for a story (no generation).
+  /// Returns { "playUrl": play_url }. Throws on 404 (story not found or no playUrl yet).
+  static Future<Map<String, dynamic>> getStoryPlayUrl(int storyId) async {
+    final uri = resolve('/api/voice/speak/$storyId');
+    final response = await client.get(uri).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw Exception('Get play URL timeout'),
+    );
+    if (response.statusCode == 404) {
+      throw Exception('Story not found or has no play URL yet');
+    }
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Get play URL failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'playUrl': null};
   }
 
   /// GET api/voice/preview?voice_id=<id> - get voice preview audio (bytes).

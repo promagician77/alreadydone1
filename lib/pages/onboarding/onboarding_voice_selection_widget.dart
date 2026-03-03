@@ -592,7 +592,7 @@ class _OnboardingVoiceSelectionWidgetState
                 return;
               }
 
-              final res = await BackendClient.voiceSpeak(
+              final res = await BackendClient.voiceGenerateAudio(
                 voiceId: _selectedId,
                 storyId: storyId,
               );
