@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -48,20 +51,20 @@ class _OnboardingVoiceSelectionWidgetState
 
   static const _maleVoices = [
     // Marcus
-    ('C1npRmjB19a6yNkEucvx', 'Marcus', 'Warm & Soothing'),
+    ('24EI9FmmGvJruwUi7TJM', 'Marcus', 'Warm & Soothing'),
     // David
-    ('Xju4Klbc1r0SkckSAl5Q', 'David', 'Confident & Powerful'),
+    ('8yh4Wuya1OlwcUp0epGF', 'David', 'Confident & Powerful'),
     // Alex
-    ('sfJopaWaOtauCD3HKX6Q', 'Alex', 'Gentle & Peaceful'),
+    ('tJHJUEHzOkMoPmJJ5jo2', 'Alex', 'Gentle & Peaceful'),
   ];
 
   static const _femaleVoices = [
     // Sarah
-    ('dmj1miGv9eZmDLYgtnUF', 'Sarah', 'Warm & Nurturing'),
+    ('KGZeK6FsnWQdrkDHnDNA', 'Sarah', 'Warm & Nurturing'),
     // Maya
-    ('8tsLeAV5vPVuzCCvqbbU', 'Maya', 'Energetic & Inspiring'),
+    ('NXqsj0QYxuanzBw3KwjB', 'Maya', 'Energetic & Inspiring'),
     // Luna
-    ('8nrCzpcW3j4By5SgCxTv', 'Luna', 'Calm & Serene'),
+    ('VlQRLHkc5IdFj7o0atT1', 'Luna', 'Calm & Serene'),
   ];
 
   bool get _isMyVoiceSelected => _selectedId == 'my_voice';
@@ -446,24 +449,82 @@ class _OnboardingVoiceSelectionWidgetState
                 ],
               ),
             ),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AuthTheme.warmWhite,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AuthTheme.stoneMid, width: 1.5),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.play_arrow_rounded,
-                  size: 18,
-                  color: AuthTheme.inkMid,
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _playPresetVoicePreview(voiceId: id, voiceName: name),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AuthTheme.warmWhite,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AuthTheme.stoneMid, width: 1.5),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    size: 18,
+                    color: AuthTheme.inkMid,
+                  ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _playPresetVoicePreview({
+    required String voiceId,
+    required String voiceName,
+  }) async {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: CircularProgressIndicator(color: AuthTheme.gold),
+        ),
+      ),
+    );
+    try {
+      final result = await BackendClient.voicePreview(voiceId);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // loading
+      _showVoicePreviewModal(
+        context: context,
+        voiceName: voiceName,
+        audioBytes: result.bytes,
+        contentType: result.contentType,
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load preview: $e')),
+        );
+      }
+    }
+  }
+
+  void _showVoicePreviewModal({
+    required BuildContext context,
+    required String voiceName,
+    required Uint8List audioBytes,
+    String? contentType,
+  }) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => _VoicePreviewModal(
+        voiceName: voiceName,
+        audioBytes: audioBytes,
+        contentType: contentType,
+        onClose: () => Navigator.of(ctx).pop(),
       ),
     );
   }
@@ -564,6 +625,155 @@ class _OnboardingVoiceSelectionWidgetState
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Modal that plays voice preview from bytes (from api/voice/preview).
+class _VoicePreviewModal extends StatefulWidget {
+  const _VoicePreviewModal({
+    required this.voiceName,
+    required this.audioBytes,
+    this.contentType,
+    required this.onClose,
+  });
+
+  final String voiceName;
+  final Uint8List audioBytes;
+  final String? contentType;
+  final VoidCallback onClose;
+
+  @override
+  State<_VoicePreviewModal> createState() => _VoicePreviewModalState();
+}
+
+class _VoicePreviewModalState extends State<_VoicePreviewModal> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _isPlaying = false;
+  bool _isLoading = true;
+  String? _error;
+
+  String? get _mimeType {
+    final c = widget.contentType;
+    if (c == null || c.isEmpty) return null;
+    final parts = c.split(';');
+    return parts.first.trim();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+          if (state == PlayerState.playing || state == PlayerState.completed) {
+            _isLoading = false;
+          }
+        });
+      }
+    });
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _isPlaying = false);
+    });
+    _play();
+  }
+
+  Future<void> _play() async {
+    setState(() => _error = null);
+    try {
+      await _player.play(
+        BytesSource(widget.audioBytes, mimeType: _mimeType),
+        mode: PlayerMode.mediaPlayer,
+      );
+      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> _togglePlayPause() async {
+    if (_error != null) return;
+    if (_isPlaying) {
+      await _player.pause();
+    } else {
+      await _player.resume();
+    }
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Preview: ${widget.voiceName}',
+        style: GoogleFonts.outfit(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AuthTheme.ink,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                _error!,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: Colors.red.shade700,
+                ),
+              ),
+            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(right: 12),
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AuthTheme.gold,
+                    ),
+                  ),
+                ),
+              IconButton.filled(
+                onPressed: _error != null ? null : _togglePlayPause,
+                icon: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                style: IconButton.styleFrom(
+                  backgroundColor: AuthTheme.gold,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: widget.onClose,
+          child: Text(
+            'Close',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AuthTheme.gold),
+          ),
+        ),
+      ],
     );
   }
 }

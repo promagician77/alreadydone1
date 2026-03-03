@@ -114,10 +114,21 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// Single unified timer for sleep mode (countdown + volume).
   Timer? _sleepMasterTimer;
 
+  /// Playback speed options (used for both normal and sleep mode).
+  static const List<double> _speedOptions = [0.5, 0.75, 1.0];
+
+  /// Normal (non-sleep) playback speed. Default 1.0x.
+  double _normalPlaybackRate = 1.0;
+
   /// Sleep mode playback speed (only used when sleep mode is active).
   /// Default is 0.75x.
-  static const List<double> _sleepSpeedOptions = [0.5, 0.75, 1.0];
   double _sleepPlaybackRate = 0.75;
+
+  /// Loop voice playback (both common and sleep mode). When true, voice repeats.
+  bool _loopEnabled = false;
+
+  /// Notifier so Playback Settings modal updates the Loop row immediately when changed.
+  final ValueNotifier<bool> _loopNotifier = ValueNotifier(false);
 
   /// Sleep mode: target narration volume (70% per client spec).
   static const double _sleepVolumeTarget = 0.7;
@@ -477,6 +488,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         if (!mounted || _disposed) return;
         await _applyMixContext();
         await _audioPlayer.play(UrlSource(url), mode: PlayerMode.mediaPlayer);
+        await _audioPlayer.setReleaseMode(
+            _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
+        await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
         if (mounted) setState(() => _isPlaying = true);
       });
     }
@@ -502,8 +516,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       _sleepModeStartedAt = DateTime.now();
     });
 
-    // 3. Configure voice player for sleep
-    await _audioPlayer.setReleaseMode(ReleaseMode.stop);
+    // 3. Configure voice player for sleep (loop follows user setting)
+    await _audioPlayer.setReleaseMode(
+        _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
     await _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
 
     // 4. Dim screen
@@ -629,9 +644,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _sleepMasterTimer = null;
     _sleepModeStartedAt = null;
 
-    // Reset audio player to normal state.
-    _audioPlayer.setReleaseMode(ReleaseMode.stop);
-    _audioPlayer.setPlaybackRate(1.0);
+    // Reset audio player to normal state (speed and loop from user settings).
+    _audioPlayer.setReleaseMode(
+        _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
+    _audioPlayer.setPlaybackRate(_normalPlaybackRate);
     _audioPlayer.setVolume(1.0);
     _audioPlayer.stop();
 
@@ -744,6 +760,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
     _stopThetaBackground();
     _waveformController.dispose();
+    _loopNotifier.dispose();
     _audioPlayer.dispose();
     _thetaTrackPlayer.dispose(); // FIX: was missing — leaked the theta player
     _model.dispose();
@@ -786,6 +803,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
         } else {
           await _audioPlayer.resume();
         }
+        await _audioPlayer.setReleaseMode(
+            _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
         if (_sleepModeActive) {
           await _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
           await _audioPlayer.setVolume(_sleepVolumeTarget);
@@ -797,6 +816,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
           }
           // Re-apply context one more time after both are running.
           await _applyMixContext();
+        } else {
+          await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
         }
         if (mounted) setState(() => _isPlaying = true);
       }
@@ -865,12 +886,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
         } catch (_) {}
       }
       if (!mounted) return;
+      _loopNotifier.value = _loopEnabled; // keep in sync so modal shows current state
       showPlaybackSettingsModal(
         context,
         sleepModeEnabled: _sleepModeActive,
         sleepModeAllowed: sleepModeAllowed,
-        speedLabel: 'Normal (1.0x)',
-        loopEnabled: false,
+        speedLabel: _normalSpeedLabel,
+        loopEnabled: _loopEnabled,
+        loopListenable: _loopNotifier,
         onSleepModeChanged: (value) {
           if (value) {
             Navigator.of(context).pop();
@@ -890,9 +913,262 @@ class _PlayerWidgetState extends State<PlayerWidget>
             );
           }
         },
-        onSpeedTap: () => Navigator.of(context).pop(),
-        onLoopTap: () => Navigator.of(context).pop(),
+        onSpeedTap: _openNormalSpeedSheet,
+        onLoopTap: _openLoopSheet,
       );
+    }
+  }
+
+  // ===========================================================================
+  // NORMAL SPEED (common player)
+  // ===========================================================================
+
+  String get _normalSpeedLabel {
+    if (_normalPlaybackRate == 1.0) return 'Normal (1.0x)';
+    return '${_formatSleepSpeed(_normalPlaybackRate)}x';
+  }
+
+  Future<void> _openNormalSpeedSheet() async {
+    final current = _normalPlaybackRate;
+    final selected = await showModalBottomSheet<double>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
+          decoration: const BoxDecoration(
+            color: _PlayerColors.surface,
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x261C1917),
+                blurRadius: 20,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: _PlayerColors.stoneMid,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Speed',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: _PlayerColors.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Choose playback speed for your story.',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: _PlayerColors.inkSoft,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Column(
+                children: List<Widget>.from(
+                  _speedOptions.map<Widget>((v) {
+                    final isSelected = v == current;
+                    return GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(v),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _PlayerColors.goldPale
+                              : _PlayerColors.warmWhite,
+                          border: Border.all(
+                            color: isSelected
+                                ? _PlayerColors.gold
+                                : _PlayerColors.stone,
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              v == 1.0
+                                  ? 'Normal (1.0x)'
+                                  : '${_formatSleepSpeed(v)}x',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: _PlayerColors.ink,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (isSelected)
+                              Icon(Icons.check,
+                                  size: 18, color: _PlayerColors.gold),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && selected != current) {
+      setState(() {
+        _normalPlaybackRate = selected;
+      });
+      if (!_sleepModeActive && _isPlaying) {
+        await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
+      }
+      if (mounted) {
+        final label = _normalSpeedLabel;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Speed set to $label'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  // ===========================================================================
+  // LOOP SHEET (On / Off)
+  // ===========================================================================
+
+  Future<void> _openLoopSheet() async {
+    final current = _loopEnabled;
+    final selected = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
+          decoration: const BoxDecoration(
+            color: _PlayerColors.surface,
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x261C1917),
+                blurRadius: 20,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: _PlayerColors.stoneMid,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Loop',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: _PlayerColors.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Repeat the story when it ends (common and sleep mode).',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: _PlayerColors.inkSoft,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...[false, true].map<Widget>((value) {
+                final isOn = value;
+                final isSelected = current == value;
+                return GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(value),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? _PlayerColors.goldPale
+                          : _PlayerColors.warmWhite,
+                      border: Border.all(
+                        color: isSelected
+                            ? _PlayerColors.gold
+                            : _PlayerColors.stone,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          isOn ? 'On' : 'Off',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _PlayerColors.ink,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (isSelected)
+                          Icon(Icons.check,
+                              size: 18, color: _PlayerColors.gold),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && selected != current) {
+      setState(() => _loopEnabled = selected);
+      _loopNotifier.value = selected; // so open Playback Settings modal updates immediately
+      if (_isPlaying) {
+        _audioPlayer.setReleaseMode(
+            _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Loop ${_loopEnabled ? "on" : "off"}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -966,7 +1242,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               const SizedBox(height: 16),
               Column(
                 children: List<Widget>.from(
-                  _sleepSpeedOptions.map<Widget>((v) {
+                  _speedOptions.map<Widget>((v) {
                     final isSelected = v == current;
                     return GestureDetector(
                       onTap: () => Navigator.of(ctx).pop(v),

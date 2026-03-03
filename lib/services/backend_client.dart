@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -235,6 +236,26 @@ class BackendClient {
     }
     final decoded = jsonDecode(response.body);
     return decoded is Map<String, dynamic> ? decoded : {'url': null};
+  }
+
+  /// GET api/voice/preview?voice_id=<id> - get voice preview audio (bytes).
+  /// Returns (audio_bytes, content_type). Backend returns Response(content=audio_bytes, media_type=content_type).
+  static Future<({Uint8List bytes, String? contentType})> voicePreview(
+    String voiceId,
+  ) async {
+    final uri = resolve('/api/voice/preview')
+        .replace(queryParameters: {'voice_id': voiceId});
+    final response = await client.get(uri).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () => throw Exception('Voice preview timeout'),
+    );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Voice preview failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final contentType = response.headers['content-type'];
+    return (bytes: response.bodyBytes, contentType: contentType);
   }
 
   /// GET api/subscription/status?user_id=<int>

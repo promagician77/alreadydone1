@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -12,6 +13,7 @@ class _SleepColors {
 
 /// Playback Settings modal - shown when clicking settings icon in player.
 /// [sleepModeAllowed] gates sleep mode by subscription (trialing/active + weekly/annual).
+/// [loopListenable] when provided, the Loop row updates immediately when the value changes.
 void showPlaybackSettingsModal(
   BuildContext context, {
   required bool sleepModeEnabled,
@@ -19,6 +21,7 @@ void showPlaybackSettingsModal(
   required ValueChanged<bool> onSleepModeChanged,
   required String speedLabel,
   required bool loopEnabled,
+  ValueListenable<bool>? loopListenable,
   required VoidCallback onSpeedTap,
   required VoidCallback onLoopTap,
 }) {
@@ -31,6 +34,7 @@ void showPlaybackSettingsModal(
       onSleepModeChanged: onSleepModeChanged,
       speedLabel: speedLabel,
       loopEnabled: loopEnabled,
+      loopListenable: loopListenable,
       onSpeedTap: onSpeedTap,
       onLoopTap: onLoopTap,
     ),
@@ -43,6 +47,7 @@ class _PlaybackSettingsSheet extends StatelessWidget {
   final ValueChanged<bool> onSleepModeChanged;
   final String speedLabel;
   final bool loopEnabled;
+  final ValueListenable<bool>? loopListenable;
   final VoidCallback onSpeedTap;
   final VoidCallback onLoopTap;
 
@@ -52,6 +57,7 @@ class _PlaybackSettingsSheet extends StatelessWidget {
     required this.onSleepModeChanged,
     required this.speedLabel,
     required this.loopEnabled,
+    this.loopListenable,
     required this.onSpeedTap,
     required this.onLoopTap,
   });
@@ -144,12 +150,23 @@ class _PlaybackSettingsSheet extends StatelessWidget {
               ],
             ),
           ),
-          _settingRow(
-            icon: '🔁',
-            label: 'Loop',
-            value: loopEnabled ? 'On →' : 'Off →',
-            onTap: onLoopTap,
-          ),
+          if (loopListenable != null)
+            ValueListenableBuilder<bool>(
+              valueListenable: loopListenable!,
+              builder: (_, loopOn, __) => _settingRow(
+                icon: '🔁',
+                label: 'Loop',
+                value: loopOn ? 'On →' : 'Off →',
+                onTap: onLoopTap,
+              ),
+            )
+          else
+            _settingRow(
+              icon: '🔁',
+              label: 'Loop',
+              value: loopEnabled ? 'On →' : 'Off →',
+              onTap: onLoopTap,
+            ),
         ],
       ),
     );
