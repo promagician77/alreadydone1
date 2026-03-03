@@ -46,6 +46,7 @@ class BackendClient {
     bool? isBedtimeReminder,
     String? morningTimeReminder,
     String? bedtimeReminder,
+    String? timezone,
     String? name,
     String? email,
     String? dreamPlace,
@@ -60,6 +61,7 @@ class BackendClient {
     if (isBedtimeReminder != null) body['is_BedTime_Reminder'] = isBedtimeReminder;
     if (morningTimeReminder != null) body['morningTime_Reminder'] = morningTimeReminder;
     if (bedtimeReminder != null) body['bedTime_Reminder'] = bedtimeReminder;
+    if (timezone != null) body['timezone'] = timezone;
     if (name != null) body['name'] = name;
     if (email != null) body['email'] = email;
     if (dreamPlace != null) body['dream_place'] = dreamPlace;

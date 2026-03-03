@@ -6,7 +6,7 @@
 
 
     <application
-        android:label="Already App"
+        android:label="Already Done"
         tools:replace="android:label"
         android:icon="@mipmap/ic_launcher">
 

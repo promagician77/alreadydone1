@@ -14,12 +14,14 @@ class _SleepColors {
 /// Playback Settings modal - shown when clicking settings icon in player.
 /// [sleepModeAllowed] gates sleep mode by subscription (trialing/active + weekly/annual).
 /// [loopListenable] when provided, the Loop row updates immediately when the value changes.
+/// [speedListenable] when provided, the Speed row updates immediately when speed is changed.
 void showPlaybackSettingsModal(
   BuildContext context, {
   required bool sleepModeEnabled,
   required bool sleepModeAllowed,
   required ValueChanged<bool> onSleepModeChanged,
   required String speedLabel,
+  ValueListenable<String>? speedListenable,
   required bool loopEnabled,
   ValueListenable<bool>? loopListenable,
   required VoidCallback onSpeedTap,
@@ -33,6 +35,7 @@ void showPlaybackSettingsModal(
       sleepModeAllowed: sleepModeAllowed,
       onSleepModeChanged: onSleepModeChanged,
       speedLabel: speedLabel,
+      speedListenable: speedListenable,
       loopEnabled: loopEnabled,
       loopListenable: loopListenable,
       onSpeedTap: onSpeedTap,
@@ -46,6 +49,7 @@ class _PlaybackSettingsSheet extends StatelessWidget {
   final bool sleepModeAllowed;
   final ValueChanged<bool> onSleepModeChanged;
   final String speedLabel;
+  final ValueListenable<String>? speedListenable;
   final bool loopEnabled;
   final ValueListenable<bool>? loopListenable;
   final VoidCallback onSpeedTap;
@@ -56,6 +60,7 @@ class _PlaybackSettingsSheet extends StatelessWidget {
     required this.sleepModeAllowed,
     required this.onSleepModeChanged,
     required this.speedLabel,
+    this.speedListenable,
     required this.loopEnabled,
     this.loopListenable,
     required this.onSpeedTap,
@@ -109,12 +114,23 @@ class _PlaybackSettingsSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _settingRow(
-            icon: '⚡',
-            label: 'Speed',
-            value: '$speedLabel →',
-            onTap: onSpeedTap,
-          ),
+          if (speedListenable != null)
+            ValueListenableBuilder<String>(
+              valueListenable: speedListenable!,
+              builder: (_, label, __) => _settingRow(
+                icon: '⚡',
+                label: 'Speed',
+                value: '$label →',
+                onTap: onSpeedTap,
+              ),
+            )
+          else
+            _settingRow(
+              icon: '⚡',
+              label: 'Speed',
+              value: '$speedLabel →',
+              onTap: onSpeedTap,
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(

@@ -181,9 +181,9 @@ class _NavColors {
 }
 
 class _NavIcon extends StatelessWidget {
-  const _NavIcon({required this.unicode, required this.active, required this.sleepStyle});
+  const _NavIcon({required this.icon, required this.active, required this.sleepStyle});
 
-  final String unicode;
+  final IconData icon;
   final bool active;
   final bool sleepStyle;
 
@@ -192,14 +192,7 @@ class _NavIcon extends StatelessWidget {
     final color = sleepStyle
         ? (active ? const Color(0xFFC4B5FD) : Colors.white.withValues(alpha: 0.5))
         : (active ? _NavColors.gold : _NavColors.inkSoft);
-    return Text(
-      unicode,
-      style: GoogleFonts.outfit(
-        fontSize: 20,
-        fontWeight: FontWeight.w500,
-        color: color,
-      ),
-    );
+    return Icon(icon, size: 20, color: color);
   }
 }
 
@@ -240,7 +233,7 @@ class _NavBarPageState extends State<NavBarPage> {
 
   Widget _buildNavItem(
     BuildContext context,
-    String unicode,
+    IconData icon,
     String label,
     int index,
     int currentIndex,
@@ -259,14 +252,7 @@ class _NavBarPageState extends State<NavBarPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              unicode,
-              style: GoogleFonts.outfit(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                color: color,
-              ),
-            ),
+            Icon(icon, size: 24, color: color),
             const SizedBox(height: 4),
             Text(
               label,
@@ -339,10 +325,10 @@ class _NavBarPageState extends State<NavBarPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(context, '⌂', 'Home', 0, currentIndex, useSleepStyle, () => _onNavTap(0)),
-                  _buildNavItem(context, '▶', 'Player', 1, currentIndex, useSleepStyle, () => _onNavTap(1)),
-                  _buildNavItem(context, '✓', 'Done', 2, currentIndex, useSleepStyle, () => _onNavTap(2)),
-                  _buildNavItem(context, '☰', 'Profile', 3, currentIndex, useSleepStyle, () => _onNavTap(3)),
+                  _buildNavItem(context, Icons.home_rounded, 'Home', 0, currentIndex, useSleepStyle, () => _onNavTap(0)),
+                  _buildNavItem(context, Icons.play_arrow, 'Player', 1, currentIndex, useSleepStyle, () => _onNavTap(1)),
+                  _buildNavItem(context, Icons.check, 'Done', 2, currentIndex, useSleepStyle, () => _onNavTap(2)),
+                  _buildNavItem(context, Icons.density_medium, 'Profile', 3, currentIndex, useSleepStyle, () => _onNavTap(3)),
                 ],
               ),
             ),

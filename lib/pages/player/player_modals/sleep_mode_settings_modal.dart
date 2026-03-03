@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -10,12 +11,14 @@ class _SleepColors {
 }
 
 /// Sleep Mode Settings modal - shown when clicking settings in sleep mode.
+/// [sleepSpeedListenable] when provided, the Sleep Speed row updates immediately when speed is changed.
 void showSleepModeSettingsModal(
   BuildContext context, {
   required int selectedMinutes,
   required ValueChanged<int?> onTimerSelect,
   required ValueChanged<bool> onSleepModeChanged,
   required String sleepSpeedLabel,
+  ValueListenable<String>? sleepSpeedListenable,
   required String backgroundSoundName,
   required VoidCallback onSleepSpeedTap,
   required VoidCallback onBackgroundSoundTap,
@@ -30,6 +33,7 @@ void showSleepModeSettingsModal(
       onTimerSelect: onTimerSelect,
       onSleepModeChanged: onSleepModeChanged,
       sleepSpeedLabel: sleepSpeedLabel,
+      sleepSpeedListenable: sleepSpeedListenable,
       backgroundSoundName: backgroundSoundName,
       onSleepSpeedTap: onSleepSpeedTap,
       onBackgroundSoundTap: onBackgroundSoundTap,
@@ -43,6 +47,7 @@ class _SleepModeSettingsSheet extends StatefulWidget {
   final ValueChanged<int?> onTimerSelect;
   final ValueChanged<bool> onSleepModeChanged;
   final String sleepSpeedLabel;
+  final ValueListenable<String>? sleepSpeedListenable;
   final String backgroundSoundName;
   final VoidCallback onSleepSpeedTap;
   final VoidCallback onBackgroundSoundTap;
@@ -53,6 +58,7 @@ class _SleepModeSettingsSheet extends StatefulWidget {
     required this.onTimerSelect,
     required this.onSleepModeChanged,
     required this.sleepSpeedLabel,
+    this.sleepSpeedListenable,
     required this.backgroundSoundName,
     required this.onSleepSpeedTap,
     required this.onBackgroundSoundTap,
@@ -139,7 +145,7 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
             ],
           ),
           const SizedBox(height: 20),
-          _settingRow(icon: '⚡', label: 'Sleep Speed', value: '${widget.sleepSpeedLabel} →', onTap: widget.onSleepSpeedTap),
+          _sleepSpeedRow(),
           _settingRow(icon: '🎵', label: 'Background Sound', value: '${widget.backgroundSoundName} →', onTap: widget.onBackgroundSoundTap),
           _settingRow(
             icon: '🌙',
@@ -167,6 +173,27 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _sleepSpeedRow() {
+    final listenable = widget.sleepSpeedListenable;
+    if (listenable != null) {
+      return ValueListenableBuilder<String>(
+        valueListenable: listenable,
+        builder: (context, label, _) => _settingRow(
+          icon: '⚡',
+          label: 'Sleep Speed',
+          value: '$label →',
+          onTap: widget.onSleepSpeedTap,
+        ),
+      );
+    }
+    return _settingRow(
+      icon: '⚡',
+      label: 'Sleep Speed',
+      value: '${widget.sleepSpeedLabel} →',
+      onTap: widget.onSleepSpeedTap,
     );
   }
 

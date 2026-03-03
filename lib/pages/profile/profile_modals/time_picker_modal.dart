@@ -93,15 +93,28 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
   bool _customMode = false;
   bool _saving = false;
 
+  /// Current device timezone as IANA-style offset (e.g. "UTC+5:30", "UTC-5:00").
+  static String _getCurrentTimezone() {
+    final offset = DateTime.now().timeZoneOffset;
+    final hours = offset.inHours;
+    final minutes = offset.inMinutes.abs() % 60;
+    final sign = hours >= 0 ? '+' : '-';
+    final h = hours.abs();
+    final m = minutes.toString().padLeft(2, '0');
+    return 'UTC$sign${h.toString().padLeft(2, '0')}:$m';
+  }
+
   Future<void> _handleSave(String timeDisplay) async {
     if (widget.userId != null && widget.fieldType != null) {
       setState(() => _saving = true);
       try {
         final iso = _timeDisplayToIso(timeDisplay);
+        final timezone = _getCurrentTimezone();
         await BackendClient.updateUserProfile(
           widget.userId!,
           morningTimeReminder: widget.fieldType == TimeFieldType.morning ? iso : null,
           bedtimeReminder: widget.fieldType == TimeFieldType.bedtime ? iso : null,
+          timezone: timezone,
         );
         if (!mounted) return;
         widget.onSave?.call(timeDisplay);

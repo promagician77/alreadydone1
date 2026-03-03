@@ -15,6 +15,9 @@ class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
   /// Current user name from backend profile.
   String? userName;
 
+  /// Day streak from backend profile (number).
+  int dayStreak = 0;
+
   /// Voice ID from backend profile (for api/voice/speak).
   String? voiceId;
 
@@ -43,6 +46,10 @@ class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
   /// Current playback position/duration for the playing story.
   Duration playbackPosition = Duration.zero;
   Duration playbackDuration = Duration.zero;
+
+  /// True when user has an active subscription (stripe_subscription_id present).
+  /// When true, the "Sleep Mode" premium card on home is hidden.
+  bool isSubscribed = false;
 
   @override
   void initState(BuildContext context) {}

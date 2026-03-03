@@ -117,18 +117,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// Playback speed options (used for both normal and sleep mode).
   static const List<double> _speedOptions = [0.5, 0.75, 1.0];
 
-  /// Normal (non-sleep) playback speed. Default 1.0x.
+  /// Playback speed used for both normal and sleep mode (single shared value).
+  /// When user changes speed in either Playback Settings or Sleep Mode settings, both stay in sync.
   double _normalPlaybackRate = 1.0;
-
-  /// Sleep mode playback speed (only used when sleep mode is active).
-  /// Default is 0.75x.
-  double _sleepPlaybackRate = 0.75;
 
   /// Loop voice playback (both common and sleep mode). When true, voice repeats.
   bool _loopEnabled = false;
 
   /// Notifier so Playback Settings modal updates the Loop row immediately when changed.
   final ValueNotifier<bool> _loopNotifier = ValueNotifier(false);
+
+  /// Notifier so Playback Settings modal updates the Speed row immediately when changed.
+  final ValueNotifier<String> _speedLabelNotifier = ValueNotifier<String>('Normal (1.0x)');
 
   /// Sleep mode: target narration volume (70% per client spec).
   static const double _sleepVolumeTarget = 0.7;
@@ -202,10 +202,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
     _loadStoryData();
   }
-
-  // ===========================================================================
-  // DATA LOADING
-  // ===========================================================================
 
   Future<void> _loadStoryData() async {
     final previewFromWidget = (widget.storyPreview ?? '').trim();
@@ -480,12 +476,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     );
   }
 
-  // ===========================================================================
-  // AUTO-PLAY / SLEEP MODE ENTRY FROM NOTIFIER
-  // ===========================================================================
-
-  /// When opened from navbar or Unlock Sleep Mode (no story params), auto-play.
-  /// If sleepModeNotifier is true (came from Unlock Sleep Mode), activate sleep.
   void _maybeAutoPlayAndActivateSleepMode() {
     final url = _playUrl?.trim();
     if (url == null || url.isEmpty || !mounted) return;
@@ -504,83 +494,52 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  // ===========================================================================
-  // SLEEP SESSION — SINGLE ENTRY POINT (fixes duplication)
-  // ===========================================================================
-
-  /// Start a sleep session. This is the ONE place sleep mode is activated.
-  /// All entry points (settings modal, notifier, etc.) call this method.
   Future<void> _startSleepSession(String url) async {
     if (_disposed || !mounted) return;
 
-    // 1. Track whether voice was already playing so we can resume instead of
-    //    restarting from scratch (avoids silence gap from URL re-fetch).
     final wasAlreadyPlaying = _isPlaying;
 
-    // 2. Update state
     setState(() {
       _sleepModeActive = true;
       sleepModeNotifier.value = true;
       _sleepModeStartedAt = DateTime.now();
     });
 
-    // 3. Configure voice player for sleep (loop follows user setting)
     await _audioPlayer.setReleaseMode(
         _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
-    await _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
+    await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
 
-    // 4. Dim screen
     _setSleepBrightness(true);
 
-    // 5. Re-apply mix context BEFORE any play() calls — this is critical so
-    //    neither player steals the audio session from the other.
     await _applyMixContext();
 
-    // 6. Start theta FIRST (local asset, loads fast) and let it settle.
     await _startThetaBackground();
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (_disposed || !mounted) return;
 
-    // 7. Re-apply mix context AGAIN after theta started — some platforms
-    //    reset the session when a new player begins.
     await _applyMixContext();
 
-    // 8. Start or resume voice
     if (wasAlreadyPlaying) {
-      // Voice is already playing — just adjust settings, no restart needed.
-      await _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
-      await _audioPlayer.setVolume(1.0); // will be managed by master timer
+      await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
+      await _audioPlayer.setVolume(1.0);
     } else {
-      // Voice was not playing — start from beginning.
       await _audioPlayer.play(UrlSource(url), mode: PlayerMode.mediaPlayer);
     }
 
     if (_disposed || !mounted) return;
 
-    // 9. One more context re-apply after voice starts (belt and suspenders).
     await Future.delayed(const Duration(milliseconds: 200));
     await _applyMixContext();
 
-    // 10. Set initial volumes explicitly after players are running.
     await _audioPlayer.setVolume(1.0);
     await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
 
-    // 11. Start the single unified volume + countdown timer.
     _startSleepMasterTimer();
 
     if (mounted) setState(() => _isPlaying = true);
   }
 
-  // ===========================================================================
-  // SINGLE UNIFIED SLEEP TIMER (replaces two competing timers)
-  // ===========================================================================
-
-  /// One timer to rule them all:
-  ///  - Phase 1 (0..120s): fade voice volume from 1.0 → 0.7
-  ///  - Phase 2 (120s..end-60s): hold voice at 0.7, theta at 0.2
-  ///  - Phase 3 (last 60s): fade both to 0.0
-  ///  - End: stop everything
   void _startSleepMasterTimer() {
     _sleepMasterTimer?.cancel();
     _sleepMasterTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -589,7 +548,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
         return;
       }
 
-      // Guard against null (could happen if _endSleepSession races with tick)
       final started = _sleepModeStartedAt;
       if (started == null) {
         timer.cancel();
@@ -600,7 +558,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final totalSeconds = (_sleepTimerMinutes ?? 30) * 60;
       final remaining = totalSeconds - elapsed;
 
-      // Time's up — end the session.
       if (remaining <= 0) {
         timer.cancel();
         _sleepMasterTimer = null;
@@ -608,24 +565,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
         return;
       }
 
-      // --- Compute voice volume ---
       double voiceVol;
       if (elapsed < _sleepVolumeFadeInSeconds) {
-        // Phase 1: fade from 1.0 → _sleepVolumeTarget over 120s
         final progress = elapsed / _sleepVolumeFadeInSeconds;
         voiceVol = 1.0 - ((1.0 - _sleepVolumeTarget) * progress);
       } else if (remaining <= _sleepFadeOutSeconds) {
-        // Phase 3: fade from _sleepVolumeTarget → 0.0 over last 60s
         voiceVol = _sleepVolumeTarget * (remaining / _sleepFadeOutSeconds);
       } else {
-        // Phase 2: hold at target
         voiceVol = _sleepVolumeTarget;
       }
 
-      // --- Compute theta volume ---
       double thetaVol;
       if (remaining <= _sleepFadeOutSeconds) {
-        // Phase 3: fade theta to 0
         thetaVol = _thetaVolumeTarget * (remaining / _sleepFadeOutSeconds);
       } else {
         thetaVol = _thetaVolumeTarget;
@@ -634,35 +585,23 @@ class _PlayerWidgetState extends State<PlayerWidget>
       _audioPlayer.setVolume(voiceVol.clamp(0.0, 1.0));
       _thetaTrackPlayer.setVolume(thetaVol.clamp(0.0, 1.0));
 
-      // Trigger rebuild so the UI countdown updates.
       setState(() {});
     });
   }
 
-  // ===========================================================================
-  // SLEEP SESSION — SINGLE EXIT POINT (fixes duplication)
-  // ===========================================================================
-
-  /// End sleep session. This is the ONE place sleep mode is deactivated.
-  /// All exit points (timer expiry, settings toggle, player complete) call this.
   void _endSleepSession() {
-    // Cancel timer first (before nulling _sleepModeStartedAt) to avoid
-    // the force-unwrap crash in the timer callback.
     _sleepMasterTimer?.cancel();
     _sleepMasterTimer = null;
     _sleepModeStartedAt = null;
 
-    // Reset audio player to normal state (speed and loop from user settings).
     _audioPlayer.setReleaseMode(
         _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
     _audioPlayer.setPlaybackRate(_normalPlaybackRate);
     _audioPlayer.setVolume(1.0);
     _audioPlayer.stop();
 
-    // Stop theta background.
     _stopThetaBackground();
 
-    // Restore screen brightness.
     _setSleepBrightness(false);
 
     if (mounted) {
@@ -675,17 +614,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  // ===========================================================================
-  // THETA BACKGROUND — START / STOP
-  // ===========================================================================
-
   Future<void> _startThetaBackground() async {
     final track = _thetaTracks[_selectedThetaIndex];
 
-    // Stop any existing playback first.
     await _thetaTrackPlayer.stop();
 
-    // Re-apply mix context right before playing so the session isn't exclusive.
     await _applyMixContext();
 
     await _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
@@ -693,7 +626,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     try {
       await _thetaTrackPlayer.play(AssetSource(track.$2));
-      // Re-set volume after play() — some platforms reset it.
       await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
     } catch (e) {
       if (mounted) {
@@ -710,10 +642,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     await _thetaTrackPlayer.stop();
   }
 
-  // ===========================================================================
-  // BRIGHTNESS HELPER
-  // ===========================================================================
-
   Future<void> _setSleepBrightness(bool dim) async {
     try {
       if (dim) {
@@ -726,18 +654,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
     } catch (_) {}
   }
 
-  // ===========================================================================
-  // SUBSCRIPTION CHECK
-  // ===========================================================================
-
-  /// Subscription statuses that allow sleep mode (user has access).
   static const _sleepModeAllowedStatuses = [
     'trialing',
     'active',
     'past_due'
   ];
 
-  /// Subscription plans that include sleep mode.
   static const _sleepModeAllowedPlans = ['weekly', 'annual'];
 
   static bool _canUseSleepMode(String? status, String? plan) {
@@ -746,10 +668,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (!_sleepModeAllowedStatuses.contains(s)) return false;
     return _sleepModeAllowedPlans.contains(p);
   }
-
-  // ===========================================================================
-  // DISPOSE
-  // ===========================================================================
 
   @override
   void dispose() {
@@ -769,15 +687,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _stopThetaBackground();
     _waveformController.dispose();
     _loopNotifier.dispose();
+    _speedLabelNotifier.dispose();
     _audioPlayer.dispose();
-    _thetaTrackPlayer.dispose(); // FIX: was missing — leaked the theta player
+    _thetaTrackPlayer.dispose();
     _model.dispose();
     super.dispose();
   }
-
-  // ===========================================================================
-  // PLAYBACK CONTROLS
-  // ===========================================================================
 
   static const _totalWaveBars = 32;
 
@@ -802,7 +717,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
         if (_sleepModeActive) await _thetaTrackPlayer.pause();
         if (mounted) setState(() => _isPlaying = false);
       } else {
-        // Re-apply mix context before resuming so both channels work.
         await _applyMixContext();
 
         if (_position == Duration.zero && _duration == Duration.zero) {
@@ -814,15 +728,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
         await _audioPlayer.setReleaseMode(
             _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
         if (_sleepModeActive) {
-          await _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
+          await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
           await _audioPlayer.setVolume(_sleepVolumeTarget);
-          // Resume theta if paused, otherwise start fresh.
           if (_thetaTrackPlayer.state == PlayerState.paused) {
             await _thetaTrackPlayer.resume();
           } else {
             await _startThetaBackground();
           }
-          // Re-apply context one more time after both are running.
           await _applyMixContext();
         } else {
           await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
@@ -858,16 +770,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _openSettingsModal() async {
     if (_sleepModeActive) {
+      _speedLabelNotifier.value = _sleepSpeedLabel;
       showSleepModeSettingsModal(
         context,
         selectedMinutes: _sleepTimerMinutes ?? 30,
         onTimerSelect: (m) => setState(() => _sleepTimerMinutes = m),
         sleepSpeedLabel: _sleepSpeedLabel,
+        sleepSpeedListenable: _speedLabelNotifier,
         backgroundSoundName: _thetaTracks[_selectedThetaIndex].$1,
         onSleepModeChanged: (value) {
           if (!value) {
             Navigator.of(context).pop();
-            _endSleepSession(); // single exit point
+            _endSleepSession();
           }
         },
         onSleepSpeedTap: _openSleepSpeedSheet,
@@ -895,11 +809,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
       if (!mounted) return;
       _loopNotifier.value = _loopEnabled; // keep in sync so modal shows current state
+      _speedLabelNotifier.value = _normalSpeedLabel;
       showPlaybackSettingsModal(
         context,
         sleepModeEnabled: _sleepModeActive,
         sleepModeAllowed: sleepModeAllowed,
         speedLabel: _normalSpeedLabel,
+        speedListenable: _speedLabelNotifier,
         loopEnabled: _loopEnabled,
         loopListenable: _loopNotifier,
         onSleepModeChanged: (value) {
@@ -926,10 +842,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       );
     }
   }
-
-  // ===========================================================================
-  // NORMAL SPEED (common player)
-  // ===========================================================================
 
   String get _normalSpeedLabel {
     if (_normalPlaybackRate == 1.0) return 'Normal (1.0x)';
@@ -1044,6 +956,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       setState(() {
         _normalPlaybackRate = selected;
       });
+      _speedLabelNotifier.value = _normalSpeedLabel;
       if (!_sleepModeActive && _isPlaying) {
         await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
       }
@@ -1058,10 +971,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     }
   }
-
-  // ===========================================================================
-  // LOOP SHEET (On / Off)
-  // ===========================================================================
 
   Future<void> _openLoopSheet() async {
     final current = _loopEnabled;
@@ -1180,12 +1089,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  // ===========================================================================
-  // SLEEP SPEED SHEET
-  // ===========================================================================
-
   String get _sleepSpeedLabel =>
-      '${_formatSleepSpeed(_sleepPlaybackRate)}x';
+      _normalPlaybackRate == 1.0
+          ? 'Normal (1.0x)'
+          : '${_formatSleepSpeed(_normalPlaybackRate)}x';
 
   String _formatSleepSpeed(double value) {
     if (value % 1 == 0) {
@@ -1196,7 +1103,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Future<void> _openSleepSpeedSheet() async {
-    final current = _sleepPlaybackRate;
+    final current = _normalPlaybackRate;
     final selected = await showModalBottomSheet<double>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1299,16 +1206,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     if (selected != null && selected != current) {
       setState(() {
-        _sleepPlaybackRate = selected;
+        _normalPlaybackRate = selected;
       });
+      _speedLabelNotifier.value = _normalSpeedLabel;
       if (_sleepModeActive) {
-        await _audioPlayer.setPlaybackRate(_sleepPlaybackRate);
+        await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
       }
       if (mounted) {
         final label = _sleepSpeedLabel;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sleep speed set to $label'),
+            content: Text('Speed set to $label'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -1957,26 +1865,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
     );
   }
 
-  static const _iconPrev = '⏮';
-  static const _iconRewind = '⏪';
-  static const _iconPlay = '▶';
-  static const _iconPause = '⏸';
-  static const _iconForward = '⏩';
-  static const _iconNext = '⏭';
+  static const _iconPrev = Icons.skip_previous_rounded;
+  static const _iconRewind = Icons.fast_rewind_rounded;
+  static const _iconPlay = Icons.play_arrow_rounded;
+  static const _iconPause = Icons.pause_rounded;
+  static const _iconForward = Icons.fast_forward_rounded;
+  static const _iconNext = Icons.skip_next_rounded;
 
   Widget _buildControls() {
     final hasUrl = _playUrl != null && _playUrl!.isNotEmpty;
     final controlsOpacity = _sleepModeActive ? 0.85 : 1.0;
     final media = MediaQuery.of(context);
     final width = media.size.width;
+    // Responsive breakpoints so buttons scale down on very small phones (e.g. 320px).
+    final isVeryNarrow = width < 340;
     final isNarrow = width < 360;
     final isCompact = width < 400;
-    final primarySize =
-        isNarrow ? 52.0 : (isCompact ? 58.0 : 64.0);
-    final secondarySize =
-        isNarrow ? 38.0 : (isCompact ? 42.0 : 48.0);
-    final spacing = isNarrow ? 8.0 : (isCompact ? 14.0 : 20.0);
-    final sleepSpacing = isNarrow ? 20.0 : 32.0;
+    final primarySize = isVeryNarrow
+        ? 44.0
+        : (isNarrow ? 50.0 : (isCompact ? 56.0 : 64.0));
+    final secondarySize = isVeryNarrow
+        ? 32.0
+        : (isNarrow ? 36.0 : (isCompact ? 40.0 : 48.0));
+    final spacing = isVeryNarrow ? 6.0 : (isNarrow ? 8.0 : (isCompact ? 12.0 : 20.0));
+    final sleepSpacing = isVeryNarrow ? 14.0 : (isNarrow ? 18.0 : 32.0);
+    // On very small screens, cap control row width so FittedBox scaleDown shrinks to fit.
+    final maxRowWidth = isVeryNarrow
+        ? (width - 24) * 0.92
+        : (isNarrow ? (width - 28) * 0.95 : (width - 32).toDouble());
 
     final row = _sleepModeActive
         ? Row(
@@ -2029,7 +1945,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       opacity: controlsOpacity,
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: width - 32),
+          constraints: BoxConstraints(maxWidth: maxRowWidth),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: row,
@@ -2039,20 +1955,30 @@ class _PlayerWidgetState extends State<PlayerWidget>
     );
   }
 
-  Widget _controlBtn(String symbol, bool primary, VoidCallback? onTap,
+  Widget _controlBtn(IconData icon, bool primary, VoidCallback? onTap,
       {double? size}) {
-    final btnSize = size ?? (primary ? 64.0 : 48.0);
-    final fontSize = primary
-        ? (btnSize * 0.4).clamp(18.0, 26.0)
-        : (btnSize * 0.375).clamp(14.0, 20.0);
+    final media = MediaQuery.of(context);
+    final w = media.size.width;
+    final defaultPrimary = w < 340 ? 44.0 : (w < 360 ? 50.0 : (w < 400 ? 56.0 : 64.0));
+    final defaultSecondary = w < 340 ? 32.0 : (w < 360 ? 36.0 : (w < 400 ? 40.0 : 48.0));
+    final btnSize = size ?? (primary ? defaultPrimary : defaultSecondary);
+    final iconSize = primary
+        ? (btnSize * 0.5).clamp(18.0, 32.0)
+        : (btnSize * 0.5).clamp(14.0, 24.0);
     final primaryColor =
         _sleepModeActive ? _PlayerColors.sleepPurple : _PlayerColors.gold;
     final secondaryColor = _sleepModeActive
         ? Colors.white.withValues(alpha: 0.5)
         : _PlayerColors.inkMid;
+    final color = primary ? Colors.white : secondaryColor;
+    final grayRectColor = _sleepModeActive
+        ? Colors.white.withValues(alpha: 0.18)
+        : _PlayerColors.stoneMid;
     return Pressable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(btnSize / 2),
+      borderRadius: primary
+          ? BorderRadius.circular(btnSize / 2)
+          : BorderRadius.circular(btnSize / 4),
       splashColor:
           (primary ? Colors.white : primaryColor).withValues(alpha: 0.2),
       highlightColor:
@@ -2061,8 +1987,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         width: btnSize,
         height: btnSize,
         decoration: BoxDecoration(
-          color: primary ? primaryColor : Colors.transparent,
-          shape: BoxShape.circle,
+          color: primary ? primaryColor : grayRectColor,
+          shape: primary ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: primary ? null : BorderRadius.circular(btnSize / 4),
           boxShadow: primary
               ? [
                   BoxShadow(
@@ -2074,17 +2001,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               : null,
         ),
         alignment: Alignment.center,
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: Text(
-            symbol,
-            style: TextStyle(
-              fontSize: fontSize,
-              color: primary ? Colors.white : secondaryColor,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ),
+        child: Icon(icon, size: iconSize, color: color),
       ),
     );
   }

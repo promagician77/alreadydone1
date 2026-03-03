@@ -366,27 +366,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                       _buildStoryPreview(),
                       const SizedBox(height: 24),
                     ],
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AuthTheme.goldPale,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AuthTheme.goldLight),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Unlimited stories await',
-                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AuthTheme.gold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Start 7-day free trial',
-                            style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),

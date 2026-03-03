@@ -22,7 +22,7 @@ Your app already uses **Supabase** for auth and **google_sign_in** for native Go
 1. **APIs & Services** → **OAuth consent screen**.
 2. Choose **External** (or **Internal** for workspace-only).
 3. Fill in:
-   - **App name**: e.g. "Already App"
+   - **App name**: e.g. "Already Done"
    - **User support email**: your email
    - **Developer contact**: your email
 4. **Scopes**: Add `email`, `profile`, `openid` (Supabase/Google usually need these).

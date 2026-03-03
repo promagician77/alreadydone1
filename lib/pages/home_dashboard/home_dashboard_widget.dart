@@ -84,12 +84,26 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   Future<void> _loadData() async {
-    await Future.wait([_loadStories(), _loadUserProfile(), _loadDesires()]);
+    await Future.wait([_loadStories(), _loadUserProfile(), _loadDesires(), _loadSubscriptionStatus()]);
     if (!mounted) return;
     await _prefetchVoiceUrls();
     if (!mounted) return;
     // Reload stories so we get play_length that was written when voice URLs were generated
     await _loadStories();
+  }
+
+  Future<void> _loadSubscriptionStatus() async {
+    if (!mounted) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return;
+    try {
+      final status = await BackendClient.getSubscriptionStatus(userId);
+      final subId = status['stripe_subscription_id']?.toString().trim();
+      final hasSubscription = subId != null && subId.isNotEmpty;
+      if (mounted) safeSetState(() => _model.isSubscribed = hasSubscription);
+    } catch (_) {
+      if (mounted) safeSetState(() => _model.isSubscribed = false);
+    }
   }
 
   Future<void> _loadDesires() async {
@@ -149,9 +163,14 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       if (!mounted) return;
       final name = (profile['name'] as String? ?? '').toString().trim();
       final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
+      final rawStreak = profile['day_streak'];
+      final dayStreak = rawStreak is int
+          ? rawStreak
+          : (int.tryParse(rawStreak?.toString() ?? '0') ?? 0);
       safeSetState(() {
         _model.userName = name.isNotEmpty ? name : null;
         _model.voiceId = voiceId.isNotEmpty ? voiceId : null;
+        _model.dayStreak = dayStreak;
       });
     } catch (_) {
       // ignore; keep userName/voiceId null
@@ -427,9 +446,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                             ),
                       const SizedBox(height: 16),
 
-                      // Sleep card
-                      _buildSleepCard(context),
-                      const SizedBox(height: 20),
+                      // Sleep Mode premium card — hidden when user is already subscribed
+                      if (!_model.isSubscribed) ...[
+                        _buildSleepCard(context),
+                        const SizedBox(height: 20),
+                      ],
 
                       // Your Manifestations
                               Text(
@@ -524,13 +545,13 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '7-day streak',
+                  '${_model.dayStreak}-day streak',
                   style: GoogleFonts.outfit(
                     fontSize: 11,
-                                              fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                     color: _AppColors.goldLight,
-                                  ),
-                                ),
+                  ),
+                ),
                               ],
                             ),
                           ),
