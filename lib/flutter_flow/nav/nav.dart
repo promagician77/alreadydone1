@@ -81,9 +81,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) {
             if (state.uri.queryParameters['fromLogin'] == '1') return null;
-            // Don't redirect when navigating to main app pages (e.g. Play → Player).
-            // Include / so that after subscription (context.go('/')) we don't send user to onboarding.
-            // Include /subscription so "Start free trial" does not send user to onboarding.
             final isMainAppRoute = path == '/' ||
                 path == HomeDashboardWidget.routePath ||
                 path == PlayerWidget.routePath ||
@@ -162,6 +159,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
                     durationLabel: params.getParam('durationLabel', ParamType.String),
                     playUrl: params.getParam('playUrl', ParamType.String),
                     storyPreview: params.getParam('storyPreview', ParamType.String),
+                    voiceId: params.getParam('voiceId', ParamType.String),
                   ),
                 ),
         ),

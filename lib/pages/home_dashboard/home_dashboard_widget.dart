@@ -324,6 +324,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
       if (mounted) {
         final storyText = (story['story'] ?? story['content'])?.toString().trim();
+        final voiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
         context.pushNamed(PlayerWidget.routeName, extra: {
           'storyId': storyId,
           'categoryLabel': (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
@@ -332,6 +333,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
           'durationLabel': _durationFromStory(story),
           'playUrl': playUrl,
           if (storyText != null && storyText.isNotEmpty) 'storyPreview': storyText,
+          if (voiceId != null && voiceId.isNotEmpty) 'voiceId': voiceId,
         });
       }
     } catch (e) {

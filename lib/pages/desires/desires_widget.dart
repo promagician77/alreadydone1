@@ -198,9 +198,8 @@ class _DesiresWidgetState extends State<DesiresWidget> {
         }
       }
 
-      if (categories.isEmpty) {
-        categories = _mockCategories();
-      }
+      // When API returns no stories, show empty state — do not use mock data.
+      // Mock categories are only used when the API fails (see catch block).
 
       if (!mounted) return;
       setState(() {
@@ -212,9 +211,9 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           _headerCount =
               '${categories.first.stories.length} stories · All complete';
         } else {
-          _headerCategory = 'Love · Already Complete';
-          _headerTitle = 'A Deeply Loving Relationship';
-          _headerCount = '5 stories · All complete';
+          _headerCategory = 'Your Library';
+          _headerTitle = 'No manifestations yet';
+          _headerCount = '0 manifestations created';
         }
         _loading = false;
       });
@@ -399,12 +398,29 @@ class _DesiresWidgetState extends State<DesiresWidget> {
                               children: [
                                 _buildHeader(),
                                 const SizedBox(height: 20),
-                                _buildFilterPills(),
-                                const SizedBox(height: 20),
+                                if (_categories.isNotEmpty) _buildFilterPills(),
+                                if (_categories.isNotEmpty) const SizedBox(height: 20),
                                 ..._filteredCategories.map((c) => Padding(
                                       padding: const EdgeInsets.only(bottom: 14),
                                       child: _buildStoryCard(c),
                                     )),
+                                if (_categories.isEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 24),
+                                      child: Text(
+                                        'No stories yet.\nTap below to create your first manifestation.',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 14,
+                                          color: _DesiresColors.inkSoft,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 _buildAddButton(),
                               ],
                             ),
@@ -872,11 +888,37 @@ class _DesiresWidgetState extends State<DesiresWidget> {
     try {
       await BackendClient.deleteStory(storyId);
       if (!mounted) return;
+      // Optimistically remove the story from the list so the UI updates immediately.
+      final updatedCategories = <_DesireCategory>[];
+      for (final cat in _categories) {
+        final kept = cat.stories.where((s) => s.id != storyId).toList();
+        if (kept.isNotEmpty) {
+          updatedCategories.add(_DesireCategory(
+            id: cat.id,
+            name: cat.name,
+            eyebrow: cat.eyebrow,
+            accentColor: cat.accentColor,
+            iconBg: cat.iconBg,
+            stories: kept,
+          ));
+        }
+      }
       setState(() {
         _storyToDeleteForModal = null;
         _storyIdInDeleteMode = null;
         _isDeleting = false;
+        _categories = updatedCategories;
+        if (updatedCategories.isNotEmpty) {
+          _headerCategory = '${updatedCategories.first.eyebrow} · Already Complete';
+          _headerTitle = updatedCategories.first.name;
+          _headerCount = '${updatedCategories.first.stories.length} stories · All complete';
+        } else {
+          _headerCategory = 'Love · Already Complete';
+          _headerTitle = 'A Deeply Loving Relationship';
+          _headerCount = '0 stories · All complete';
+        }
       });
+      // Refresh from server so counts and order stay correct (e.g. empty categories).
       await _loadData();
       if (mounted) AppToast.info(context, 'Story deleted');
     } catch (e) {

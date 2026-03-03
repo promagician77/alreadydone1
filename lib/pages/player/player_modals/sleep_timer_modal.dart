@@ -62,7 +62,9 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final width = media.size.width;
-    final isCompactWidth = width < 360;
+    // Use stacked buttons on narrow screens so "Start Sleep Mode" has full width
+    // and never truncates (Samsung, Xiaomi, small devices, etc.).
+    final isCompactWidth = width < 400;
     final padding = media.padding;
 
     return Container(
@@ -219,14 +221,16 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: verticalPadding),
+        padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: 16),
         decoration: decoration,
         child: Center(
-          child: Text(
-            label,
-            style: textStyle,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: textStyle,
+              maxLines: 1,
+            ),
           ),
         ),
       ),

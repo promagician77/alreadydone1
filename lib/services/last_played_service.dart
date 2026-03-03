@@ -15,6 +15,7 @@ class LastPlayedService {
 
   /// Save the currently playing story so it can be restored when opening Player from navbar.
   /// [storyContent] is the full story text, used when re-recording voice from profile.
+  /// [voiceId] is the story's voice_id from Supabase; used to show "In your voice" vs "[Name]'s voice".
   static Future<void> saveLastPlayed({
     required int? storyId,
     required String? playUrl,
@@ -23,6 +24,7 @@ class LastPlayedService {
     String? durationLabel,
     String? storyPreview,
     String? storyContent,
+    String? voiceId,
   }) async {
     if (playUrl == null || playUrl.isEmpty) return;
     try {
@@ -36,8 +38,17 @@ class LastPlayedService {
         if (durationLabel != null) 'durationLabel': durationLabel,
         if (storyPreview != null) 'storyPreview': storyPreview,
         if (storyContent != null && storyContent.isNotEmpty) 'storyContent': storyContent,
+        if (voiceId != null && voiceId.isNotEmpty) 'voiceId': voiceId,
       };
       await prefs.setString(key, jsonEncode(data));
+    } catch (_) {}
+  }
+
+  /// Clear the last played story (e.g. when user has deleted all stories).
+  static Future<void> clearLastPlayed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_storageKey());
     } catch (_) {}
   }
 

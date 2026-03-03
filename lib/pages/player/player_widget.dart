@@ -11,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
+import '/index.dart';
 import 'player_modals/player_modals.dart';
 import 'player_model.dart';
 export 'player_model.dart';
@@ -45,6 +46,7 @@ class PlayerWidget extends StatefulWidget {
     this.durationLabel,
     this.playUrl,
     this.storyPreview,
+    this.voiceId,
   });
 
   final int? storyId;
@@ -58,6 +60,9 @@ class PlayerWidget extends StatefulWidget {
 
   /// Story text for preview. When provided, used for STORY PREVIEW section.
   final String? storyPreview;
+
+  /// Story's voice_id from Supabase. Used to show "In your voice" vs "[Name]'s voice".
+  final String? voiceId;
 
   static String routeName = 'Player';
   static String routePath = '/player';
@@ -78,6 +83,25 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   /// Available background theta tracks (files under assets/audios/theta/).
   /// Path is relative to assets folder; audioplayers adds asset prefix automatically.
+  /// Preset voice IDs and names (must match onboarding_voice_selection_widget).
+  /// Used to show "[Name]'s voice" when story.voice_id matches; otherwise "In your voice".
+  static const _presetVoices = [
+    ('24EI9FmmGvJruwUi7TJM', 'Marcus'),
+    ('8yh4Wuya1OlwcUp0epGF', 'David'),
+    ('tJHJUEHzOkMoPmJJ5jo2', 'Alex'),
+    ('KGZeK6FsnWQdrkDHnDNA', 'Sarah'),
+    ('NXqsj0QYxuanzBw3KwjB', 'Maya'),
+    ('VlQRLHkc5IdFj7o0atT1', 'Luna'),
+  ];
+
+  static String? _presetVoiceName(String voiceId) {
+    final id = voiceId.trim();
+    for (final t in _presetVoices) {
+      if (t.$1 == id) return t.$2;
+    }
+    return null;
+  }
+
   static const List<(String name, String assetPath)> _thetaTracks = [
     ('Healing Therapy', 'audios/theta/Healing Therapy.mp3'),
     ('The City in Dreams', 'audios/theta/The City in Dreams.mp3'),
@@ -101,8 +125,38 @@ class _PlayerWidgetState extends State<PlayerWidget>
   String? _previewContent;
   String? _fullStoryContent;
   String? _playUrl;
+  String? _voiceId;
   bool _loading = true;
   String? _loadError;
+  /// True when opened with no params and user has no stories (nothing to play).
+  bool _hasNoStory = false;
+
+  /// "In your voice" when voice_id is custom/unknown; "[Name]'s voice" when preset.
+  String get _voiceLabel {
+    final id = _voiceId?.trim();
+    if (id == null || id.isEmpty) return 'In your voice';
+    final name = _presetVoiceName(id);
+    return name != null ? "$name's voice" : 'In your voice';
+  }
+
+  /// Category line for header: avoid "X · Already Done · Already Done" when
+  /// categoryLabel already contains " · Already Done" (e.g. from desires page).
+  String get _categoryHeaderLine {
+    final raw = (_categoryLabel ?? 'Love').trim();
+    final lower = raw.toLowerCase();
+    const doneSuffix = '· already done';
+    const completeSuffix = '· already complete';
+    String withoutSuffix = raw;
+    if (lower.endsWith(doneSuffix)) {
+      withoutSuffix = raw.substring(0, raw.length - doneSuffix.length).trim();
+    } else if (lower.endsWith(completeSuffix)) {
+      withoutSuffix = raw.substring(0, raw.length - completeSuffix.length).trim();
+    }
+    // Trim trailing separator if present
+    withoutSuffix = withoutSuffix.replaceAll(RegExp(r'\s*·\s*$'), '').trim();
+    final category = withoutSuffix.isEmpty ? 'Love' : withoutSuffix;
+    return '${category.toUpperCase()} · ALREADY DONE';
+  }
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -224,10 +278,31 @@ class _PlayerWidgetState extends State<PlayerWidget>
             _previewContent = null;
           }
           _playUrl = widget.playUrl;
+          _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
           _loading = false;
         });
         _saveLastPlayed();
         return;
+      }
+      // If user has no stories, show "No story" and don't use stale last-played.
+      final userId = await SupabaseService.getCurrentUserTableId();
+      if (userId != null) {
+        try {
+          final res = await BackendClient.getStories(userId);
+          final list = (res['stories'] as List<dynamic>?) ?? [];
+          if (list.isEmpty) {
+            await LastPlayedService.clearLastPlayed();
+            if (!mounted) return;
+            setState(() {
+              _hasNoStory = true;
+              _loading = false;
+              _playUrl = null;
+            });
+            return;
+          }
+        } catch (_) {
+          // Continue to try lastPlayed / fallback
+        }
       }
       final lastPlayed = await LastPlayedService.loadLastPlayed();
       if (lastPlayed != null &&
@@ -237,6 +312,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         final categoryLabel = lastPlayed['categoryLabel']?.toString().trim();
         final durationLabel = lastPlayed['durationLabel']?.toString().trim();
         final storyPreview = lastPlayed['storyPreview']?.toString().trim();
+        final voiceId = lastPlayed['voiceId']?.toString().trim();
         if (!mounted) return;
         setState(() {
           _playUrl = playUrl;
@@ -244,6 +320,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _categoryLabel = categoryLabel ?? 'Love';
           _subtitle = widget.subtitle;
           _durationLabel = durationLabel;
+          _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
           if (storyPreview != null && storyPreview.isNotEmpty) {
             _previewContent = storyPreview.length > 200
                 ? '${storyPreview.substring(0, 200)}...'
@@ -260,12 +337,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (fallback != null && !mounted) return;
       if (fallback != null) {
         final playUrl = fallback['playUrl']!.toString().trim();
+        final voiceId = fallback['voiceId']?.toString().trim();
         setState(() {
           _playUrl = playUrl;
           _title = fallback['title'];
           _categoryLabel = fallback['categoryLabel'] ?? 'Love';
           _durationLabel = fallback['durationLabel'];
           _previewContent = fallback['storyPreview'];
+          _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
           _loading = false;
           _loadError = null;
         });
@@ -277,6 +356,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           durationLabel: _durationLabel,
           storyPreview: _previewContent,
           storyContent: fallback['storyContent']?.toString().trim(),
+          voiceId: _voiceId,
         );
         _maybeAutoPlayAndActivateSleepMode();
         return;
@@ -291,6 +371,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _previewContent = null;
         }
         _playUrl = widget.playUrl;
+        _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
+        _hasNoStory = true;
         _loading = false;
       });
       if (sleepModeNotifier.value) sleepModeNotifier.value = false;
@@ -304,6 +386,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _title = widget.title;
         _subtitle = widget.subtitle;
         _durationLabel = widget.durationLabel;
+        _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
       });
     }
 
@@ -311,7 +394,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final res = await SupabaseService.client
           .from('Stories')
           .select(
-              'theme, story, title, content, desire_name, category, playUrl, storage')
+              'theme, story, title, content, desire_name, category, playUrl, storage, voice_id')
           .eq('id', widget.storyId!)
           .maybeSingle();
 
@@ -325,6 +408,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _subtitle = widget.subtitle;
           _durationLabel = widget.durationLabel;
           if (widget.playUrl != null) _playUrl = widget.playUrl;
+          _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
         });
         return;
       }
@@ -342,6 +426,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               : content)
           : (_previewContent ?? widget.storyPreview?.trim());
 
+      final storyVoiceId = (data['voice_id'] ?? data['voice_Id'])?.toString().trim();
       setState(() {
         _title =
             (data['theme'] ?? data['title'])?.toString() ?? widget.title;
@@ -359,6 +444,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 : null;
         _fullStoryContent = content;
         _playUrl = playUrl;
+        _voiceId = (storyVoiceId != null && storyVoiceId.isNotEmpty)
+            ? storyVoiceId
+            : (widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null);
         _loading = false;
         _loadError = null;
       });
@@ -373,6 +461,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _subtitle = widget.subtitle;
         _durationLabel = widget.durationLabel;
         if (widget.playUrl != null) _playUrl = widget.playUrl;
+        _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
       });
     }
   }
@@ -443,6 +532,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final durationLabel =
           '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 
+      final storyVoiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
       return {
         'playUrl': playUrl,
         'storyId': storyId,
@@ -456,6 +546,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         'durationLabel': durationLabel,
         'storyPreview': preview,
         'storyContent': content,
+        if (storyVoiceId != null && storyVoiceId.isNotEmpty) 'voiceId': storyVoiceId,
       };
     } catch (_) {
       return null;
@@ -473,6 +564,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       durationLabel: _durationLabel,
       storyPreview: _previewContent,
       storyContent: _fullStoryContent,
+      voiceId: _voiceId,
     );
   }
 
@@ -1406,27 +1498,29 @@ class _PlayerWidgetState extends State<PlayerWidget>
               top: true,
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(
-                          20, 0, 20, 0),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.only(bottom: 80),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildPlayerHeader(),
-                            _buildWaveform(),
-                            if (_sleepModeActive) _buildSleepInfo(),
-                            _buildProgressSection(),
-                            _buildControls(),
-                            SizedBox(
-                                height: _sleepModeActive ? 0 : 28),
-                            if (!_sleepModeActive)
-                              _buildStoryPreview(),
-                          ],
+                  : _hasNoStory
+                      ? _buildNoStoryState()
+                      : Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                              20, 0, 20, 0),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 80),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildPlayerHeader(),
+                                _buildWaveform(),
+                                if (_sleepModeActive) _buildSleepInfo(),
+                                _buildProgressSection(),
+                                _buildControls(),
+                                SizedBox(
+                                    height: _sleepModeActive ? 0 : 28),
+                                if (!_sleepModeActive)
+                                  _buildStoryPreview(),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
             ),
           ],
         ),
@@ -1438,20 +1532,72 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // UI BUILDERS
   // ===========================================================================
 
+  Widget _buildNoStoryState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.headset_outlined,
+              size: 64,
+              color: _PlayerColors.inkSoft.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'No story',
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
+                color: _PlayerColors.ink,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create a story from Desires or Home\nto listen here.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                color: _PlayerColors.inkSoft,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 28),
+            TextButton(
+              onPressed: () => context.go(DesiresWidget.routePath),
+              style: TextButton.styleFrom(
+                backgroundColor: _PlayerColors.gold,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Go to Desires',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlayerHeader() {
+    const settingsIconSize = 44.0; // Min tap target; prevents overlap on all phones
     return Padding(
       padding:
           EdgeInsets.only(top: 24, bottom: _sleepModeActive ? 16 : 24),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: _sleepModeActive
-            ? Alignment.topCenter
-            : Alignment.topLeft,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Align(
-            alignment: _sleepModeActive
-                ? Alignment.topCenter
-                : Alignment.topLeft,
+          Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: _sleepModeActive
@@ -1490,8 +1636,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   const SizedBox(height: 16),
                 ],
                 Text(
-                  '${(_categoryLabel ?? 'Love').trim()} · Already Done'
-                      .toUpperCase(),
+                  _categoryHeaderLine,
                   textAlign:
                       _sleepModeActive ? TextAlign.center : null,
                   style: GoogleFonts.outfit(
@@ -1520,10 +1665,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 const SizedBox(height: 8),
                 Text(
                   _duration.inSeconds > 0
-                      ? '${_formatDuration(_duration.inSeconds)} · In your voice'
+                      ? '${_formatDuration(_duration.inSeconds)} · $_voiceLabel'
                       : (_durationLabel ??
                           _subtitle ??
-                          'In your voice · Generated today'),
+                          '$_voiceLabel · Generated today'),
                   textAlign:
                       _sleepModeActive ? TextAlign.center : null,
                   style: GoogleFonts.outfit(
@@ -1536,21 +1681,23 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ],
             ),
           ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: GestureDetector(
-              onTap: _openSettingsModal,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Text(
-                  '⚙️',
-                  style: GoogleFonts.outfit(
-                    fontSize: 22,
-                    color: _sleepModeActive
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : null,
+          SizedBox(
+            width: settingsIconSize,
+            height: settingsIconSize,
+            child: Center(
+              child: GestureDetector(
+                onTap: _openSettingsModal,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    '⚙️',
+                    style: GoogleFonts.outfit(
+                      fontSize: 22,
+                      color: _sleepModeActive
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : null,
+                    ),
                   ),
                 ),
               ),
