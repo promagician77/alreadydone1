@@ -8,7 +8,7 @@ void main() {
   const size = 1024;
   final image = img.Image(width: size, height: size);
 
-  // Teal/cyan background (#0891b2) - "Already App" brand color
+  // Teal/cyan background (#0891b2) - "Already Done" brand color
   final bgColor = img.ColorRgb8(8, 145, 178);
   img.fill(image, color: bgColor);
 

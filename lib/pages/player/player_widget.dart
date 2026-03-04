@@ -1681,22 +1681,25 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ],
             ),
           ),
-          SizedBox(
-            width: settingsIconSize,
-            height: settingsIconSize,
-            child: Center(
-              child: GestureDetector(
-                onTap: _openSettingsModal,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Text(
-                    '⚙️',
-                    style: GoogleFonts.outfit(
-                      fontSize: 22,
-                      color: _sleepModeActive
-                          ? Colors.white.withValues(alpha: 0.7)
-                          : null,
+          Padding(
+            padding: const EdgeInsets.only(top: 4, right: 8),
+            child: SizedBox(
+              width: settingsIconSize,
+              height: settingsIconSize,
+              child: Center(
+                child: GestureDetector(
+                  onTap: _openSettingsModal,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Text(
+                      '⚙️',
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        color: _sleepModeActive
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : null,
+                      ),
                     ),
                   ),
                 ),

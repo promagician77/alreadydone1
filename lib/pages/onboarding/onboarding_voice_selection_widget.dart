@@ -53,7 +53,7 @@ class _OnboardingVoiceSelectionWidgetState
     // Marcus
     ('24EI9FmmGvJruwUi7TJM', 'Marcus', 'Warm & Soothing'),
     // David
-    ('8yh4Wuya1OlwcUp0epGF', 'David', 'Confident & Powerful'),
+    ('8yh4Wuya1OlwcUp0epGF', 'David', 'Confident & Powerful'), 
     // Alex
     ('tJHJUEHzOkMoPmJJ5jo2', 'Alex', 'Gentle & Peaceful'),
   ];
@@ -89,10 +89,12 @@ class _OnboardingVoiceSelectionWidgetState
 
     return Scaffold(
       backgroundColor: AuthTheme.warmWhite,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
               padding: EdgeInsets.only(left: isNarrow ? 4 : 8, top: 8),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -150,8 +152,19 @@ class _OnboardingVoiceSelectionWidgetState
                 },
               ),
             ),
-          ],
-        ),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            Positioned.fill(
+              child: Container(
+                color: AuthTheme.warmWhite.withValues(alpha: 0.85),
+                child: const Center(
+                  child: CircularProgressIndicator(color: AuthTheme.gold),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -619,7 +632,7 @@ class _OnboardingVoiceSelectionWidgetState
             padding: EdgeInsets.symmetric(vertical: isNarrow ? 14 : 16),
             alignment: Alignment.center,
             child: Text(
-              _isLoading ? 'Loading...' : 'Continue',
+              'Continue',
               style: AuthTheme.primaryButtonStyle.copyWith(fontSize: 16),
             ),
           ),

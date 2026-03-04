@@ -237,10 +237,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
       if (response.user != null && mounted) {
         String message =
-            'Account created! We sent a 6-digit code to your email.';
-
-        // Try to send OTP, but handle rate-limit gracefully and still
-        // move the user to the OTP page if the account was created.
+            'Account created! We emailed you a verification code. Please check your email and enter the verification code below.';
         try {
           await SupabaseService.sendEmailOtp(email: email);
         } catch (e) {
@@ -255,7 +252,12 @@ class _SignUpWidgetState extends State<SignUpWidget> {
           }
         }
 
-        AppToast.info(context, message);
+        AppToast.show(
+          context,
+          message,
+          type: ToastType.info,
+          duration: const Duration(seconds: 45),
+        );
 
         // Navigate to the email verification screen, passing the email
         context.go('/verifyEmailOtp?email=$email');

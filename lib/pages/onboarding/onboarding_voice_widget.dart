@@ -560,7 +560,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
           ),
           const SizedBox(height: 8),
           Text(
-            "We'll create your voice clone and generate your first manifestation story. This takes about 30-45 seconds.",
+            "Click the ‘Create Clone Voice’ button below to generate your manifestation story with your cloned voice. Please note: this takes 30-45 seconds.",
             style: GoogleFonts.outfit(
               fontSize: 13,
               color: AuthTheme.inkSoft,

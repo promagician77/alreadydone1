@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/services/app_toast.dart';
@@ -93,8 +94,14 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
   bool _customMode = false;
   bool _saving = false;
 
-  /// Current device timezone as IANA-style offset (e.g. "UTC+5:30", "UTC-5:00").
-  static String _getCurrentTimezone() {
+  /// Current device timezone as IANA identifier (e.g. "America/New_York", "Asia/Kolkata").
+  /// Falls back to UTC offset string if the plugin fails (e.g. unsupported platform).
+  static Future<String> _getCurrentTimezoneIana() async {
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      final id = info.identifier?.trim();
+      if (id != null && id.isNotEmpty) return id;
+    } catch (_) {}
     final offset = DateTime.now().timeZoneOffset;
     final hours = offset.inHours;
     final minutes = offset.inMinutes.abs() % 60;
@@ -109,7 +116,7 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
       setState(() => _saving = true);
       try {
         final iso = _timeDisplayToIso(timeDisplay);
-        final timezone = _getCurrentTimezone();
+        final timezone = await _getCurrentTimezoneIana();
         await BackendClient.updateUserProfile(
           widget.userId!,
           morningTimeReminder: widget.fieldType == TimeFieldType.morning ? iso : null,

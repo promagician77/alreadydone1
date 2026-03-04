@@ -1,42 +1,99 @@
+import 'dart:io';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'backend_client.dart';
 import 'supabase_service.dart';
 
+/// Default Android notification channel ID. Must match AndroidManifest meta-data
+/// so FCM uses this channel when displaying notifications.
+const String _kAndroidChannelId = 'fcm_default_channel';
+const String _kAndroidChannelName = 'Notifications';
+
 /// FCM (Firebase Cloud Messaging) service for push notifications.
-/// Handles token retrieval, permission, sending token to backend, and foreground messages.
+/// - On app start / when needed: get token and send to backend (Users.fcm_token).
+/// - On token refresh: send new token to backend.
+/// - On user login: send token to backend (auth listener calls onUserSignedIn).
+/// - Foreground: show local notification so the user sees the message.
 class FcmService {
   FcmService._();
 
   static final FcmService _instance = FcmService._();
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   static FcmService get instance => _instance;
 
-  /// Initialize FCM: request permission, get token, register foreground handler.
-  /// Call after Firebase.initializeApp() and when user is authenticated.
+  /// Initialize FCM: permission, Android channel, token registration, listeners.
   static Future<void> initialize() async {
     try {
-      // Request permission (Android 13+ and iOS)
+      // Request permission (Android 13+ POST_NOTIFICATIONS and iOS)
       await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
 
-      // Get and send FCM token to backend when user is logged in
+      // iOS: show notification banner/sound when app is in foreground (otherwise iOS hides it)
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      await _initLocalNotifications();
+
+      // Send token to backend when user is logged in (may be null if auth not ready yet)
       await _registerTokenWithBackend();
 
-      // Listen for token refresh
+      // Retry token registration after a short delay so auth session has time to restore
+      Future.delayed(const Duration(seconds: 2), () async {
+        await _registerTokenWithBackend();
+      });
+
+      // When token is refreshed, send the new token to backend
       FirebaseMessaging.instance.onTokenRefresh.listen(_onTokenRefresh);
 
-      // Handle foreground messages
+      // Foreground: show a local notification so the user sees the message
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
-      // Optional: handle notification tap when app was in background
+      // Notification tap when app was in background
       FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpenedApp);
     } catch (e) {
       debugPrint('FcmService init error: $e');
+    }
+  }
+
+  static Future<void> _initLocalNotifications() async {
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings(
+      requestAlertPermission: false, // already requested via FCM
+      requestBadgePermission: false,
+    );
+    const initSettings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (_) {},
+    );
+
+    if (Platform.isAndroid) {
+      const channel = AndroidNotificationChannel(
+        _kAndroidChannelId,
+        _kAndroidChannelName,
+        description: 'Push notifications from Already Done',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      );
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
     }
   }
 
@@ -51,15 +108,43 @@ class FcmService {
   }
 
   static void _onForegroundMessage(RemoteMessage message) {
-    debugPrint(
-      'FCM foreground: ${message.notification?.title} - ${message.notification?.body}',
+    // Prefer notification payload; fall back to data for data-only messages
+    String title = message.notification?.title ?? message.data['title'] ?? 'Notification';
+    String body = message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? '';
+    debugPrint('FCM foreground: $title - $body');
+    _showLocalNotification(title: title, body: body);
+  }
+
+  static Future<void> _showLocalNotification({
+    required String title,
+    required String body,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      _kAndroidChannelId,
+      _kAndroidChannelName,
+      channelDescription: 'Push notifications from Already Done',
+      importance: Importance.high,
+      priority: Priority.high,
     );
-    // You can show an in-app banner or snackbar here if desired.
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(0x7FFFFFFF),
+      title,
+      body,
+      details,
+    );
   }
 
   static void _onMessageOpenedApp(RemoteMessage message) {
     debugPrint('FCM opened from background: ${message.notification?.title}');
-    // Optionally navigate to a specific screen.
   }
 
   static void _onTokenRefresh(String newToken) {
@@ -88,14 +173,16 @@ class FcmService {
     }
   }
 
-  /// Call when user signs in to ensure token is registered.
+  /// Call when user signs in (e.g. from auth state listener) to send token to backend.
   static Future<void> onUserSignedIn() async {
     await _registerTokenWithBackend();
   }
 
-  /// Call when user signs out to optionally clear token on backend (optional).
-  /// Backend may keep the token; clearing is app-specific.
-  static Future<void> onUserSignedOut() async {
-    // No-op unless you want to send empty token to backend
+  /// Call when app resumes so the latest token is sent (e.g. if it was refreshed while app was in background).
+  static Future<void> onAppResumed() async {
+    await _registerTokenWithBackend();
   }
+
+  /// Call when user signs out (optional: clear token on backend).
+  static Future<void> onUserSignedOut() async {}
 }
