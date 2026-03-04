@@ -405,10 +405,13 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                   },
                                 );
                               }),
-                              ('Subscription', 'Free →', () => showSubscriptionModal(context)),
+                              ('Subscription', 'Free →', () => context.go(SubscriptionWidget.routePath)),
                             ]),
-                            const SizedBox(height: 24),
-                            _buildUpgradeCard(),
+                            if (_showUpgradeCard) ...[
+                              const SizedBox(height: 24),
+                              _buildUpgradeCard(),
+                              const SizedBox(height: 24),
+                            ],
                             const SizedBox(height: 24),
                             _buildSettingsSection('SUPPORT', items: [
                               ('Help & FAQ', '→', null),
@@ -515,7 +518,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             letterSpacing: 1,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         ...items.asMap().entries.map((e) {
           final (label, value, onTap) = e.value;
           final isLast = e.key == items.length - 1;
@@ -825,6 +828,14 @@ class _ProfileWidgetState extends State<ProfileWidget> {
         _model.profileData?['stripe_subscription_ID'];
     final s = subId?.toString().trim() ?? '';
     return s.isNotEmpty;
+  }
+
+  /// True when user's subscription_plan is monthly (show upgrade card). Hide when annual.
+  bool get _showUpgradeCard {
+    final plan = _model.profileData?['subscription_plan']?.toString().trim().toLowerCase() ??
+        _model.profileData?['Subscription_Plan']?.toString().trim().toLowerCase() ??
+        _model.profileData?['subscription_Plan']?.toString().trim().toLowerCase();
+    return plan == 'monthly';
   }
 
   Widget _buildLogoutSection() {

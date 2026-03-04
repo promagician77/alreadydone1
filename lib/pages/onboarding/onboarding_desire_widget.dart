@@ -284,24 +284,45 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
           if (_state.isGenerating)
             Positioned.fill(
               child: IgnorePointer(
-                ignoring: true,
                 child: Container(
-                  color: Colors.black26,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(color: AuthTheme.gold),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Creating your story...',
-                          style: AuthTheme.welcomeSubStyle.copyWith(color: Colors.white),
+                  color: Colors.black54,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: AuthTheme.gold),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Creating your story...',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Please wait...',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'This takes about 30 seconds.',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+            ),
             ),
         ],
       ),

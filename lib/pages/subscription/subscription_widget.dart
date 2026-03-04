@@ -12,6 +12,10 @@ import '/widgets/animated_waveform_icon.dart';
 import 'subscription_model.dart';
 export 'subscription_model.dart';
 
+/// Green accent for "current plan" card when user is on monthly.
+const Color _currentPlanGreen = Color(0xFF2E7D32);
+const Color _currentPlanGreenLight = Color(0xFFE8F5E9);
+
 class SubscriptionWidget extends StatefulWidget {
   const SubscriptionWidget({super.key});
 
@@ -39,7 +43,26 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       final status = await BackendClient.getSubscriptionStatus(userId);
       final subId = status['stripe_subscription_id']?.toString().trim();
       final hasSub = subId != null && subId.isNotEmpty;
-      if (mounted) safeSetState(() => _model.isSubscribed = hasSub);
+      final plan = (status['subscription_plan'] ?? status['Subscription_Plan'])
+          ?.toString()
+          .trim()
+          .toLowerCase();
+      final statusStr = (status['subscription_status'] ?? status['Subscription_Status'])
+          ?.toString()
+          .trim()
+          .toLowerCase();
+      final isAnnual = plan == 'annual';
+      final isMonthly = plan == 'monthly' || plan == 'weekly';
+      final isTrialing = statusStr == 'trialing';
+      if (mounted) {
+        safeSetState(() {
+          _model.isSubscribed = hasSub;
+          _model.isAnnualPlan = isAnnual;
+          _model.isMonthlyPlan = isMonthly;
+          _model.isTrialing = isTrialing;
+          if (isMonthly && _model.selectedPlan == null) _model.selectedPlan = 0;
+        });
+      }
     } catch (_) {}
   }
 
@@ -90,8 +113,15 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       _buildTrialBadge(),
                       const SizedBox(height: 20),
                       _buildPricingCards(),
-                      const SizedBox(height: 24),
-                      _buildCtaButton(),
+                      if (!_model.isAnnualPlan) ...[
+                        const SizedBox(height: 24),
+                        _buildCtaButton(),
+                        if (_model.isMonthlyPlan && _model.isTrialing) ...[
+                          const SizedBox(height: 12),
+                          _buildCancelPaymentButton(),
+                        ],
+                      ] else
+                        const SizedBox(height: 24),
                       if (_model.isPaymentLoading)
                         const Padding(
                           padding: EdgeInsets.only(top: 12),
@@ -247,6 +277,46 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildPricingCards() {
+    final isMonthlyView = _model.isMonthlyPlan;
+    if (isMonthlyView) {
+      // Monthly user: show Monthly (current) first, Annual (upgrade) second.
+      return Column(
+        children: [
+          _buildPricingCard(
+            plan: 'Monthly',
+            price: '\$9.99',
+            period: '/month',
+            breakdown: 'Billed monthly · Cancel anytime',
+            features: [
+              'Unlimited daily stories',
+              'Sleep Mode & all speeds',
+              'Re-record voice anytime',
+            ],
+            isSelected: _model.selectedPlan == 1,
+            onTap: () => safeSetState(() => _model.selectedPlan = 1),
+            badgeLabel: 'CURRENT PLAN',
+          ),
+          const SizedBox(height: 10),
+          _buildPricingCard(
+            plan: 'Annual',
+            price: '\$69.99',
+            period: '/year',
+            savings: 'Save \$50 vs monthly plan',
+            breakdown: 'Equivalent to \$5.83/month · Billed annually',
+            features: [
+              'Unlimited daily stories',
+              'Sleep Mode & all speeds',
+              'Re-record voice anytime',
+              'Offline access forever',
+            ],
+            isPopular: false,
+            isSelected: _model.selectedPlan == 0,
+            onTap: () => safeSetState(() => _model.selectedPlan = 0),
+            badgeLabel: 'UPGRADE NOW',
+          ),
+        ],
+      );
+    }
     return Column(
       children: [
         _buildPricingCard(
@@ -293,7 +363,20 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     bool isPopular = false,
     required bool isSelected,
     required VoidCallback onTap,
+    String? badgeLabel,
   }) {
+    final isCurrentPlan = badgeLabel == 'CURRENT PLAN';
+    final isUpgradeBadge = badgeLabel == 'UPGRADE NOW';
+    final useGoldStyle = isSelected || isUpgradeBadge;
+    final useGreenStyle = isCurrentPlan;
+    final accentColor = useGreenStyle ? _currentPlanGreen : AuthTheme.gold;
+    final cardColor = useGreenStyle
+        ? _currentPlanGreenLight
+        : (useGoldStyle ? AuthTheme.goldPale : AuthTheme.surface);
+    final borderColor = useGreenStyle ? _currentPlanGreen : (useGoldStyle ? AuthTheme.gold : AuthTheme.stone);
+    final textColor = useGreenStyle ? AuthTheme.ink : (useGoldStyle ? AuthTheme.goldDark : AuthTheme.ink);
+    final checkColor = useGreenStyle ? _currentPlanGreen : AuthTheme.gold;
+
     return Pressable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -303,13 +386,13 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isSelected ? AuthTheme.goldPale : AuthTheme.surface,
+              color: cardColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? AuthTheme.gold : AuthTheme.stone,
-                width: isSelected ? 2 : 2,
+                color: borderColor,
+                width: (useGoldStyle || useGreenStyle) ? 2 : 2,
               ),
-              boxShadow: isSelected
+              boxShadow: useGoldStyle && !useGreenStyle
                   ? [
                       BoxShadow(
                         color: AuthTheme.gold.withValues(alpha: 0.1),
@@ -330,24 +413,25 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       style: GoogleFonts.outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? AuthTheme.goldDark : AuthTheme.ink,
+                        color: textColor,
                       ),
                     ),
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isSelected ? AuthTheme.gold : Colors.transparent,
-                        border: Border.all(
-                          color: isSelected ? AuthTheme.gold : AuthTheme.stoneMid,
-                          width: 2,
+                    if (!isCurrentPlan)
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected ? AuthTheme.gold : Colors.transparent,
+                          border: Border.all(
+                            color: isSelected ? AuthTheme.gold : AuthTheme.stoneMid,
+                            width: 2,
+                          ),
                         ),
+                        child: isSelected
+                            ? const Icon(Icons.check, size: 12, color: AuthTheme.surface)
+                            : null,
                       ),
-                      child: isSelected
-                          ? const Icon(Icons.check, size: 12, color: AuthTheme.surface)
-                          : null,
-                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -360,7 +444,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       style: GoogleFonts.outfit(
                         fontSize: 32,
                         fontWeight: FontWeight.w700,
-                        color: isSelected ? AuthTheme.goldDark : AuthTheme.ink,
+                        color: textColor,
                         height: 1,
                       ),
                     ),
@@ -380,7 +464,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AuthTheme.gold.withValues(alpha: 0.15),
+                      color: (useGreenStyle ? _currentPlanGreen : AuthTheme.gold).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -388,7 +472,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       style: GoogleFonts.outfit(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AuthTheme.goldDark,
+                        color: useGreenStyle ? _currentPlanGreen : AuthTheme.goldDark,
                       ),
                     ),
                   ),
@@ -398,7 +482,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                   breakdown,
                   style: GoogleFonts.outfit(
                     fontSize: 12,
-                    color: isSelected ? AuthTheme.inkMid : AuthTheme.inkSoft,
+                    color: useGoldStyle || useGreenStyle ? AuthTheme.inkMid : AuthTheme.inkSoft,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -411,7 +495,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                         '✓',
                         style: GoogleFonts.outfit(
                           fontSize: 10,
-                          color: AuthTheme.gold,
+                          color: checkColor,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -419,7 +503,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                         f,
                         style: GoogleFonts.outfit(
                           fontSize: 11,
-                          color: isSelected ? AuthTheme.ink : AuthTheme.inkMid,
+                          color: useGoldStyle || useGreenStyle ? AuthTheme.ink : AuthTheme.inkMid,
                         ),
                       ),
                     ],
@@ -428,7 +512,35 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
               ],
             ),
           ),
-          if (isPopular)
+          if (badgeLabel != null)
+            Positioned(
+              top: -8,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AuthTheme.ink.withValues(alpha: 0.06),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  badgeLabel,
+                  style: GoogleFonts.outfit(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AuthTheme.surface,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+            )
+          else if (isPopular)
             Positioned(
               top: -8,
               right: 12,
@@ -462,16 +574,57 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildCtaButton() {
-    final label = _model.isSubscribed ? 'Upgrade the Plan' : 'Start 7-day free trial';
+    final label = _model.isMonthlyPlan
+        ? 'Upgrade to Annual'
+        : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start 7-day free trial');
     return _ctaButton(
       label: label,
-      onTap: () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed),
+      onTap: _model.isMonthlyPlan ? _handleChangeToAnnual : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed),
     );
   }
 
-  /// Plan for backend: "annual" or "weekly". Uses selected plan or default annual for trial.
+  Widget _buildCancelPaymentButton() {
+    return TextButton(
+      onPressed: _model.isPaymentLoading ? null : _handleCancelPayment,
+      child: Text(
+        'Cancel payment',
+        style: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AuthTheme.inkSoft,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleCancelPayment() async {
+    if (_model.isPaymentLoading) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) {
+      AppToast.error(context, 'Please sign in');
+      return;
+    }
+    safeSetState(() => _model.isPaymentLoading = true);
+    try {
+      await BackendClient.cancelSubscription(userId: userId);
+      if (!mounted) return;
+      AppToast.success(context, 'Payment canceled');
+      _loadSubscriptionStatus();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
+      AppToast.error(
+        context,
+        msg.startsWith('Instance of ') ? 'Could not cancel. Please try again.' : msg,
+      );
+    } finally {
+      if (mounted) safeSetState(() => _model.isPaymentLoading = false);
+    }
+  }
+
+  /// Plan for backend: "annual" or "monthly". Uses selected plan or default annual for trial.
   String get _planForBackend {
-    if (_model.selectedPlan == 1) return 'weekly';
+    if (_model.selectedPlan == 1) return 'monthly';
     return 'annual';
   }
 
@@ -480,6 +633,32 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     return s.contains('StripeConfigException') ||
         s.contains('publishable') && s.toLowerCase().contains('required') ||
         s.contains('Publishable Key is required');
+  }
+
+  /// Called when monthly-plan user taps "Upgrade to Annual". Calls change-plan API (no payment sheet).
+  Future<void> _handleChangeToAnnual() async {
+    if (_model.isPaymentLoading) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) {
+      AppToast.error(context, 'Please sign in to upgrade');
+      return;
+    }
+    safeSetState(() => _model.isPaymentLoading = true);
+    try {
+      await BackendClient.changeSubscriptionPlan(userId: userId, plan: 'annual');
+      if (!mounted) return;
+      AppToast.success(context, 'Upgraded to Annual!');
+      context.go('/');
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
+      AppToast.error(
+        context,
+        msg.startsWith('Instance of ') ? 'Upgrade failed. Please try again.' : msg,
+      );
+    } finally {
+      if (mounted) safeSetState(() => _model.isPaymentLoading = false);
+    }
   }
 
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {

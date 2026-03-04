@@ -52,50 +52,53 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     return Scaffold(
       backgroundColor: AuthTheme.warmWhite,
       body: SafeArea(
-        child: AbsorbPointer(
-          absorbing: _model.isPaymentLoading,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 20),
-                    _buildWelcomeHero(),
-                    const SizedBox(height: 16),
-                    _buildTrialBadge(),
-                    const SizedBox(height: 20),
-                    _buildPricingCards(),
-                    const SizedBox(height: 20),
-                    _buildCtaButton(),
-                    if (_model.isPaymentLoading)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 10),
-                        child: Center(
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AuthTheme.gold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 14),
-                    _buildSecondaryText(),
-                    const SizedBox(height: 10),
-                    _buildRestoreLink(),
-                    const SizedBox(height: 12),
-                    _buildFooterLinks(),
-                  ],
+        child: Stack(
+          children: [
+            AbsorbPointer(
+              absorbing: _model.isPaymentLoading,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 20),
+                        _buildWelcomeHero(),
+                        const SizedBox(height: 16),
+                        _buildTrialBadge(),
+                        const SizedBox(height: 20),
+                        _buildPricingCards(),
+                        const SizedBox(height: 20),
+                        _buildCtaButton(),
+                        const SizedBox(height: 14),
+                        _buildSecondaryText(),
+                        const SizedBox(height: 10),
+                        _buildRestoreLink(),
+                        const SizedBox(height: 12),
+                        _buildFooterLinks(),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            if (_model.isPaymentLoading)
+              Container(
+                color: AuthTheme.warmWhite.withValues(alpha: 0.85),
+                alignment: Alignment.center,
+                child: const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AuthTheme.gold,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -393,7 +396,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   String get _planForBackend {
-    if (_model.selectedPlan == 1) return 'weekly';
+    if (_model.selectedPlan == 1) return 'monthly';
     return 'annual';
   }
 

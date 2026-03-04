@@ -206,6 +206,19 @@ class _OnboardingVoiceSelectionWidgetState
     );
   }
 
+  /// Returns true if the user already has a recorded voice (voice_id set in profile).
+  Future<bool> _hasRecordedVoice() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return false;
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      final voiceId = (profile['voice_id'] ?? profile['voice_Id'])?.toString().trim();
+      return voiceId != null && voiceId.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _onMyVoiceTapped() async {
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) {
@@ -213,9 +226,7 @@ class _OnboardingVoiceSelectionWidgetState
       return;
     }
     try {
-      final profile = await BackendClient.getUserProfile(userId);
-      final voiceId = (profile['voice_id'] ?? profile['voice_Id'])?.toString().trim();
-      final hasRecordedVoice = (voiceId != null && voiceId.isNotEmpty);
+      final hasRecordedVoice = await _hasRecordedVoice();
       if (!mounted) return;
       if (hasRecordedVoice) {
         _showAlreadyRecordedModal();
@@ -583,6 +594,12 @@ class _OnboardingVoiceSelectionWidgetState
           borderRadius: BorderRadius.circular(14),
           onTap: _isLoading ? null : () async {
             if (_isMyVoiceSelected) {
+              final hasRecorded = await _hasRecordedVoice();
+              if (!mounted) return;
+              if (hasRecorded) {
+                _showAlreadyRecordedModal();
+                return;
+              }
               context.go(OnboardingVoiceWidget.routePath);
               return;
             }

@@ -402,4 +402,54 @@ class BackendClient {
     final decoded = jsonDecode(response.body);
     return decoded is Map<String, dynamic> ? decoded : {};
   }
+
+  /// POST api/subscription/change-plan
+  /// Body: { "user_id": int, "plan": "Annual" }. Changes existing subscription plan (e.g. monthly → annual).
+  static Future<Map<String, dynamic>> changeSubscriptionPlan({
+    required int userId,
+    required String plan,
+  }) async {
+    final response = await client
+        .post(
+          resolve('/api/subscription/change-plan'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'user_id': userId,
+            'plan': plan,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Change plan timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Change plan failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {};
+  }
+
+  /// POST /subscription/cancel
+  /// Body: { "user_id": int }. Cancels subscription / trial so user is not charged.
+  static Future<Map<String, dynamic>> cancelSubscription({required int userId}) async {
+    final response = await client
+        .post(
+          resolve('/api/subscription/cancel'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'user_id': userId}),
+        )
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Cancel subscription timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Cancel failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {};
+  }
 }

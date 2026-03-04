@@ -12,6 +12,7 @@ class _SleepColors {
 
 /// Sleep Mode Settings modal - shown when clicking settings in sleep mode.
 /// [sleepSpeedListenable] when provided, the Sleep Speed row updates immediately when speed is changed.
+/// [backgroundSoundListenable] when provided, the Background Sound row updates immediately when changed.
 void showSleepModeSettingsModal(
   BuildContext context, {
   required int selectedMinutes,
@@ -20,6 +21,7 @@ void showSleepModeSettingsModal(
   required String sleepSpeedLabel,
   ValueListenable<String>? sleepSpeedListenable,
   required String backgroundSoundName,
+  ValueListenable<String>? backgroundSoundListenable,
   required VoidCallback onSleepSpeedTap,
   required VoidCallback onBackgroundSoundTap,
   required VoidCallback onClose,
@@ -35,6 +37,7 @@ void showSleepModeSettingsModal(
       sleepSpeedLabel: sleepSpeedLabel,
       sleepSpeedListenable: sleepSpeedListenable,
       backgroundSoundName: backgroundSoundName,
+      backgroundSoundListenable: backgroundSoundListenable,
       onSleepSpeedTap: onSleepSpeedTap,
       onBackgroundSoundTap: onBackgroundSoundTap,
       onClose: onClose,
@@ -49,6 +52,7 @@ class _SleepModeSettingsSheet extends StatefulWidget {
   final String sleepSpeedLabel;
   final ValueListenable<String>? sleepSpeedListenable;
   final String backgroundSoundName;
+  final ValueListenable<String>? backgroundSoundListenable;
   final VoidCallback onSleepSpeedTap;
   final VoidCallback onBackgroundSoundTap;
   final VoidCallback onClose;
@@ -60,6 +64,7 @@ class _SleepModeSettingsSheet extends StatefulWidget {
     required this.sleepSpeedLabel,
     this.sleepSpeedListenable,
     required this.backgroundSoundName,
+    this.backgroundSoundListenable,
     required this.onSleepSpeedTap,
     required this.onBackgroundSoundTap,
     required this.onClose,
@@ -146,7 +151,7 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
           ),
           const SizedBox(height: 20),
           _sleepSpeedRow(),
-          _settingRow(icon: '🎵', label: 'Background Sound', value: '${widget.backgroundSoundName} →', onTap: widget.onBackgroundSoundTap),
+          _backgroundSoundRow(),
           _settingRow(
             icon: '🌙',
             label: 'Sleep Mode',
@@ -194,6 +199,27 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
       label: 'Sleep Speed',
       value: '${widget.sleepSpeedLabel} →',
       onTap: widget.onSleepSpeedTap,
+    );
+  }
+
+  Widget _backgroundSoundRow() {
+    final listenable = widget.backgroundSoundListenable;
+    if (listenable != null) {
+      return ValueListenableBuilder<String>(
+        valueListenable: listenable,
+        builder: (context, name, _) => _settingRow(
+          icon: '🎵',
+          label: 'Background Sound',
+          value: '$name →',
+          onTap: widget.onBackgroundSoundTap,
+        ),
+      );
+    }
+    return _settingRow(
+      icon: '🎵',
+      label: 'Background Sound',
+      value: '${widget.backgroundSoundName} →',
+      onTap: widget.onBackgroundSoundTap,
     );
   }
 
@@ -247,16 +273,21 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
               color: ModalColors.ink,
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           if (value != null)
-            Text(
-              value,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                color: ModalColors.inkSoft,
+            Expanded(
+              child: Text(
+                value,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: ModalColors.inkSoft,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                textAlign: TextAlign.end,
               ),
             ),
-          if (trailing != null) trailing,
+          if (trailing != null) ...[const Spacer(), trailing],
         ],
       ),
     );

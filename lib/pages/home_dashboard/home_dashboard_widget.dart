@@ -301,10 +301,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     try {
       final profile = await BackendClient.getUserProfile(userId);
       final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
-      if (voiceId.isEmpty) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice not available')));
-        return;
-      }
+      // if (voiceId.isEmpty) {
+      //   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice not available')));
+      //   return;
+      // }
 
       String? playUrl;
       try {

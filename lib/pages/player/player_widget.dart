@@ -103,6 +103,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   static const List<(String name, String assetPath)> _thetaTracks = [
+    ('No Sound', ''),
     ('Healing Therapy', 'audios/theta/Healing Therapy.mp3'),
     ('The City in Dreams', 'audios/theta/The City in Dreams.mp3'),
     ('Solar Drift', 'audios/theta/Solar Drift.mp3'),
@@ -130,6 +131,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   String? _loadError;
   /// True when opened with no params and user has no stories (nothing to play).
   bool _hasNoStory = false;
+
+  /// Current story id (set when we have a playable story). Used for skip prev/next.
+  int? _currentStoryId;
 
   /// "In your voice" when voice_id is custom/unknown; "[Name]'s voice" when preset.
   String get _voiceLabel {
@@ -184,6 +188,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// Notifier so Playback Settings modal updates the Speed row immediately when changed.
   final ValueNotifier<String> _speedLabelNotifier = ValueNotifier<String>('Normal (1.0x)');
 
+  /// Notifier so Sleep Mode Settings modal updates the Background Sound row immediately when changed.
+  late final ValueNotifier<String> _backgroundSoundNameNotifier;
+
   /// Sleep mode: target narration volume (70% per client spec).
   static const double _sleepVolumeTarget = 0.7;
 
@@ -201,6 +208,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   late AnimationController _waveformController;
   int _selectedThetaIndex = 0;
+
+  String get _currentThetaTrackName => _thetaTracks[_selectedThetaIndex].$1;
 
   // ---------------------------------------------------------------------------
   // Audio context helper — builds a "mix with others" context so both players
@@ -224,6 +233,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   @override
   void initState() {
     super.initState();
+    _backgroundSoundNameNotifier = ValueNotifier<String>(_currentThetaTrackName);
     _waveformController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -313,6 +323,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
         final durationLabel = lastPlayed['durationLabel']?.toString().trim();
         final storyPreview = lastPlayed['storyPreview']?.toString().trim();
         final voiceId = lastPlayed['voiceId']?.toString().trim();
+        final sid = lastPlayed['storyId'];
+        final currentId = sid is int ? sid : int.tryParse(sid?.toString() ?? '');
         if (!mounted) return;
         setState(() {
           _playUrl = playUrl;
@@ -321,6 +333,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _subtitle = widget.subtitle;
           _durationLabel = durationLabel;
           _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
+          _currentStoryId = currentId;
           if (storyPreview != null && storyPreview.isNotEmpty) {
             _previewContent = storyPreview.length > 200
                 ? '${storyPreview.substring(0, 200)}...'
@@ -338,6 +351,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (fallback != null) {
         final playUrl = fallback['playUrl']!.toString().trim();
         final voiceId = fallback['voiceId']?.toString().trim();
+        final storyId = fallback['storyId'] is int
+            ? fallback['storyId'] as int
+            : int.tryParse(fallback['storyId']?.toString() ?? '');
         setState(() {
           _playUrl = playUrl;
           _title = fallback['title'];
@@ -345,6 +361,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _durationLabel = fallback['durationLabel'];
           _previewContent = fallback['storyPreview'];
           _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
+          _currentStoryId = storyId;
           _loading = false;
           _loadError = null;
         });
@@ -387,6 +404,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _subtitle = widget.subtitle;
         _durationLabel = widget.durationLabel;
         _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
+        if (widget.storyId != null) _currentStoryId = widget.storyId;
       });
     }
 
@@ -449,6 +467,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             : (widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null);
         _loading = false;
         _loadError = null;
+        if (widget.storyId != null) _currentStoryId = widget.storyId;
       });
       _saveLastPlayed();
     } catch (e) {
@@ -711,6 +730,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     await _thetaTrackPlayer.stop();
 
+    if (track.$2.isEmpty) return; // No Sound
+
     await _applyMixContext();
 
     await _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
@@ -752,7 +773,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     'past_due'
   ];
 
-  static const _sleepModeAllowedPlans = ['weekly', 'annual'];
+  static const _sleepModeAllowedPlans = ['monthly', 'annual'];
 
   static bool _canUseSleepMode(String? status, String? plan) {
     final s = (status ?? '').toString().toLowerCase().trim();
@@ -780,6 +801,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _waveformController.dispose();
     _loopNotifier.dispose();
     _speedLabelNotifier.dispose();
+    _backgroundSoundNameNotifier.dispose();
     _audioPlayer.dispose();
     _thetaTrackPlayer.dispose();
     _model.dispose();
@@ -856,6 +878,121 @@ class _PlayerWidgetState extends State<PlayerWidget>
     await _audioPlayer.seek(target);
   }
 
+  /// Skip to previous story (by create time). If at first, wrap to last.
+  Future<void> _skipToPreviousStory() async {
+    await _skipToAdjacentStory(previous: true);
+  }
+
+  /// Skip to next story (by create time). If at last, wrap to first.
+  Future<void> _skipToNextStory() async {
+    await _skipToAdjacentStory(previous: false);
+  }
+
+  Future<void> _skipToAdjacentStory({required bool previous}) async {
+    final currentId = _currentStoryId;
+    if (currentId == null) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+    try {
+      final res = await BackendClient.getStories(userId);
+      final rawList = (res['stories'] as List<dynamic>?) ?? [];
+      final list = rawList
+          .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+          .where((e) => (e['id'] ?? e['Id']) != null)
+          .toList();
+      if (list.isEmpty) return;
+
+      list.sort((a, b) {
+        final aAt = a['created_at'] ?? a['id'] ?? 0;
+        final bAt = b['created_at'] ?? b['id'] ?? 0;
+        if (aAt == bAt) return 0;
+        return aAt.toString().compareTo(bAt.toString());
+      });
+
+      int currentIndex = -1;
+      for (var i = 0; i < list.length; i++) {
+        final id = list[i]['id'] ?? list[i]['Id'];
+        final sid = id is int ? id : int.tryParse(id?.toString() ?? '');
+        if (sid == currentId) {
+          currentIndex = i;
+          break;
+        }
+      }
+      if (currentIndex < 0) return;
+
+      final nextIndex = previous
+          ? (currentIndex - 1 + list.length) % list.length
+          : (currentIndex + 1) % list.length;
+      final story = list[nextIndex];
+      final idRaw = story['id'] ?? story['Id'];
+      final storyId = idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
+      if (storyId == null) return;
+
+      String? playUrl;
+      try {
+        final urlRes = await BackendClient.getStoryPlayUrl(storyId);
+        playUrl = urlRes['playUrl']?.toString().trim();
+      } catch (_) {}
+      if (playUrl == null || playUrl.isEmpty) return;
+      if (!mounted) return;
+
+      final content = (story['story'] ?? story['content'])?.toString().trim();
+      final preview = content != null && content.isNotEmpty
+          ? (content.length > 200 ? '${content.substring(0, 200)}...' : content)
+          : null;
+      final duration = story['play_length'] ?? story['duration'];
+      int secs = 0;
+      if (duration != null) {
+        if (duration is int) {
+          secs = duration;
+        } else if (duration is num) {
+          secs = duration.round();
+        } else {
+          secs = int.tryParse(duration.toString()) ?? 0;
+        }
+      }
+      final m = secs ~/ 60;
+      final s = secs % 60;
+      final durationLabel = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+      final title = (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString();
+      final categoryLabel = (story['desire_name'] ?? story['category'] ?? 'Love').toString();
+      final storyVoiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
+
+      setState(() {
+        _playUrl = playUrl;
+        _title = title;
+        _categoryLabel = categoryLabel;
+        _durationLabel = durationLabel;
+        _previewContent = preview;
+        _fullStoryContent = content;
+        _currentStoryId = storyId;
+        _voiceId = storyVoiceId != null && storyVoiceId.isNotEmpty ? storyVoiceId : null;
+        _loadError = null;
+      });
+
+      LastPlayedService.saveLastPlayed(
+        storyId: storyId,
+        playUrl: playUrl!,
+        title: title,
+        categoryLabel: categoryLabel,
+        durationLabel: durationLabel,
+        storyPreview: preview,
+        storyContent: content,
+        voiceId: storyVoiceId,
+      );
+
+      await _audioPlayer.stop();
+      await _audioPlayer.setSource(UrlSource(playUrl!));
+      if (_isPlaying) await _audioPlayer.resume();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not switch story')),
+        );
+      }
+    }
+  }
+
   // ===========================================================================
   // SETTINGS MODAL
   // ===========================================================================
@@ -870,6 +1007,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         sleepSpeedLabel: _sleepSpeedLabel,
         sleepSpeedListenable: _speedLabelNotifier,
         backgroundSoundName: _thetaTracks[_selectedThetaIndex].$1,
+        backgroundSoundListenable: _backgroundSoundNameNotifier,
         onSleepModeChanged: (value) {
           if (!value) {
             Navigator.of(context).pop();
@@ -1437,6 +1575,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       setState(() {
         _selectedThetaIndex = selected;
       });
+      _backgroundSoundNameNotifier.value = _thetaTracks[_selectedThetaIndex].$1;
       if (_sleepModeActive) {
         // Re-apply context, then swap the theta track.
         await _applyMixContext();
@@ -2024,6 +2163,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Widget _buildControls() {
     final hasUrl = _playUrl != null && _playUrl!.isNotEmpty;
+    final canSkipStory = hasUrl && _currentStoryId != null;
     final controlsOpacity = _sleepModeActive ? 0.85 : 1.0;
     final media = MediaQuery.of(context);
     final width = media.size.width;
@@ -2050,7 +2190,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             mainAxisSize: MainAxisSize.min,
             children: [
               _controlBtn(_iconPrev, false,
-                  hasUrl ? _skipBackward : null,
+                  canSkipStory ? () => _skipToPreviousStory() : (hasUrl ? _skipBackward : null),
                   size: secondarySize),
               SizedBox(width: sleepSpacing),
               _controlBtn(
@@ -2060,7 +2200,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   size: primarySize),
               SizedBox(width: sleepSpacing),
               _controlBtn(_iconNext, false,
-                  hasUrl ? _skipForward : null,
+                  canSkipStory ? () => _skipToNextStory() : (hasUrl ? _skipForward : null),
                   size: secondarySize),
             ],
           )
@@ -2069,7 +2209,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             mainAxisSize: MainAxisSize.min,
             children: [
               _controlBtn(_iconPrev, false,
-                  hasUrl ? _skipBackward : null,
+                  canSkipStory ? () => _skipToPreviousStory() : (hasUrl ? _skipBackward : null),
                   size: secondarySize),
               SizedBox(width: spacing),
               _controlBtn(_iconRewind, false,
@@ -2087,7 +2227,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   size: secondarySize),
               SizedBox(width: spacing),
               _controlBtn(_iconNext, false,
-                  hasUrl ? _skipForward : null,
+                  canSkipStory ? () => _skipToNextStory() : (hasUrl ? _skipForward : null),
                   size: secondarySize),
             ],
           );
