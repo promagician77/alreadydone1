@@ -51,6 +51,10 @@ class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
   /// When true, the "Sleep Mode" premium card on home is hidden.
   bool isSubscribed = false;
 
+  /// True once subscription status has been fetched. Until then, don't show the unlock card
+  /// to avoid it flashing visible for a moment before hiding for subscribed users.
+  bool subscriptionStatusLoaded = false;
+
   @override
   void initState(BuildContext context) {}
 

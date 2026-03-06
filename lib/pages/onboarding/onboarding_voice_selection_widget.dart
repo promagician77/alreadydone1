@@ -8,6 +8,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import 'onboarding_desire_widget.dart';
+import 'onboarding_player_widget.dart';
 import 'onboarding_voice_widget.dart';
 import 'onboarding_player_widget.dart';
 import 'onboarding_state.dart';
@@ -159,8 +160,27 @@ class _OnboardingVoiceSelectionWidgetState
             Positioned.fill(
               child: Container(
                 color: AuthTheme.warmWhite.withValues(alpha: 0.85),
-                child: const Center(
-                  child: CircularProgressIndicator(color: AuthTheme.gold),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: AuthTheme.gold),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          'Updating your manifestation story using your selected voice. This can take 30-45 seconds.',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AuthTheme.ink,
+                            height: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -241,46 +261,70 @@ class _OnboardingVoiceSelectionWidgetState
   void _showAlreadyRecordedModal() {
     showDialog<void>(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Your voice is already recorded',
-          style: GoogleFonts.outfit(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AuthTheme.ink,
-          ),
-        ),
-        content: Text(
-          'You can go to the home dashboard or choose a pre-made voice for this story.',
-          style: GoogleFonts.outfit(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            color: AuthTheme.inkSoft,
-            height: 1.4,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.go('/');
-            },
-            child: Text('To home', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AuthTheme.gold)),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            style: FilledButton.styleFrom(
-              backgroundColor: AuthTheme.gold,
-              foregroundColor: AuthTheme.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text('Select the pre-made voice', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (ctx) => _UseMyVoiceDialog(
+        onUseMyVoice: (dialogContext) => _onUseMyVoiceFromModal(dialogContext),
+        onSelectPremade: () => Navigator.of(ctx).pop(),
       ),
     );
+  }
+
+  /// Generates audio with user's voice, updates backend (voice_id / playUrl), then navigates to player.
+  Future<void> _onUseMyVoiceFromModal(BuildContext dialogContext) async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+    final story = OnboardingState.instance.generatedStory;
+    final storyIdRaw = story?['id'];
+    final storyId = storyIdRaw is int
+        ? storyIdRaw
+        : int.tryParse(storyIdRaw?.toString() ?? '');
+    if (storyId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Story not found. Please go back and try again.')),
+        );
+      }
+      return;
+    }
+    String? voiceId;
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      voiceId = (profile['voice_id'] ?? profile['voice_Id'])?.toString().trim();
+    } catch (_) {}
+    if (voiceId == null || voiceId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Your voice is not ready yet. Please try again later.')),
+        );
+      }
+      return;
+    }
+    try {
+      final res = await BackendClient.voiceGenerateAudio(
+        voiceId: voiceId,
+        storyId: storyId,
+      );
+      final url = res['url']?.toString().trim();
+      if (url == null || url.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not generate audio. Please try again.')),
+          );
+        }
+        return;
+      }
+      OnboardingState.instance.voicePlayUrl = url;
+      OnboardingState.instance.selectedVoiceName = 'My Voice';
+      if (!mounted) return;
+      Navigator.of(dialogContext).pop();
+      context.go(OnboardingPlayerWidget.routePath);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not generate audio: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildCustomVoiceCard(bool isNarrow) {
@@ -804,6 +848,109 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Dialog shown when user already has a recorded voice; "Use my voice" generates audio then navigates.
+class _UseMyVoiceDialog extends StatefulWidget {
+  const _UseMyVoiceDialog({
+    required this.onUseMyVoice,
+    required this.onSelectPremade,
+  });
+
+  final Future<void> Function(BuildContext dialogContext) onUseMyVoice;
+  final VoidCallback onSelectPremade;
+
+  @override
+  State<_UseMyVoiceDialog> createState() => _UseMyVoiceDialogState();
+}
+
+class _UseMyVoiceDialogState extends State<_UseMyVoiceDialog> {
+  bool _loading = false;
+
+  Future<void> _handleUseMyVoice() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await widget.onUseMyVoice(context);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        _loading ? 'Please wait' : 'Your voice is already recorded',
+        style: GoogleFonts.outfit(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AuthTheme.ink,
+        ),
+      ),
+      content: _loading
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Center(
+                  child: CircularProgressIndicator(color: AuthTheme.gold),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Updating your manifestation story using your voice. This can take 30-45 seconds.',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AuthTheme.ink,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            )
+          : Text(
+              'Choose an option below',
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: AuthTheme.inkSoft,
+                height: 1.4,
+              ),
+            ),
+      actions: _loading
+          ? null
+          : [
+              TextButton(
+                onPressed: _handleUseMyVoice,
+                child: Text(
+                  'Use my voice',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    color: AuthTheme.gold,
+                  ),
+                ),
+              ),
+              FilledButton(
+                onPressed: widget.onSelectPremade,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AuthTheme.gold,
+                  foregroundColor: AuthTheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(
+                  'Select a professional voice',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
     );
   }
 }

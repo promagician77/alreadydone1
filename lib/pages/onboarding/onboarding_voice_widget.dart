@@ -272,6 +272,17 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
     return story.isEmpty ? _defaultPassage : story;
   }
 
+  /// Truncates [text] so the preview ends on a complete word (no "he..." or "stre...").
+  /// Uses [maxLength] as a soft cap, then cuts at the last space to leave only complete words.
+  static String _truncateToCompleteWords(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    final truncated = text.substring(0, maxLength);
+    final lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace < 0) return ''; // no space: cannot end on a word boundary, show nothing
+    if (lastSpace == 0) return '';
+    return truncated.substring(0, lastSpace).trim();
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -317,16 +328,20 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
                               SizedBox(height: isNarrow ? 12 : 24),
                               _buildProgressCircle(progress, isNarrow),
                               SizedBox(height: _isRecording ? (isNarrow ? 8 : 12) : (isNarrow ? 16 : 20)),
-                              _buildReadingPassage(isNarrow),
                               if (_isComplete) ...[
                                 _buildSuccessBanner(isNarrow),
                                 _buildWhatHappensNext(isNarrow),
                                 _buildActionButtons(isNarrow),
                                 _buildCreateVoiceCloneButton(isNarrow),
-                              ] else if (!_isRecording) ...[
-                                _buildInstructions(isNarrow),
-                                SizedBox(height: isNarrow ? 12 : 16),
-                                _buildStartRecordingButton(isNarrow),
+                                SizedBox(height: isNarrow ? 16 : 24),
+                                _buildReadingPassage(isNarrow),
+                              ] else ...[
+                                _buildReadingPassage(isNarrow),
+                                if (!_isRecording) ...[
+                                  _buildInstructions(isNarrow),
+                                  SizedBox(height: isNarrow ? 12 : 16),
+                                  _buildStartRecordingButton(isNarrow),
+                                ],
                               ],
                               const SizedBox(height: 32),
                             ],
@@ -350,12 +365,13 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
                       const CircularProgressIndicator(color: AuthTheme.gold),
                       const SizedBox(height: 16),
                       Text(
-                        'Creating your voice clone...',
+                        'Creating your voice clone... \n This can take 30-45 seconds.',
                         style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -474,7 +490,14 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
     return Center(child: circle);
   }
 
+  /// Approximate max characters that fit in ~8 lines in the passage card.
+  static const int _passagePreviewMaxChars = 380;
+
   Widget _buildReadingPassage(bool isNarrow) {
+    final fullText = _passageText;
+    final preview = _truncateToCompleteWords(fullText, _passagePreviewMaxChars);
+    final displayText = '$preview...';
+
     return Container(
       padding: EdgeInsets.all(isNarrow ? 16 : 24),
       margin: EdgeInsets.symmetric(
@@ -498,7 +521,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
           ),
           SizedBox(height: isNarrow ? 12 : 16),
           Text(
-            _passageText,
+            displayText,
             style: GoogleFonts.cormorantGaramond(
               fontSize: isNarrow ? 16 : 18,
               fontWeight: FontWeight.w400,
@@ -506,8 +529,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
               height: 1.5,
             ),
             textAlign: TextAlign.center,
-            maxLines: 8,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 10,
           ),
         ],
       ),
@@ -520,14 +542,14 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
         horizontal: isNarrow ? 12 : 16,
         vertical: 12,
       ),
-      margin: const EdgeInsets.only(top: 8, bottom: 16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: _successBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _successBorder),
       ),
       child: Text(
-        '🎉 Perfect! 30 seconds recorded',
+        "Perfect! 30 seconds recorded.\nClick the 'Create Clone Voice' button below to continue.",
         style: GoogleFonts.outfit(
           fontSize: 13,
           fontWeight: FontWeight.w600,

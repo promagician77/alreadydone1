@@ -762,7 +762,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'UPGRADE TO UNLIMITED',
+                'UPGRADE TO ANNUAL',
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   letterSpacing: 1.5,
@@ -772,7 +772,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Unlimited stories,\nSleep Mode & more',
+                'Save 42% \nBy Switching to the Annual Plan',
                 style: GoogleFonts.cormorantGaramond(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
@@ -805,7 +805,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                   ),
                   child: Center(
                     child: Text(
-                      _isSubscribed ? 'Upgrade the Plan' : 'Start Free Trial',
+                      _isSubscribed ? 'Upgrade the Annual' : 'Start Free Trial',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

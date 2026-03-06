@@ -54,12 +54,14 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       final isAnnual = plan == 'annual';
       final isMonthly = plan == 'monthly' || plan == 'weekly';
       final isTrialing = statusStr == 'trialing';
+      final isCanceled = statusStr == 'canceled';
       if (mounted) {
         safeSetState(() {
           _model.isSubscribed = hasSub;
           _model.isAnnualPlan = isAnnual;
           _model.isMonthlyPlan = isMonthly;
           _model.isTrialing = isTrialing;
+          _model.isCanceled = isCanceled;
           if (isMonthly && _model.selectedPlan == null) _model.selectedPlan = 0;
         });
       }
@@ -113,15 +115,20 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       _buildTrialBadge(),
                       const SizedBox(height: 20),
                       _buildPricingCards(),
-                      if (!_model.isAnnualPlan) ...[
+                      if (!_model.isAnnualPlan || _model.isCanceled) ...[
                         const SizedBox(height: 24),
                         _buildCtaButton(),
-                        if (_model.isMonthlyPlan && _model.isTrialing) ...[
+                        if (_model.isSubscribed && !_model.isCanceled) ...[
                           const SizedBox(height: 12),
                           _buildCancelPaymentButton(),
                         ],
-                      ] else
+                      ] else ...[
                         const SizedBox(height: 24),
+                        if (_model.isSubscribed && !_model.isCanceled) ...[
+                          _buildCancelPaymentButton(),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
                       if (_model.isPaymentLoading)
                         const Padding(
                           padding: EdgeInsets.only(top: 12),
@@ -277,7 +284,8 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildPricingCards() {
-    final isMonthlyView = _model.isMonthlyPlan;
+    // Canceled: show original UI (annual first). Monthly and not canceled: show upgrade-to-annual UI.
+    final isMonthlyView = _model.isMonthlyPlan && !_model.isCanceled;
     if (isMonthlyView) {
       // Monthly user: show Monthly (current) first, Annual (upgrade) second.
       return Column(
@@ -574,12 +582,17 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildCtaButton() {
-    final label = _model.isMonthlyPlan
-        ? 'Upgrade to Annual'
-        : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start 7-day free trial');
+    final label = _model.isCanceled
+        ? 'Upgrade the Plan'
+        : (_model.isMonthlyPlan
+            ? 'Upgrade to Annual'
+            : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start 7-day free trial'));
+    final onTap = _model.isCanceled
+        ? () => _handleConfirmPayment(isStartTrial: false)
+        : (_model.isMonthlyPlan ? _handleChangeToAnnual : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed));
     return _ctaButton(
       label: label,
-      onTap: _model.isMonthlyPlan ? _handleChangeToAnnual : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed),
+      onTap: onTap,
     );
   }
 

@@ -135,6 +135,27 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// Current story id (set when we have a playable story). Used for skip prev/next.
   int? _currentStoryId;
 
+  /// True while generate-audio API is running for voice dropdown change.
+  bool _isGeneratingVoice = false;
+
+  /// Cache: (storyId, voiceId) -> playUrl. Used so switching back to a previously used voice is instant.
+  static final Map<String, String> _voicePlayUrlCache = {};
+
+  static String _voiceCacheKey(int storyId, String voiceId) =>
+      '${storyId}_$voiceId';
+
+  /// Dropdown value: preset id or 'my_voice' for user's cloned voice.
+  String get _voiceDropdownValue {
+    final id = _voiceId?.trim();
+    if (id == null || id.isEmpty) return _voiceDropdownMyVoice;
+    for (final t in _presetVoices) {
+      if (t.$1 == id) return id;
+    }
+    return _voiceDropdownMyVoice;
+  }
+
+  static const String _voiceDropdownMyVoice = 'my_voice';
+
   /// "In your voice" when voice_id is custom/unknown; "[Name]'s voice" when preset.
   String get _voiceLabel {
     final id = _voiceId?.trim();
@@ -271,9 +292,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final previewFromWidget = (widget.storyPreview ?? '').trim();
     if (previewFromWidget.isNotEmpty) {
       setState(() {
-        _previewContent = previewFromWidget.length > 200
-            ? '${previewFromWidget.substring(0, 200)}...'
-            : previewFromWidget;
+        _previewContent = previewFromWidget;
       });
     }
 
@@ -322,6 +341,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         final categoryLabel = lastPlayed['categoryLabel']?.toString().trim();
         final durationLabel = lastPlayed['durationLabel']?.toString().trim();
         final storyPreview = lastPlayed['storyPreview']?.toString().trim();
+        final storyContent = lastPlayed['storyContent']?.toString().trim();
         final voiceId = lastPlayed['voiceId']?.toString().trim();
         final sid = lastPlayed['storyId'];
         final currentId = sid is int ? sid : int.tryParse(sid?.toString() ?? '');
@@ -335,13 +355,21 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
           _currentStoryId = currentId;
           if (storyPreview != null && storyPreview.isNotEmpty) {
-            _previewContent = storyPreview.length > 200
-                ? '${storyPreview.substring(0, 200)}...'
-                : storyPreview;
+            _previewContent = storyPreview;
+          }
+          if (storyContent != null && storyContent.isNotEmpty) {
+            _fullStoryContent = storyContent;
           }
           _loading = false;
           _loadError = null;
         });
+        if (currentId != null &&
+            voiceId != null &&
+            voiceId.isNotEmpty &&
+            playUrl != null &&
+            playUrl.isNotEmpty) {
+          _voicePlayUrlCache[_voiceCacheKey(currentId, voiceId)] = playUrl;
+        }
         _maybeAutoPlayAndActivateSleepMode();
         return;
       }
@@ -360,11 +388,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _categoryLabel = fallback['categoryLabel'] ?? 'Love';
           _durationLabel = fallback['durationLabel'];
           _previewContent = fallback['storyPreview'];
+          _fullStoryContent = fallback['storyContent']?.toString().trim();
           _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
           _currentStoryId = storyId;
           _loading = false;
           _loadError = null;
         });
+        if (storyId != null &&
+            voiceId != null &&
+            voiceId.isNotEmpty &&
+            playUrl.isNotEmpty) {
+          _voicePlayUrlCache[_voiceCacheKey(storyId, voiceId)] = playUrl;
+        }
         LastPlayedService.saveLastPlayed(
           storyId: fallback['storyId'] as int?,
           playUrl: playUrl,
@@ -439,12 +474,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
           data['play_url']?.toString();
 
       final preview = (content != null && content.isNotEmpty)
-          ? (content.length > 200
-              ? '${content.substring(0, 200)}...'
-              : content)
+          ? content
           : (_previewContent ?? widget.storyPreview?.trim());
 
-      final storyVoiceId = (data['voice_id'] ?? data['voice_Id'])?.toString().trim();
+      String? storyVoiceId = _parseVoiceIdFromMap(data);
+      if ((storyVoiceId == null || storyVoiceId.isEmpty) && widget.storyId != null) {
+        final userId = await SupabaseService.getCurrentUserTableId();
+        if (userId != null && mounted) {
+          try {
+            final storiesRes = await BackendClient.getStories(userId);
+            final list = (storiesRes['stories'] as List<dynamic>?) ?? [];
+            for (final s in list) {
+              final map = s is Map<String, dynamic> ? s : <String, dynamic>{};
+              final id = map['id'] ?? map['Id'];
+              final sid = id is int ? id : int.tryParse(id?.toString() ?? '');
+              if (sid == widget.storyId) {
+                storyVoiceId = _parseVoiceIdFromMap(map);
+                if (storyVoiceId != null && storyVoiceId.isNotEmpty) break;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      final voiceIdToSet = (storyVoiceId != null && storyVoiceId.isNotEmpty)
+          ? storyVoiceId
+          : (widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null);
+
+      if (!mounted) return;
       setState(() {
         _title =
             (data['theme'] ?? data['title'])?.toString() ?? widget.title;
@@ -456,20 +513,31 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _durationLabel = widget.durationLabel;
         _previewContent =
             (preview != null && preview.toString().trim().isNotEmpty)
-                ? (preview.toString().length > 200
-                    ? '${preview.toString().substring(0, 200)}...'
-                    : preview.toString())
+                ? preview.toString()
                 : null;
         _fullStoryContent = content;
         _playUrl = playUrl;
-        _voiceId = (storyVoiceId != null && storyVoiceId.isNotEmpty)
-            ? storyVoiceId
-            : (widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null);
+        _voiceId = voiceIdToSet;
         _loading = false;
         _loadError = null;
         if (widget.storyId != null) _currentStoryId = widget.storyId;
       });
+      if (widget.storyId != null &&
+          voiceIdToSet != null &&
+          voiceIdToSet.isNotEmpty &&
+          playUrl != null) {
+        final urlStr = playUrl.toString().trim();
+        if (urlStr.isNotEmpty) {
+          _voicePlayUrlCache[_voiceCacheKey(widget.storyId!, voiceIdToSet)] =
+              urlStr;
+        }
+      }
       _saveLastPlayed();
+      if (voiceIdToSet == null && widget.storyId != null && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fetchVoiceIdFromStoriesOnce();
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -530,11 +598,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       final content =
           (story['story'] ?? story['content'])?.toString().trim();
-      final preview = content != null && content.isNotEmpty
-          ? (content.length > 200
-              ? '${content.substring(0, 200)}...'
-              : content)
-          : null;
+      final preview = content != null && content.isNotEmpty ? content : null;
       final duration = story['play_length'] ?? story['duration'];
       int secs = 0;
       if (duration != null) {
@@ -567,6 +631,56 @@ class _PlayerWidgetState extends State<PlayerWidget>
         'storyContent': content,
         if (storyVoiceId != null && storyVoiceId.isNotEmpty) 'voiceId': storyVoiceId,
       };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Called once after first load when _voiceId is still null; fetches from getStories so voice name shows on first paint.
+  Future<void> _fetchVoiceIdFromStoriesOnce() async {
+    if (_voiceId != null && _voiceId!.trim().isNotEmpty) return;
+    if (_currentStoryId == null || _disposed || !mounted) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+    try {
+      final res = await BackendClient.getStories(userId);
+      final list = (res['stories'] as List<dynamic>?) ?? [];
+      for (final s in list) {
+        final map = s is Map<String, dynamic> ? s : <String, dynamic>{};
+        final id = map['id'] ?? map['Id'];
+        final sid = id is int ? id : int.tryParse(id?.toString() ?? '');
+        if (sid != _currentStoryId) continue;
+        final voiceId = _parseVoiceIdFromMap(map);
+        if (voiceId != null && voiceId.isNotEmpty && mounted) {
+          setState(() => _voiceId = voiceId);
+        }
+        return;
+      }
+    } catch (_) {}
+  }
+
+  /// Parses voice_id from a story/map; supports string or nested object (e.g. { id: "..." }).
+  static String? _parseVoiceIdFromMap(Map<String, dynamic> map) {
+    final raw = map['voice_id'] ?? map['voice_Id'];
+    if (raw == null) return null;
+    if (raw is String) return raw.trim().isEmpty ? null : raw.trim();
+    if (raw is Map) {
+      final id = raw['id'] ?? raw['voice_id'];
+      final s = id?.toString().trim();
+      return (s != null && s.isNotEmpty) ? s : null;
+    }
+    final s = raw.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  /// Returns the current user's voice_id from profile (for "my voice" stories).
+  Future<String?> _getUserVoiceId() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return null;
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      final id = profile['voice_id']?.toString().trim() ?? profile['voice_Id']?.toString().trim();
+      return id?.isNotEmpty == true ? id : null;
     } catch (_) {
       return null;
     }
@@ -928,18 +1042,50 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final storyId = idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
       if (storyId == null) return;
 
-      String? playUrl;
-      try {
-        final urlRes = await BackendClient.getStoryPlayUrl(storyId);
-        playUrl = urlRes['playUrl']?.toString().trim();
-      } catch (_) {}
+      final storyVoiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
+
+      // Use the playUrl of that story (from the list). Fall back to API only if missing.
+      String? playUrl = (story['playUrl'] ?? story['play_url'])?.toString().trim();
+      if (playUrl == null || playUrl.isEmpty) {
+        try {
+          final urlRes = await BackendClient.getStoryPlayUrl(storyId);
+          playUrl = urlRes['playUrl']?.toString().trim();
+        } catch (_) {}
+      }
+      String? voiceIdForCache = storyVoiceId;
+      if (playUrl == null || playUrl.isEmpty) {
+        final voiceIdToUse = storyVoiceId?.isNotEmpty == true
+            ? storyVoiceId
+            : (await _getUserVoiceId());
+        if (voiceIdToUse == null || voiceIdToUse.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not switch story: no voice available')),
+            );
+          }
+          return;
+        }
+        try {
+          final genRes = await BackendClient.voiceGenerateAudio(
+            voiceId: voiceIdToUse,
+            storyId: storyId,
+          );
+          playUrl = genRes['url']?.toString().trim();
+          voiceIdForCache = voiceIdToUse;
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not generate audio: $e')),
+            );
+          }
+          return;
+        }
+      }
       if (playUrl == null || playUrl.isEmpty) return;
       if (!mounted) return;
 
       final content = (story['story'] ?? story['content'])?.toString().trim();
-      final preview = content != null && content.isNotEmpty
-          ? (content.length > 200 ? '${content.substring(0, 200)}...' : content)
-          : null;
+      final preview = content != null && content.isNotEmpty ? content : null;
       final duration = story['play_length'] ?? story['duration'];
       int secs = 0;
       if (duration != null) {
@@ -956,7 +1102,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final durationLabel = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
       final title = (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString();
       final categoryLabel = (story['desire_name'] ?? story['category'] ?? 'Love').toString();
-      final storyVoiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
 
       setState(() {
         _playUrl = playUrl;
@@ -969,6 +1114,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _voiceId = storyVoiceId != null && storyVoiceId.isNotEmpty ? storyVoiceId : null;
         _loadError = null;
       });
+
+      if (voiceIdForCache != null &&
+          voiceIdForCache!.isNotEmpty &&
+          playUrl != null &&
+          playUrl!.isNotEmpty) {
+        _voicePlayUrlCache[_voiceCacheKey(storyId, voiceIdForCache!)] =
+            playUrl!;
+      }
 
       LastPlayedService.saveLastPlayed(
         storyId: storyId,
@@ -1661,6 +1814,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
                           ),
                         ),
             ),
+            if (_isGeneratingVoice)
+              Positioned.fill(
+                child: Container(
+                  color: _PlayerColors.surface.withValues(alpha: 0.85),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: _PlayerColors.gold),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            'Updating your story with the selected voice. This can take 30-45 seconds.',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _PlayerColors.ink,
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -1802,26 +1983,26 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  _duration.inSeconds > 0
-                      ? '${_formatDuration(_duration.inSeconds)} · $_voiceLabel'
-                      : (_durationLabel ??
-                          _subtitle ??
-                          '$_voiceLabel · Generated today'),
-                  textAlign:
-                      _sleepModeActive ? TextAlign.center : null,
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    color: _sleepModeActive
-                        ? Colors.white.withValues(alpha: 0.6)
-                        : _PlayerColors.inkSoft,
-                  ),
-                ),
+                if (_sleepModeActive)
+                  Text(
+                    _duration.inSeconds > 0
+                        ? '${_formatDuration(_duration.inSeconds)} · $_voiceLabel'
+                        : (_durationLabel ??
+                            _subtitle ??
+                            '$_voiceLabel · Generated today'),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  )
+                else
+                  _buildDurationAndVoiceRow(),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: 4, right: 8),
+            padding: const EdgeInsets.only(top: 4, right: 20),
             child: SizedBox(
               width: settingsIconSize,
               height: settingsIconSize,
@@ -1831,14 +2012,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.all(10),
-                    child: Text(
-                      '⚙️',
-                      style: GoogleFonts.outfit(
-                        fontSize: 22,
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(
+                        Icons.settings,
+                        size: 24,
                         color: _sleepModeActive
                             ? Colors.white.withValues(alpha: 0.7)
-                            : null,
-                      ),
+                            : _PlayerColors.inkSoft,
+                        ),
                     ),
                   ),
                 ),
@@ -1848,6 +2030,155 @@ class _PlayerWidgetState extends State<PlayerWidget>
         ],
       ),
     );
+  }
+
+  Widget _buildDurationAndVoiceRow() {
+    final durationText = _duration.inSeconds > 0
+        ? _formatDuration(_duration.inSeconds)
+        : (_durationLabel ?? '0:00');
+    final isGenerating = _isGeneratingVoice;
+    final canChangeVoice = _currentStoryId != null &&
+        _playUrl != null &&
+        _playUrl!.isNotEmpty &&
+        !isGenerating;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          '$durationText · ',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            color: _PlayerColors.inkSoft,
+          ),
+        ),
+        if (isGenerating)
+          SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: _PlayerColors.gold,
+            ),
+          )
+        else
+          DropdownButton<String>(
+            value: _voiceDropdownValue,
+            isExpanded: false,
+            underline: const SizedBox(),
+            icon: Icon(Icons.arrow_drop_down, color: _PlayerColors.inkSoft, size: 20),
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              color: _PlayerColors.inkSoft,
+              fontWeight: FontWeight.w500,
+            ),
+            items: [
+              DropdownMenuItem<String>(
+                value: _voiceDropdownMyVoice,
+                child: Text('My Voice', style: GoogleFonts.outfit(fontSize: 12, color: _PlayerColors.ink)),
+              ),
+              for (final t in _presetVoices)
+                DropdownMenuItem<String>(
+                  value: t.$1,
+                  child: Text("${t.$2}'s voice", style: GoogleFonts.outfit(fontSize: 12, color: _PlayerColors.ink)),
+                ),
+            ],
+            onChanged: canChangeVoice ? _onVoiceChanged : null,
+          ),
+      ],
+    );
+  }
+
+  Future<void> _onVoiceChanged(String? selectedValue) async {
+    if (selectedValue == null || selectedValue == _voiceDropdownValue) return;
+    final storyId = _currentStoryId;
+    if (storyId == null) return;
+    String? voiceIdToUse;
+    if (selectedValue == _voiceDropdownMyVoice) {
+      voiceIdToUse = await _getUserVoiceId();
+      if (voiceIdToUse == null || voiceIdToUse.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Your voice is not available. Please record your voice first.')),
+          );
+        }
+        return;
+      }
+    } else {
+      voiceIdToUse = selectedValue;
+    }
+    if (!mounted) return;
+
+    // Use cached URL if available so user doesn't wait 30–45s when switching back.
+    final cacheKey = _voiceCacheKey(storyId, voiceIdToUse!);
+    final cachedUrl = _voicePlayUrlCache[cacheKey]?.trim();
+    if (cachedUrl != null && cachedUrl.isNotEmpty) {
+      final wasPlaying = _isPlaying;
+      setState(() {
+        _playUrl = cachedUrl;
+        _voiceId = voiceIdToUse;
+      });
+      LastPlayedService.saveLastPlayed(
+        storyId: storyId,
+        playUrl: cachedUrl,
+        title: _title,
+        categoryLabel: _categoryLabel,
+        durationLabel: _durationLabel,
+        storyPreview: _previewContent,
+        storyContent: _fullStoryContent,
+        voiceId: voiceIdToUse,
+      );
+      await _audioPlayer.stop();
+      await _audioPlayer.setSource(UrlSource(cachedUrl));
+      if (wasPlaying) await _audioPlayer.resume();
+      if (mounted) setState(() => _isPlaying = wasPlaying);
+      return;
+    }
+
+    setState(() => _isGeneratingVoice = true);
+    try {
+      final res = await BackendClient.voiceGenerateAudio(
+        voiceId: voiceIdToUse,
+        storyId: storyId,
+      );
+      final url = res['url']?.toString().trim();
+      if (url == null || url.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not generate audio. Please try again.')),
+          );
+        }
+        return;
+      }
+      _voicePlayUrlCache[cacheKey] = url;
+      final wasPlaying = _isPlaying;
+      setState(() {
+        _playUrl = url;
+        _voiceId = voiceIdToUse;
+        _isGeneratingVoice = false;
+      });
+      LastPlayedService.saveLastPlayed(
+        storyId: storyId,
+        playUrl: url,
+        title: _title,
+        categoryLabel: _categoryLabel,
+        durationLabel: _durationLabel,
+        storyPreview: _previewContent,
+        storyContent: _fullStoryContent,
+        voiceId: voiceIdToUse,
+      );
+      await _audioPlayer.stop();
+      await _audioPlayer.setSource(UrlSource(url));
+      if (wasPlaying) await _audioPlayer.resume();
+      if (mounted) setState(() => _isPlaying = wasPlaying);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGeneratingVoice = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not switch voice: $e')),
+        );
+      }
+    }
   }
 
   int get _visibleWaveBars {
@@ -2328,7 +2659,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Widget _buildStoryPreview() {
-    final preview = _previewContent;
+    final fullText = _fullStoryContent ?? _previewContent;
+    final storyText = fullText?.trim().isNotEmpty == true
+        ? fullText!
+        : 'No preview available.';
 
     return Container(
       margin: const EdgeInsets.only(top: 0),
@@ -2340,6 +2674,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'STORY PREVIEW',
@@ -2351,12 +2686,19 @@ class _PlayerWidgetState extends State<PlayerWidget>
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            preview ?? 'No preview available.',
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              color: _PlayerColors.inkMid,
-              height: 1.6,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.45,
+            ),
+            child: SingleChildScrollView(
+              child: Text(
+                storyText,
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  color: _PlayerColors.inkMid,
+                  height: 1.6,
+                ),
+              ),
             ),
           ),
         ],

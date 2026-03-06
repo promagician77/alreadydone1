@@ -245,7 +245,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
           if (errorText.contains('over_email_send_rate_limit') ||
               errorText.contains('429')) {
             message =
-                'Account created! We already sent a code recently. Please check your email or try again in a moment.';
+                'Account created! We emailed you a verification code. Please check your email and enter the verification code below.';
           } else {
             message =
                 'Account created, but we could not send a new code. Please check your email or try again shortly.';

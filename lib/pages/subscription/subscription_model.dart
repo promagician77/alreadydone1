@@ -19,6 +19,9 @@ class SubscriptionModel extends FlutterFlowModel<SubscriptionWidget> {
   /// True when subscription_status is trialing (show cancel payment button if monthly).
   bool isTrialing = false;
 
+  /// True when subscription_status is canceled (show original UI + "Upgrade the Plan" button).
+  bool isCanceled = false;
+
   @override
   void initState(BuildContext context) {}
 

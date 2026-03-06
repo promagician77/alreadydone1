@@ -99,10 +99,20 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     try {
       final status = await BackendClient.getSubscriptionStatus(userId);
       final subId = status['stripe_subscription_id']?.toString().trim();
-      final hasSubscription = subId != null && subId.isNotEmpty;
-      if (mounted) safeSetState(() => _model.isSubscribed = hasSubscription);
+      final statusStr = status['subscription_status']?.toString().trim().toLowerCase();
+      final isCanceled = statusStr == 'canceled';
+      final hasSubscription = subId != null &&
+          subId.isNotEmpty &&
+          !isCanceled;
+      if (mounted) safeSetState(() {
+        _model.isSubscribed = hasSubscription;
+        _model.subscriptionStatusLoaded = true;
+      });
     } catch (_) {
-      if (mounted) safeSetState(() => _model.isSubscribed = false);
+      if (mounted) safeSetState(() {
+        _model.isSubscribed = false;
+        _model.subscriptionStatusLoaded = true;
+      });
     }
   }
 
@@ -382,7 +392,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     try {
       final status = await BackendClient.getSubscriptionStatus(userId);
       final subId = status['stripe_subscription_id']?.toString().trim();
-      final hasSubscription = subId != null && subId.isNotEmpty;
+      print('subId: $subId');
+      final statusStr = status['subscription_status']?.toString().trim();
+      print('statusStr: $statusStr');
+      final hasSubscription = subId != null && subId.isNotEmpty && statusStr != 'canceled';
       if (!mounted) return;
       if (hasSubscription) {
         sleepModeNotifier.value = true;
@@ -448,8 +461,9 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                             ),
                       const SizedBox(height: 16),
 
-                      // Sleep Mode premium card — hidden when user is already subscribed
-                      if (!_model.isSubscribed) ...[
+                      // Sleep Mode premium card — only show when we know user is not subscribed
+                      // (avoids flash: card visible for a moment then disappearing for subscribed users)
+                      if (_model.subscriptionStatusLoaded && !_model.isSubscribed) ...[
                         _buildSleepCard(context),
                         const SizedBox(height: 20),
                       ],

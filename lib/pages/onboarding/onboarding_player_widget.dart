@@ -198,7 +198,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   Widget _buildStoryPreview() {
     final story = (_state.generatedStory?['story']?.toString() ?? '').trim();
     if (story.isEmpty) return const SizedBox.shrink();
-    final preview = story.length > 200 ? '${story.substring(0, 200)}...' : story;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -208,6 +207,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             'STORY PREVIEW',
@@ -219,12 +219,17 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            preview,
-            style: GoogleFonts.outfit(
-              fontSize: 14,
-              color: AuthTheme.inkSoft,
-              height: 1.6,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: SingleChildScrollView(
+              child: Text(
+                story,
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  color: AuthTheme.inkSoft,
+                  height: 1.6,
+                ),
+              ),
             ),
           ),
         ],
