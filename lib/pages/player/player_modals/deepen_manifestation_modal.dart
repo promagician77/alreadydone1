@@ -47,8 +47,6 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
   late AnimationController _sparkleController;
   late AnimationController _slideController;
   late Animation<double> _slideAnimation;
-  AnimationController? _featureController;
-  List<Animation<double>>? _featureAnimations;
 
   @override
   void initState() {
@@ -79,32 +77,9 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
     );
     _slideAnimation = CurvedAnimation(
       parent: _slideController,
-      curve: Curves.easeOutCubic,
+      curve: const Cubic(0.22, 1, 0.36, 1), // cubic-bezier(0.22, 1, 0.36, 1)
     );
     _slideController.forward();
-
-    final featureController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _featureController = featureController;
-    _featureAnimations = [
-      CurvedAnimation(
-        parent: featureController,
-        curve: const Interval(0.0, 0.33, curve: Curves.easeOut),
-      ),
-      CurvedAnimation(
-        parent: featureController,
-        curve: const Interval(0.33, 0.66, curve: Curves.easeOut),
-      ),
-      CurvedAnimation(
-        parent: featureController,
-        curve: const Interval(0.66, 1.0, curve: Curves.easeOut),
-      ),
-    ];
-    Future<void>.delayed(const Duration(milliseconds: 350), () {
-      if (mounted) _featureController?.forward();
-    });
   }
 
   @override
@@ -114,7 +89,6 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
     _floatController.dispose();
     _sparkleController.dispose();
     _slideController.dispose();
-    _featureController?.dispose();
     super.dispose();
   }
 
@@ -148,7 +122,7 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                 onTap: () {}, // absorb tap so card doesn't close
                 child: SlideTransition(
                   position: Tween<Offset>(
-                    begin: const Offset(0, 0.25),
+                    begin: const Offset(0, 0.15),
                     end: Offset.zero,
                   ).animate(_slideAnimation),
                   child: FadeTransition(
@@ -180,8 +154,8 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
       padding: padding,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment(-1, -1), // top-left
+          end: Alignment(1, 1), // bottom-right (145deg approx)
           stops: [0.0, 1.0],
           colors: [
             Color(0xFFF2F2F2), // rgba(255,255,255,0.95)
@@ -217,54 +191,75 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Gold accent bar at top
-              AnimatedBuilder(
-                animation: _glowController,
-                builder: (context, child) {
-                  final t = _glowController.value;
-                  final opacity = 0.6 + 0.4 * (t < 0.5 ? t * 2 : 2 - t * 2);
-                  return Center(
-                    child: Container(
-                      width: 80,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 4),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            _DeepenModalColors.gold.withValues(alpha: opacity),
-                            Colors.transparent,
-                          ],
-                        ),
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(4),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _DeepenModalColors.gold
-                                .withValues(alpha: 0.3 * opacity),
-                            blurRadius: 20 + 20 * opacity,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+              _buildGoldAccentBar(),
               _buildIconSection(isSmall),
-              const SizedBox(height: 24),
-              _buildTitleSection(isSmall),
-              const SizedBox(height: 24),
-              _fadeIn(0.4, _buildExplanation(isSmall)),
-              const SizedBox(height: 24),
-              _buildFeatures(isSmall),
-              const SizedBox(height: 24),
-              _fadeIn(0.5, _buildInfoBox(isSmall)),
-              const SizedBox(height: 28),
-              _fadeIn(0.6, _buildButtons(context)),
+              SizedBox(height: isSmall ? 20 : 24),
+              _buildFadeInItem(
+                delay: 0.2,
+                child: _buildTitleSection(isSmall),
+              ),
+              SizedBox(height: isSmall ? 20 : 24),
+              _buildFadeInItem(
+                delay: 0.4,
+                child: _buildExplanation(isSmall),
+              ),
+              SizedBox(height: isSmall ? 20 : 24),
+              _buildFadeInItem(
+                delay: 0.5,
+                child: _buildFeatures(isSmall),
+              ),
+              SizedBox(height: isSmall ? 20 : 24),
+              _buildFadeInItem(
+                delay: 0.5,
+                child: _buildInfoBox(isSmall),
+              ),
+              SizedBox(height: isSmall ? 24 : 28),
+              _buildFadeInItem(
+                delay: 0.6,
+                child: _buildButtons(context),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildGoldAccentBar() {
+    return AnimatedBuilder(
+      animation: _glowController,
+      builder: (context, child) {
+        final t = _glowController.value;
+        // HTML: 0% opacity:0.6 box-shadow:20px, 50% opacity:1 box-shadow:40px
+        final opacity = 0.6 + 0.4 * (t < 0.5 ? t * 2 : 2 - t * 2);
+        return Center(
+          child: Container(
+            width: 80,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  _DeepenModalColors.gold.withValues(alpha: opacity),
+                  Colors.transparent,
+                ],
+              ),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(4),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _DeepenModalColors.gold
+                      .withValues(alpha: 0.3 * opacity),
+                  blurRadius: 20 + 20 * opacity,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -275,7 +270,9 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
     return AnimatedBuilder(
       animation: _floatController,
       builder: (context, child) {
-        final dy = -8.0 * (0.5 - (_floatController.value - 0.5).abs());
+        // HTML: 0%,100% translateY(0), 50% translateY(-8px)
+        final t = _floatController.value;
+        final dy = -8.0 * (t < 0.5 ? t * 2 : 2 - t * 2);
         return Transform.translate(
           offset: Offset(0, dy),
           child: Stack(
@@ -297,6 +294,11 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
+                      color: _DeepenModalColors.gold.withValues(alpha: 0.3),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
                       color: Colors.white.withValues(alpha: 0.5),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
@@ -310,66 +312,27 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                   ),
                 ),
               ),
-              // First sparkle (top-right)
+              // Single sparkle matching HTML ::after - top:-10px, right:-10px
               Positioned(
                 top: -10,
                 right: -10,
                 child: AnimatedBuilder(
                   animation: _sparkleController,
                   builder: (context, child) {
+                    // HTML: 0%,100% opacity:0 scale(0.8) rotate(0deg)
+                    //       50% opacity:1 scale(1.2) rotate(180deg)
                     final t = _sparkleController.value;
                     final opacity = t < 0.5 ? t * 2 : 2 - t * 2;
                     final scale = 0.8 + 0.4 * opacity;
+                    final rotation = t * 3.14159; // 0 to 180deg
                     return Opacity(
                       opacity: opacity,
                       child: Transform.scale(
                         scale: scale,
-                        child: const Text('✨', style: TextStyle(fontSize: 24)),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Second flying star (further out, trailing)
-              Positioned(
-                top: -22,
-                right: -18,
-                child: AnimatedBuilder(
-                  animation: _sparkleController,
-                  builder: (context, child) {
-                    final t = _sparkleController.value;
-                    final opacity = (t > 0.3 && t < 0.7) ? (t - 0.3) * 2.5 : 0.0;
-                    final translate = Offset(4 * (1 - t), -6 * (1 - t));
-                    return Opacity(
-                      opacity: opacity.clamp(0.0, 1.0),
-                      child: Transform.translate(
-                        offset: translate,
-                        child: Transform.scale(
-                          scale: 0.7,
-                          child: const Text('✨', style: TextStyle(fontSize: 18)),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Third flying star (smallest, trailing upward-right)
-              Positioned(
-                top: -28,
-                right: -8,
-                child: AnimatedBuilder(
-                  animation: _sparkleController,
-                  builder: (context, child) {
-                    final t = _sparkleController.value;
-                    final opacity = (t > 0.5 && t < 0.9) ? (t - 0.5) * 2.5 : 0.0;
-                    final translate = Offset(6 * t, -8 * t);
-                    return Opacity(
-                      opacity: opacity.clamp(0.0, 1.0),
-                      child: Transform.translate(
-                        offset: translate,
-                        child: Transform.scale(
-                          scale: 0.5,
-                          child: const Text('✨', style: TextStyle(fontSize: 14)),
+                        child: Transform.rotate(
+                          angle: rotation,
+                          child:
+                              const Text('✨', style: TextStyle(fontSize: 24)),
                         ),
                       ),
                     );
@@ -400,7 +363,7 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
             height: 1.2,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: isSmall ? 10 : 12),
         Text(
           'NEXT CHAPTER',
           style: GoogleFonts.inter(
@@ -435,7 +398,8 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
               ),
             ),
             TextSpan(
-              text: ' button below, and the next part of your story will be created.',
+              text:
+                  ' button below, and the next part of your story will be created.',
             ),
           ],
         ),
@@ -445,72 +409,39 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
 
   Widget _buildFeatures(bool isSmall) {
     final features = [
-      ('✨', 'The continuation will include ', 'new specific details', ' about your manifestation'),
-      ('🎯', 'You can keep creating subsequent parts, each with ', 'more vivid details', ''),
-      ('🔄', 'Each deepening builds on the previous story, taking you ', 'further into your future', ''),
+      (
+        '✨',
+        'The continuation will include ',
+        'new specific details',
+        ' about your manifestation'
+      ),
+      (
+        '🎯',
+        'You can keep creating subsequent parts, each with ',
+        'more vivid details',
+        ''
+      ),
+      (
+        '🔄',
+        'Each deepening builds on the previous story, taking you ',
+        'further into your future',
+        ''
+      ),
     ];
-
-    final animations = _featureAnimations;
-    final useAnimation = animations != null && animations.length >= features.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(features.length, (index) {
         final f = features[index];
-        final anim = useAnimation ? animations![index] : null;
-        final content = Container(
-          padding: EdgeInsets.all(isSmall ? 12 : 14),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _DeepenModalColors.gold.withValues(alpha: 0.1),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(f.$1, style: TextStyle(fontSize: isSmall ? 18 : 20)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    style: GoogleFonts.inter(
-                      fontSize: isSmall ? 13 : 14,
-                      height: 1.5,
-                      color: _DeepenModalColors.textDark,
-                    ),
-                    children: [
-                      TextSpan(text: f.$2),
-                      TextSpan(
-                        text: f.$3,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: _DeepenModalColors.goldDark,
-                        ),
-                      ),
-                      TextSpan(text: f.$4),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: anim != null
-              ? FadeTransition(
-                  opacity: anim,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0.04, 0),
-                      end: Offset.zero,
-                    ).animate(anim),
-                    child: content,
-                  ),
-                )
-              : content,
+          padding: EdgeInsets.only(bottom: isSmall ? 10 : 12),
+          child: _FeatureItem(
+            emoji: f.$1,
+            prefix: f.$2,
+            highlight: f.$3,
+            suffix: f.$4,
+            isSmall: isSmall,
+          ),
         );
       }),
     );
@@ -536,7 +467,10 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('ℹ️', style: TextStyle(fontSize: 24)),
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Text('ℹ️', style: TextStyle(fontSize: 24)),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: RichText(
@@ -555,7 +489,8 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                     ),
                   ),
                   TextSpan(
-                    text: ' Using this feature counts as one of your daily manifestation stories, which means you won\'t be able to create a new manifestation story until tomorrow.',
+                    text:
+                        ' Using this feature counts as one of your daily manifestation stories, which means you won\'t be able to create a new manifestation story until tomorrow.',
                   ),
                 ],
               ),
@@ -573,16 +508,110 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
     );
   }
 
-  Widget _fadeIn(double delay, Widget child) {
+  /// Wraps [child] in a fadeIn + translateY(10) animation matching the HTML
+  /// `fadeIn 0.8s ease-out <delay>s both`.
+  Widget _buildFadeInItem({required double delay, required Widget child}) {
+    final delayMs = (delay * 1000).round();
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 800),
       curve: Curves.easeOut,
-      builder: (context, value, child) => Opacity(
-        opacity: value,
-        child: child,
-      ),
+      builder: (context, value, child) {
+        // Delay: hold at 0 until after the slide-up entry (600ms) + per-item delay
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
       child: child,
+    );
+  }
+}
+
+/// Individual feature item with hover-like interaction matching HTML
+/// `.feature-item:hover { background: rgba(255,255,255,0.9); border-color: rgba(212,175,55,0.3); transform: translateX(4px); }`
+class _FeatureItem extends StatefulWidget {
+  final String emoji;
+  final String prefix;
+  final String highlight;
+  final String suffix;
+  final bool isSmall;
+
+  const _FeatureItem({
+    required this.emoji,
+    required this.prefix,
+    required this.highlight,
+    required this.suffix,
+    required this.isSmall,
+  });
+
+  @override
+  State<_FeatureItem> createState() => _FeatureItemState();
+}
+
+class _FeatureItemState extends State<_FeatureItem> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        padding: EdgeInsets.all(widget.isSmall ? 12 : 14),
+        transform: Matrix4.translationValues(_hovering ? 4 : 0, 0, 0),
+        decoration: BoxDecoration(
+          color: _hovering
+              ? Colors.white.withValues(alpha: 0.9)
+              : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _hovering
+                ? _DeepenModalColors.gold.withValues(alpha: 0.3)
+                : _DeepenModalColors.gold.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                widget.emoji,
+                style: TextStyle(fontSize: widget.isSmall ? 18 : 20),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: GoogleFonts.inter(
+                    fontSize: widget.isSmall ? 13 : 14,
+                    height: 1.5,
+                    color: _DeepenModalColors.textDark,
+                  ),
+                  children: [
+                    TextSpan(text: widget.prefix),
+                    TextSpan(
+                      text: widget.highlight,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: _DeepenModalColors.goldDark,
+                      ),
+                    ),
+                    TextSpan(text: widget.suffix),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -595,34 +624,43 @@ class _DeepenBackdropPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final gradient = LinearGradient(
-      begin: Alignment.bottomLeft,
-      end: Alignment.topRight,
-      colors: const [
+    // HTML: linear-gradient(135deg, #1A1A2E 0%, #2A2A3E 100%)
+    final gradient = const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
         _DeepenModalColors.navy,
         _DeepenModalColors.navyLight,
       ],
     );
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+      Paint()
+        ..shader =
+            gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
     );
 
-    final opacity = 0.6 + 0.4 * twinkleValue;
-    final starPositions = [
-      const Offset(0.2, 0.3),
-      const Offset(0.6, 0.7),
-      const Offset(0.5, 0.5),
-      const Offset(0.8, 0.1),
-      const Offset(0.9, 0.6),
-      const Offset(0.33, 0.9),
+    // HTML twinkle: 0%,100% opacity:1 → 50% opacity:0.6
+    // twinkleValue goes 0→1→0 (reverse), so at 0.5 it's peak
+    final opacity = 0.6 + 0.4 * (1 - (twinkleValue - 0.5).abs() * 2);
+
+    // Star positions and sizes matching the HTML radial-gradients
+    final stars = [
+      (const Offset(0.2, 0.3), 2.0, 0.3),
+      (const Offset(0.6, 0.7), 2.0, 0.2),
+      (const Offset(0.5, 0.5), 1.0, 0.4),
+      (const Offset(0.8, 0.1), 1.0, 0.2),
+      (const Offset(0.9, 0.6), 2.0, 0.3),
+      (const Offset(0.33, 0.9), 1.0, 0.2),
     ];
-    for (final pos in starPositions) {
+
+    for (final (pos, radius, baseAlpha) in stars) {
       final center = Offset(pos.dx * size.width, pos.dy * size.height);
       final starPaint = Paint()
-        ..color = _DeepenModalColors.gold.withValues(alpha: 0.2 * opacity)
+        ..color =
+            _DeepenModalColors.gold.withValues(alpha: baseAlpha * opacity)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
-      canvas.drawCircle(center, 2, starPaint);
+      canvas.drawCircle(center, radius, starPaint);
     }
   }
 
@@ -646,11 +684,13 @@ class _DeepenModalButtons extends StatefulWidget {
 
 class _DeepenModalButtonsState extends State<_DeepenModalButtons> {
   bool _isLoading = false;
+  bool _hovering = false;
 
   Future<void> _handleContinue() async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    // HTML: setTimeout 1000ms
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
     Navigator.of(context).pop();
     widget.onContinue();
@@ -661,17 +701,22 @@ class _DeepenModalButtonsState extends State<_DeepenModalButtons> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Continue to Deepen (primary)
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _isLoading ? null : _handleContinue,
-            borderRadius: BorderRadius.circular(16),
+        // Continue to Deepen (primary) — matches HTML .continue-button
+        MouseRegion(
+          onEnter: (_) => setState(() => _hovering = true),
+          onExit: (_) => setState(() => _hovering = false),
+          child: GestureDetector(
+            onTapDown: (_) {},
+            onTapUp: (_) => _handleContinue(),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 28),
+              duration: const Duration(milliseconds: 300),
+              curve: const Cubic(0.22, 1, 0.36, 1),
+              transform: Matrix4.translationValues(
+                  0, _hovering && !_isLoading ? -2 : 0, 0),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 16, horizontal: 28),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
@@ -682,86 +727,94 @@ class _DeepenModalButtonsState extends State<_DeepenModalButtons> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: _DeepenModalColors.gold.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+                    color: _DeepenModalColors.gold.withValues(
+                        alpha: _hovering ? 0.5 : 0.4),
+                    blurRadius: _hovering ? 24 : 16,
+                    offset: Offset(0, _hovering ? 8 : 4),
                   ),
                   BoxShadow(
-                    color: Colors.white.withValues(alpha: 0.3),
+                    color: Colors.white
+                        .withValues(alpha: _hovering ? 0.4 : 0.3),
                     blurRadius: 0,
                     offset: const Offset(0, 1),
                   ),
                 ],
               ),
-              child: Center(
-                child: _isLoading
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Creating your deepening...',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        'Continue to Deepen',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Go Back (secondary)
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onBack,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _DeepenModalColors.textLight.withValues(alpha: 0.2),
-                  width: 2,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  'Go Back',
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: _DeepenModalColors.textLight,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _isLoading ? 0.7 : 1.0,
+                child: Center(
+                  child: Text(
+                    _isLoading
+                        ? 'Creating your deepening...'
+                        : 'Continue to Deepen',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        // Go Back (secondary) — matches HTML .back-button
+        _BackButton(onTap: widget.onBack),
       ],
+    );
+  }
+}
+
+class _BackButton extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _BackButton({required this.onTap});
+
+  @override
+  State<_BackButton> createState() => _BackButtonState();
+}
+
+class _BackButtonState extends State<_BackButton> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
+          decoration: BoxDecoration(
+            color: _hovering
+                ? _DeepenModalColors.textLight.withValues(alpha: 0.05)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _DeepenModalColors.textLight
+                  .withValues(alpha: _hovering ? 0.3 : 0.2),
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              'Go Back',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: _hovering
+                    ? _DeepenModalColors.textDark
+                    : _DeepenModalColors.textLight,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
