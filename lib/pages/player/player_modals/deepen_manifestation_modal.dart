@@ -47,8 +47,8 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
   late AnimationController _sparkleController;
   late AnimationController _slideController;
   late Animation<double> _slideAnimation;
-  late AnimationController _featureController;
-  late List<Animation<double>> _featureAnimations;
+  AnimationController? _featureController;
+  List<Animation<double>>? _featureAnimations;
 
   @override
   void initState() {
@@ -83,26 +83,27 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
     );
     _slideController.forward();
 
-    _featureController = AnimationController(
+    final featureController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
+    _featureController = featureController;
     _featureAnimations = [
       CurvedAnimation(
-        parent: _featureController,
+        parent: featureController,
         curve: const Interval(0.0, 0.33, curve: Curves.easeOut),
       ),
       CurvedAnimation(
-        parent: _featureController,
+        parent: featureController,
         curve: const Interval(0.33, 0.66, curve: Curves.easeOut),
       ),
       CurvedAnimation(
-        parent: _featureController,
+        parent: featureController,
         curve: const Interval(0.66, 1.0, curve: Curves.easeOut),
       ),
     ];
     Future<void>.delayed(const Duration(milliseconds: 350), () {
-      if (mounted) _featureController.forward();
+      if (mounted) _featureController?.forward();
     });
   }
 
@@ -113,7 +114,7 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
     _floatController.dispose();
     _sparkleController.dispose();
     _slideController.dispose();
-    _featureController.dispose();
+    _featureController?.dispose();
     super.dispose();
   }
 
@@ -449,21 +450,15 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
       ('🔄', 'Each deepening builds on the previous story, taking you ', 'further into your future', ''),
     ];
 
+    final animations = _featureAnimations;
+    final useAnimation = animations != null && animations.length >= features.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(features.length, (index) {
         final f = features[index];
-        final anim = _featureAnimations[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.04, 0),
-                end: Offset.zero,
-              ).animate(anim),
-              child: Container(
+        final anim = useAnimation ? animations![index] : null;
+        final content = Container(
                 padding: EdgeInsets.all(isSmall ? 12 : 14),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.6),
@@ -502,8 +497,21 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                   ],
                 ),
               ),
-            ),
-          ),
+            );
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: anim != null
+              ? FadeTransition(
+                  opacity: anim,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.04, 0),
+                      end: Offset.zero,
+                    ).animate(anim),
+                    child: content,
+                  ),
+                )
+              : content,
         );
       }),
     );
