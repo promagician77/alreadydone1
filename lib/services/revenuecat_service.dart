@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
+import '/utils/platform_utils.dart';
+
 class RevenueCatService {
   RevenueCatService._();
   static final RevenueCatService instance = RevenueCatService._();
@@ -13,9 +15,15 @@ class RevenueCatService {
 
   bool _configured = false;
 
-  /// Call once at app startup (e.g. from main.dart after Supabase auth is ready).
-  /// Pass [appUserId] to link purchases to your user (e.g. Supabase user id); optional.
+  /// Subscriptions are supported only on iOS (App Store). Android/web get false/null.
+  bool get isSupported => isIOS;
+
+  /// Call once at app startup (e.g. from main.dart). Only configures on iOS.
   Future<void> configure({String? appUserId}) async {
+    if (!isIOS) {
+      debugPrint('RevenueCat: skipped (iOS only)');
+      return;
+    }
     if (_configured) return;
     try {
       await Purchases.setLogLevel(LogLevel.debug);
@@ -31,8 +39,9 @@ class RevenueCatService {
     }
   }
 
-  /// Call after user logs in to link RevenueCat to your user id.
+  /// Call after user logs in to link RevenueCat to your user id. No-op on non-iOS.
   Future<void> logIn(String appUserId) async {
+    if (!isIOS) return;
     try {
       await Purchases.logIn(appUserId.trim());
     } catch (e) {
@@ -40,8 +49,9 @@ class RevenueCatService {
     }
   }
 
-  /// Call when user logs out so RevenueCat uses anonymous id.
+  /// Call when user logs out. No-op on non-iOS.
   Future<void> logOut() async {
+    if (!isIOS) return;
     try {
       await Purchases.logOut();
     } catch (e) {
@@ -49,8 +59,9 @@ class RevenueCatService {
     }
   }
 
-  /// Whether the user has active premium access (no backend/database needed).
+  /// Whether the user has active premium access. Returns false on non-iOS.
   Future<bool> isSubscribed() async {
+    if (!isIOS) return false;
     try {
       final info = await Purchases.getCustomerInfo();
       final entitlement = info.entitlements.all[entitlementId];
@@ -61,9 +72,17 @@ class RevenueCatService {
     }
   }
 
-  /// Subscription status for UI that expects a map (e.g. plan, isCanceled).
-  /// All from RevenueCat — no backend call.
+  /// Subscription status for UI. Returns default (not subscribed) on non-iOS.
   Future<RevenueCatSubscriptionStatus> getSubscriptionStatus() async {
+    if (!isIOS) {
+      return const RevenueCatSubscriptionStatus(
+        isSubscribed: false,
+        isTrialing: false,
+        isCanceled: false,
+        isAnnualPlan: false,
+        isMonthlyPlan: false,
+      );
+    }
     try {
       final info = await Purchases.getCustomerInfo();
       final entitlement = info.entitlements.all[entitlementId];
@@ -98,8 +117,9 @@ class RevenueCatService {
     }
   }
 
-  /// Fetch current offerings (packages). Use default offering or a specific placement.
+  /// Fetch current offerings. Returns null on non-iOS (so UI can show iOS-only message).
   Future<Offerings?> getOfferings() async {
+    if (!isIOS) return null;
     try {
       return await Purchases.getOfferings();
     } catch (e) {
@@ -108,14 +128,20 @@ class RevenueCatService {
     }
   }
 
-  /// Purchase a package (e.g. monthly or annual). Returns updated customer info on success.
+  /// Purchase a package. No-op / throws on non-iOS (call only when isSupported).
   Future<CustomerInfo?> purchasePackage(Package package) async {
+    if (!isIOS) {
+      throw PlatformException(
+        code: 'UNSUPPORTED',
+        message: 'Subscriptions are available only on the App Store (iOS).',
+      );
+    }
     try {
       final result = await Purchases.purchasePackage(package);
       return result;
     } on PlatformException catch (e) {
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
-        rethrow; // Caller can treat as user cancelled
+        rethrow;
       }
       debugPrint('RevenueCat purchasePackage error: $e');
       rethrow;
@@ -125,8 +151,11 @@ class RevenueCatService {
     }
   }
 
-  /// Restore previous purchases.
+  /// Restore previous purchases. No-op on non-iOS.
   Future<CustomerInfo?> restorePurchases() async {
+    if (!isIOS) {
+      return null;
+    }
     try {
       return await Purchases.restorePurchases();
     } catch (e) {

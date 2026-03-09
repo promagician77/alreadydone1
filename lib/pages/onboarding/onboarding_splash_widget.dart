@@ -409,6 +409,14 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
     if (_model.isPaymentLoading) return;
 
+    if (!RevenueCatService.instance.isSupported) {
+      AppToast.error(
+        context,
+        'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+      );
+      return;
+    }
+
     if (_model.selectedPlan == null) {
       AppToast.info(context, 'Please select a plan first');
       return;
@@ -428,7 +436,12 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       final package = _findPackage(offerings, wantMonthly: wantMonthly);
       if (package == null) {
         if (!mounted) return;
-        AppToast.error(context, 'Plans not available. Please try later.');
+        AppToast.error(
+          context,
+          RevenueCatService.instance.isSupported
+              ? 'Plans not available. Please try later.'
+              : 'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+        );
         return;
       }
       if (!mounted) return;
@@ -463,6 +476,13 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Future<void> _handleRestorePurchases() async {
     if (_model.isPaymentLoading) return;
+    if (!RevenueCatService.instance.isSupported) {
+      AppToast.error(
+        context,
+        'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+      );
+      return;
+    }
     safeSetState(() => _model.isPaymentLoading = true);
     try {
       await RevenueCatService.instance.restorePurchases();

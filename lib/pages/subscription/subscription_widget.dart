@@ -607,6 +607,13 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   /// Upgrade monthly → annual: purchase the annual package via RevenueCat.
   Future<void> _handleChangeToAnnual() async {
     if (_model.isPaymentLoading) return;
+    if (!RevenueCatService.instance.isSupported) {
+      AppToast.error(
+        context,
+        'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+      );
+      return;
+    }
     safeSetState(() => _model.isPaymentLoading = true);
     try {
       final offerings = await RevenueCatService.instance.getOfferings();
@@ -657,6 +664,14 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
     if (_model.isPaymentLoading) return;
 
+    if (!RevenueCatService.instance.isSupported) {
+      AppToast.error(
+        context,
+        'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+      );
+      return;
+    }
+
     if (_model.selectedPlan == null) {
       AppToast.info(context, 'Please select a plan first');
       return;
@@ -676,7 +691,12 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       final package = _findPackage(offerings, wantMonthly: wantMonthly);
       if (package == null) {
         if (!mounted) return;
-        AppToast.error(context, 'Plans not available. Please try later.');
+        AppToast.error(
+          context,
+          RevenueCatService.instance.isSupported
+              ? 'Plans not available. Please try later.'
+              : 'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+        );
         return;
       }
       if (!mounted) return;
@@ -708,6 +728,13 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
 
   Future<void> _handleRestorePurchases() async {
     if (_model.isPaymentLoading) return;
+    if (!RevenueCatService.instance.isSupported) {
+      AppToast.error(
+        context,
+        'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+      );
+      return;
+    }
     safeSetState(() => _model.isPaymentLoading = true);
     try {
       await RevenueCatService.instance.restorePurchases();
