@@ -459,45 +459,44 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
         final f = features[index];
         final anim = useAnimation ? animations![index] : null;
         final content = Container(
-                padding: EdgeInsets.all(isSmall ? 12 : 14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _DeepenModalColors.gold.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(f.$1, style: TextStyle(fontSize: isSmall ? 18 : 20)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: GoogleFonts.inter(
-                            fontSize: isSmall ? 13 : 14,
-                            height: 1.5,
-                            color: _DeepenModalColors.textDark,
-                          ),
-                          children: [
-                            TextSpan(text: f.$2),
-                            TextSpan(
-                              text: f.$3,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: _DeepenModalColors.goldDark,
-                              ),
-                            ),
-                            TextSpan(text: f.$4),
-                          ],
+          padding: EdgeInsets.all(isSmall ? 12 : 14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _DeepenModalColors.gold.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(f.$1, style: TextStyle(fontSize: isSmall ? 18 : 20)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.inter(
+                      fontSize: isSmall ? 13 : 14,
+                      height: 1.5,
+                      color: _DeepenModalColors.textDark,
+                    ),
+                    children: [
+                      TextSpan(text: f.$2),
+                      TextSpan(
+                        text: f.$3,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _DeepenModalColors.goldDark,
                         ),
                       ),
-                    ),
-                  ],
+                      TextSpan(text: f.$4),
+                    ],
+                  ),
                 ),
               ),
-            );
+            ],
+          ),
+        );
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: anim != null
