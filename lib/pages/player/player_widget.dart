@@ -2742,7 +2742,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isLoading ? null : _deepenManifestation,
+          onTap: isLoading ? null : () => showDeepenManifestationModal(context, onContinue: _deepenManifestation),
           borderRadius: BorderRadius.circular(14),
           child: Opacity(
             opacity: isLoading ? 0.7 : 1,
