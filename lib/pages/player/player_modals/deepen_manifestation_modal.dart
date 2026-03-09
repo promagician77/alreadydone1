@@ -165,19 +165,8 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
         borderRadius: BorderRadius.circular(cardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 60,
-            offset: const Offset(0, 20),
-          ),
-          BoxShadow(
-            color: _DeepenModalColors.gold.withValues(alpha: 0.2),
+            color: _DeepenModalColors.gold.withValues(alpha: 0.15),
             blurRadius: 80,
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.9),
-            blurRadius: 0,
-            offset: const Offset(0, 1),
             spreadRadius: 0,
           ),
         ],
@@ -312,7 +301,7 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                   ),
                 ),
               ),
-              // Single sparkle matching HTML ::after - top:-10px, right:-10px
+              // First sparkle (top-right) — HTML ::after
               Positioned(
                 top: -10,
                 right: -10,
@@ -333,6 +322,56 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                           angle: rotation,
                           child:
                               const Text('✨', style: TextStyle(fontSize: 24)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Second flying star (further out, trailing)
+              Positioned(
+                top: -22,
+                right: -18,
+                child: AnimatedBuilder(
+                  animation: _sparkleController,
+                  builder: (context, child) {
+                    final t = _sparkleController.value;
+                    final opacity =
+                        (t > 0.3 && t < 0.7) ? (t - 0.3) * 2.5 : 0.0;
+                    final translate = Offset(4 * (1 - t), -6 * (1 - t));
+                    return Opacity(
+                      opacity: opacity.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: translate,
+                        child: Transform.scale(
+                          scale: 0.7,
+                          child:
+                              const Text('✨', style: TextStyle(fontSize: 18)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Third flying star (smallest, trailing upward-right)
+              Positioned(
+                top: -28,
+                right: -8,
+                child: AnimatedBuilder(
+                  animation: _sparkleController,
+                  builder: (context, child) {
+                    final t = _sparkleController.value;
+                    final opacity =
+                        (t > 0.5 && t < 0.9) ? (t - 0.5) * 2.5 : 0.0;
+                    final translate = Offset(6 * t, -8 * t);
+                    return Opacity(
+                      opacity: opacity.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: translate,
+                        child: Transform.scale(
+                          scale: 0.5,
+                          child:
+                              const Text('✨', style: TextStyle(fontSize: 14)),
                         ),
                       ),
                     );
