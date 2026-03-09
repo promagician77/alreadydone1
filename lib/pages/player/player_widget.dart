@@ -103,7 +103,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   static const List<(String name, String assetPath)> _thetaTracks = [
-    ('No Sound', ''),
     ('Healing Therapy', 'audios/theta/Healing Therapy.mp3'),
     ('The City in Dreams', 'audios/theta/The City in Dreams.mp3'),
     ('Solar Drift', 'audios/theta/Solar Drift.mp3'),
@@ -137,6 +136,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   /// True while generate-audio API is running for voice dropdown change.
   bool _isGeneratingVoice = false;
+
+  /// True while deepen story API is running.
+  bool _isDeepening = false;
 
   /// Cache: (storyId, voiceId) -> playUrl. Used so switching back to a previously used voice is instant.
   static final Map<String, String> _voicePlayUrlCache = {};
@@ -229,6 +231,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   late AnimationController _waveformController;
   int _selectedThetaIndex = 0;
+  bool _backgroundSoundEnabled = true;
 
   String get _currentThetaTrackName => _thetaTracks[_selectedThetaIndex].$1;
 
@@ -840,12 +843,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Future<void> _startThetaBackground() async {
-    final track = _thetaTracks[_selectedThetaIndex];
-
     await _thetaTrackPlayer.stop();
+    if (!_backgroundSoundEnabled) return;
 
-    if (track.$2.isEmpty) return; // No Sound
-
+    final track = _thetaTracks[_selectedThetaIndex];
     await _applyMixContext();
 
     await _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
@@ -1157,16 +1158,27 @@ class _PlayerWidgetState extends State<PlayerWidget>
         context,
         selectedMinutes: _sleepTimerMinutes ?? 30,
         onTimerSelect: (m) => setState(() => _sleepTimerMinutes = m),
-        sleepSpeedLabel: _sleepSpeedLabel,
-        sleepSpeedListenable: _speedLabelNotifier,
-        backgroundSoundName: _thetaTracks[_selectedThetaIndex].$1,
-        backgroundSoundListenable: _backgroundSoundNameNotifier,
         onSleepModeChanged: (value) {
           if (!value) {
             Navigator.of(context).pop();
             _endSleepSession();
           }
         },
+        sleepSpeedLabel: _sleepSpeedLabel,
+        sleepSpeedListenable: _speedLabelNotifier,
+        backgroundSoundEnabled: _backgroundSoundEnabled,
+        onBackgroundSoundEnabledChanged: (value) {
+          setState(() => _backgroundSoundEnabled = value);
+          if (_sleepModeActive) {
+            if (value) {
+              _startThetaBackground();
+            } else {
+              _stopThetaBackground();
+            }
+          }
+        },
+        backgroundSoundName: _thetaTracks[_selectedThetaIndex].$1,
+        backgroundSoundListenable: _backgroundSoundNameNotifier,
         onSleepSpeedTap: _openSleepSpeedSheet,
         onBackgroundSoundTap: _openThetaBackgroundSheet,
         onClose: () => Navigator.of(context).pop(),
@@ -1807,6 +1819,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                                 _buildControls(),
                                 SizedBox(
                                     height: _sleepModeActive ? 0 : 28),
+                                if (!_sleepModeActive) _buildDeepenButton(),
                                 if (!_sleepModeActive)
                                   _buildStoryPreview(),
                               ],
@@ -2652,6 +2665,165 @@ class _PlayerWidgetState extends State<PlayerWidget>
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: active ? _PlayerColors.gold : _PlayerColors.inkSoft,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deepenManifestation() async {
+    if (_isDeepening) return;
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+    final storyId = _currentStoryId;
+    if (storyId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No story selected to deepen.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _isDeepening = true);
+    String name = '';
+    String location = '';
+    String energyWord = '';
+    String lovedOne = '';
+    String dreamLocation = '';
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      name = (profile['name'] ?? '').toString().trim();
+      location = (profile['location'] ?? profile['dream_place'] ?? '').toString().trim();
+      energyWord = (profile['energyWord'] ?? '').toString().trim();
+      lovedOne = (profile['lovedOne'] ?? profile['someone_you_love'] ?? '').toString().trim();
+      dreamLocation = (profile['dream_place'] ?? profile['dreamLocation'] ?? '').toString().trim();
+    } catch (_) {}
+    if (!mounted) {
+      setState(() => _isDeepening = false);
+      return;
+    }
+    try {
+      final res = await BackendClient.deepenStory(
+        userId: userId,
+        storyId: storyId,
+        name: name,
+        location: location,
+        energyWord: energyWord,
+        lovedOne: lovedOne,
+        dreamLocation: dreamLocation,
+      );
+      if (!mounted) return;
+      final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString();
+      final story = (res['story'] ?? res['content'] ?? '').toString().trim();
+      if (story.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Deepen response had no story content.')),
+        );
+        return;
+      }
+      showDeepenResultModal(context, theme: theme, story: story);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeepening = false);
+    }
+  }
+
+  Widget _buildDeepenButton() {
+    final isLoading = _isDeepening;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading ? null : _deepenManifestation,
+          borderRadius: BorderRadius.circular(14),
+          child: Opacity(
+            opacity: isLoading ? 0.7 : 1,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _PlayerColors.goldPale,
+                    _PlayerColors.surface,
+                  ],
+                ),
+                border: Border.all(
+                  color: _PlayerColors.goldLight,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A1C1917),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isLoading) ...[
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: _PlayerColors.goldDark,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Deepening...',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _PlayerColors.goldDark,
+                      ),
+                    ),
+                  ] else ...[
+                    Text(
+                      '✨',
+                      style: GoogleFonts.outfit(fontSize: 14),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Deepen This Manifestation',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _PlayerColors.goldDark,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '→',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _PlayerColors.goldDark,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),

@@ -1,7 +1,5 @@
-import 'dart:io';
-
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'backend_client.dart';
@@ -81,7 +79,7 @@ class FcmService {
       onDidReceiveNotificationResponse: (_) {},
     );
 
-    if (Platform.isAndroid) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       const channel = AndroidNotificationChannel(
         _kAndroidChannelId,
         _kAndroidChannelName,

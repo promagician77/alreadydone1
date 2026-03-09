@@ -762,7 +762,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'UPGRADE TO ANNUAL',
+                'UPGRADE TO ANNUAL PLAN',
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   letterSpacing: 1.5,
@@ -782,7 +782,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                '\$9.99/month · \$69.99/year',
+                '\$69.99/year',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.8),

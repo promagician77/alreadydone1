@@ -49,14 +49,28 @@
   <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#1d2428">
 
   <link rel="manifest" href="manifest.json">
-  
+
+  <!-- Firebase SDK for web (required for Firebase.initializeApp() in Dart).
+       Get your config from Firebase Console > Project settings > Your apps > Web app.
+       If you skip this, the app may show a white screen on web. -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
+  <script>
+    // Replace with your Firebase web app config from Firebase Console.
+    var firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
 </head>
 <body>
-  
-  
-  
-  
-  
   <script>
     {{flutter_bootstrap_js}}
   </script>

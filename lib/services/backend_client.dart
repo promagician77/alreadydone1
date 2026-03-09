@@ -160,10 +160,43 @@ class BackendClient {
         .toList();
   }
 
-  /// POST api/stories/generate - generate story from onboarding data.
-  /// Sends body: { user_id, name, location, energyWord, desireCategory,
-  ///   desireDescription, lovedOne? }.
-  /// Returns decoded JSON (e.g. id, content, category, title).
+  static Future<Map<String, dynamic>> deepenStory({
+    required int userId,
+    required int storyId,
+    String name = '',
+    String location = '',
+    String energyWord = '',
+    String lovedOne = '',
+    String dreamLocation = '',
+  }) async {
+    final body = <String, dynamic>{
+      'user_id': userId,
+      'story_id': storyId,
+      'name': name,
+      'location': location,
+      'energyWord': energyWord,
+      'lovedOne': lovedOne,
+      'dreamLocation': dreamLocation,
+    };
+    final response = await client
+        .post(
+          resolve('/api/stories/deepen'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw Exception('Deepen story timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Deepen failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {};
+  }
+
   static Future<Map<String, dynamic>> generateStory(
     Map<String, dynamic> body,
   ) async {

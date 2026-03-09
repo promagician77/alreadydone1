@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -25,20 +28,40 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
-void main() async {
+Future<void> _initializeApp() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Firebase: required for FCM. On web, ensure Firebase JS SDK is loaded in web/index.html.
+  try {
+    await Firebase.initializeApp();
+    if (!kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    }
+  } catch (e, st) {
+    debugPrint('Firebase init failed (web/iOS need Firebase configured): $e');
+    debugPrint('$st');
+    // Continue so app still runs; push notifications will be unavailable.
+  }
+
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
 
   await FlutterFlowTheme.initialize();
-  await dotenv.load(fileName: ".env");
 
-  await SupabaseService.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!, 
-  );
+  // .env: on web use asset path; ensure .env is in pubspec assets.
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('dotenv load failed: $e');
+    rethrow;
+  }
+
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+  if (supabaseUrl == null || supabaseUrl.isEmpty || supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
+    throw Exception('SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env');
+  }
+  await SupabaseService.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   BackendClient.initialize(baseUrl: dotenv.env['BACKEND_URL']);
 
@@ -59,9 +82,56 @@ void main() async {
 
   AppStateNotifier.instance.initAuthListener();
 
-  await FcmService.initialize();
+  // FCM is not supported on web (dart:io / native APIs). Skip to avoid white screen.
+  if (!kIsWeb) {
+    await FcmService.initialize();
+  }
+}
 
-  runApp(MyApp());
+void main() async {
+  runZonedGuarded(() async {
+    await _initializeApp();
+    runApp(MyApp());
+  }, (error, stack) {
+    debugPrint('Uncaught error in main: $error');
+    debugPrint('$stack');
+    runApp(_ErrorApp(message: error.toString(), stack: stack.toString()));
+  });
+}
+
+/// Shown when initialization fails so we don't get a white screen.
+class _ErrorApp extends StatelessWidget {
+  const _ErrorApp({required this.message, required this.stack});
+
+  final String message;
+  final String stack;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Startup error', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Text(message, style: const TextStyle(fontSize: 14)),
+                  const SizedBox(height: 24),
+                  const Text('Stack trace:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  SelectableText(stack, style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatefulWidget {

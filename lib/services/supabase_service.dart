@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -183,6 +183,7 @@ class SupabaseService {
   }
 
   /// Google sign-in: native account picker on mobile (no browser), OAuth redirect on web.
+  /// Uses GOOGLE_WEB_CLIENT_ID (Supabase/server) and GOOGLE_ANDROID_CLIENT_ID or GOOGLE_IOS_CLIENT_ID (app).
   static Future<void> signInWithGoogle() async {
     if (kIsWeb) {
       await signInWithOAuth(provider: OAuthProvider.google);
@@ -195,10 +196,19 @@ class SupabaseService {
         'Add your Google Cloud web client ID (same as in Supabase Dashboard → Auth → Google).',
       );
     }
+    final androidClientId = dotenv.env['GOOGLE_ANDROID_CLIENT_ID']?.trim();
     final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
+    final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    if (isAndroid && (androidClientId == null || androidClientId.isEmpty)) {
+      throw Exception(
+        'GOOGLE_ANDROID_CLIENT_ID is not set in .env. '
+        'Add your Google Cloud Android OAuth client ID (package com.alreadydone.app + SHA-1).',
+      );
+    }
     final googleSignIn = GoogleSignIn(
       serverClientId: webClientId,
-      clientId: (iosClientId != null && iosClientId.isNotEmpty) ? iosClientId : null,
+      clientId: isIOS && (iosClientId != null && iosClientId.isNotEmpty) ? iosClientId : null,
     );
     try {
       final googleUser = await googleSignIn.signIn();
@@ -219,7 +229,7 @@ class SupabaseService {
         throw Exception(
           'Google Sign-In setup error: add your app\'s SHA-1 and package name '
           '(com.alreadydone.app) in Google Cloud Console → Credentials → '
-          'Create OAuth 2.0 Client ID → Android.',
+          'Create OAuth 2.0 Client ID → Android. Use Web client ID in Supabase and .env.',
         );
       }
       rethrow;

@@ -12,7 +12,7 @@ class _SleepColors {
 
 /// Sleep Mode Settings modal - shown when clicking settings in sleep mode.
 /// [sleepSpeedListenable] when provided, the Sleep Speed row updates immediately when speed is changed.
-/// [backgroundSoundListenable] when provided, the Background Sound row updates immediately when changed.
+/// [backgroundSoundListenable] when provided, the Select Sound value updates immediately when changed.
 void showSleepModeSettingsModal(
   BuildContext context, {
   required int selectedMinutes,
@@ -20,6 +20,8 @@ void showSleepModeSettingsModal(
   required ValueChanged<bool> onSleepModeChanged,
   required String sleepSpeedLabel,
   ValueListenable<String>? sleepSpeedListenable,
+  required bool backgroundSoundEnabled,
+  required ValueChanged<bool> onBackgroundSoundEnabledChanged,
   required String backgroundSoundName,
   ValueListenable<String>? backgroundSoundListenable,
   required VoidCallback onSleepSpeedTap,
@@ -36,6 +38,8 @@ void showSleepModeSettingsModal(
       onSleepModeChanged: onSleepModeChanged,
       sleepSpeedLabel: sleepSpeedLabel,
       sleepSpeedListenable: sleepSpeedListenable,
+      backgroundSoundEnabled: backgroundSoundEnabled,
+      onBackgroundSoundEnabledChanged: onBackgroundSoundEnabledChanged,
       backgroundSoundName: backgroundSoundName,
       backgroundSoundListenable: backgroundSoundListenable,
       onSleepSpeedTap: onSleepSpeedTap,
@@ -51,18 +55,22 @@ class _SleepModeSettingsSheet extends StatefulWidget {
   final ValueChanged<bool> onSleepModeChanged;
   final String sleepSpeedLabel;
   final ValueListenable<String>? sleepSpeedListenable;
+  final bool backgroundSoundEnabled;
+  final ValueChanged<bool> onBackgroundSoundEnabledChanged;
   final String backgroundSoundName;
   final ValueListenable<String>? backgroundSoundListenable;
   final VoidCallback onSleepSpeedTap;
   final VoidCallback onBackgroundSoundTap;
   final VoidCallback onClose;
 
-  const _SleepModeSettingsSheet({
+  _SleepModeSettingsSheet({
     required this.selectedMinutes,
     required this.onTimerSelect,
     required this.onSleepModeChanged,
     required this.sleepSpeedLabel,
     this.sleepSpeedListenable,
+    required this.backgroundSoundEnabled,
+    required this.onBackgroundSoundEnabledChanged,
     required this.backgroundSoundName,
     this.backgroundSoundListenable,
     required this.onSleepSpeedTap,
@@ -76,11 +84,13 @@ class _SleepModeSettingsSheet extends StatefulWidget {
 
 class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
   late int? _selectedTimer;
+  bool _backgroundSoundEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _selectedTimer = widget.selectedMinutes;
+    _backgroundSoundEnabled = widget.backgroundSoundEnabled;
   }
 
   static const _options = [15, 30, 45, 60];
@@ -152,6 +162,7 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
           const SizedBox(height: 20),
           _sleepSpeedRow(),
           _backgroundSoundRow(),
+          if (_backgroundSoundEnabled) _selectSoundRow(),
           _settingRow(
             icon: '🌙',
             label: 'Sleep Mode',
@@ -203,23 +214,76 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
   }
 
   Widget _backgroundSoundRow() {
+    return _settingRow(
+      icon: '🎵',
+      label: 'Background Sound',
+      trailing: Switch(
+        value: _backgroundSoundEnabled,
+        onChanged: (value) {
+          setState(() => _backgroundSoundEnabled = value);
+          widget.onBackgroundSoundEnabledChanged(value);
+        },
+        activeTrackColor: _SleepColors.sleepPurple,
+        activeThumbColor: Colors.white,
+      ),
+    );
+  }
+
+  Widget _selectSoundRow() {
     final listenable = widget.backgroundSoundListenable;
     if (listenable != null) {
       return ValueListenableBuilder<String>(
         valueListenable: listenable,
-        builder: (context, name, _) => _settingRow(
-          icon: '🎵',
-          label: 'Background Sound',
+        builder: (context, name, _) => _settingSubRow(
+          label: 'Select Sound',
           value: '$name →',
           onTap: widget.onBackgroundSoundTap,
         ),
       );
     }
-    return _settingRow(
-      icon: '🎵',
-      label: 'Background Sound',
+    return _settingSubRow(
+      label: 'Select Sound',
       value: '${widget.backgroundSoundName} →',
       onTap: widget.onBackgroundSoundTap,
+    );
+  }
+
+  Widget _settingSubRow({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            const SizedBox(width: 30),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: ModalColors.inkSoft,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                value,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: ModalColors.inkSoft,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                textAlign: TextAlign.end,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
