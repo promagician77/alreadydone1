@@ -11,6 +11,7 @@ import '/pages/subscription/subscription_widget.dart';
 import '/widgets/pressable.dart';
 import '/services/app_toast.dart';
 import '/services/backend_client.dart';
+import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
 import 'home_dashboard_model.dart';
@@ -94,18 +95,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
   Future<void> _loadSubscriptionStatus() async {
     if (!mounted) return;
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return;
     try {
-      final status = await BackendClient.getSubscriptionStatus(userId);
-      final subId = status['stripe_subscription_id']?.toString().trim();
-      final statusStr = status['subscription_status']?.toString().trim().toLowerCase();
-      final isCanceled = statusStr == 'canceled';
-      final hasSubscription = subId != null &&
-          subId.isNotEmpty &&
-          !isCanceled;
+      final status = await RevenueCatService.instance.getSubscriptionStatus();
       if (mounted) safeSetState(() {
-        _model.isSubscribed = hasSubscription;
+        _model.isSubscribed = status.isSubscribed;
         _model.subscriptionStatusLoaded = true;
       });
     } catch (_) {
@@ -387,17 +380,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   Future<void> _handleUnlockSleepMode() async {
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null || !mounted) return;
+    if (!mounted) return;
     try {
-      final status = await BackendClient.getSubscriptionStatus(userId);
-      final subId = status['stripe_subscription_id']?.toString().trim();
-      print('subId: $subId');
-      final statusStr = status['subscription_status']?.toString().trim();
-      print('statusStr: $statusStr');
-      final hasSubscription = subId != null && subId.isNotEmpty && statusStr != 'canceled';
+      final isSubscribed = await RevenueCatService.instance.isSubscribed();
       if (!mounted) return;
-      if (hasSubscription) {
+      if (isSubscribed) {
         sleepModeNotifier.value = true;
         context.go('/player');
       } else {

@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
+import '/services/revenuecat_service.dart';
 import '/services/fcm_service.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -65,13 +65,7 @@ Future<void> _initializeApp() async {
 
   BackendClient.initialize(baseUrl: dotenv.env['BACKEND_URL']);
 
-  final stripeKey = dotenv.env['STRIPE_PUBLISHABLE_KEY']?.trim();
-  if (stripeKey != null && stripeKey.isNotEmpty) {
-    Stripe.publishableKey = stripeKey;
-    await Stripe.instance.applySettings();
-  } else {
-    debugPrint('Stripe: STRIPE_PUBLISHABLE_KEY not set in .env — payment sheet will not work until you add it.');
-  }
+  await RevenueCatService.instance.configure();
 
   final connected = await BackendClient.checkConnection();
   if (connected) {

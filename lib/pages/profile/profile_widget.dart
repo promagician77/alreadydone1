@@ -9,6 +9,7 @@ import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
 import '/services/backend_client.dart';
 import '/services/last_played_service.dart';
+import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_state.dart';
 import 'profile_model.dart';
@@ -51,6 +52,19 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     _model.switchValue1 ??= true;
     _model.switchValue2 ??= true;
     _loadProfile();
+    _loadSubscriptionStatus();
+  }
+
+  Future<void> _loadSubscriptionStatus() async {
+    try {
+      final status = await RevenueCatService.instance.getSubscriptionStatus();
+      if (mounted) {
+        setState(() {
+          _model.isSubscribedFromRC = status.isSubscribed;
+          _model.showUpgradeCardFromRC = status.isMonthlyPlan && !status.isCanceled;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadProfile() async {
@@ -822,21 +836,10 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     );
   }
 
-  bool get _isSubscribed {
-    final subId = _model.profileData?['stripe_subscription_id'] ??
-        _model.profileData?['stripe_subscription_Id'] ??
-        _model.profileData?['stripe_subscription_ID'];
-    final s = subId?.toString().trim() ?? '';
-    return s.isNotEmpty;
-  }
+  bool get _isSubscribed => _model.isSubscribedFromRC;
 
-  /// True when user's subscription_plan is monthly (show upgrade card). Hide when annual.
-  bool get _showUpgradeCard {
-    final plan = _model.profileData?['subscription_plan']?.toString().trim().toLowerCase() ??
-        _model.profileData?['Subscription_Plan']?.toString().trim().toLowerCase() ??
-        _model.profileData?['subscription_Plan']?.toString().trim().toLowerCase();
-    return plan == 'monthly';
-  }
+  /// True when user's plan is monthly (show upgrade card). From RevenueCat.
+  bool get _showUpgradeCard => _model.showUpgradeCardFromRC;
 
   Widget _buildLogoutSection() {
     return Padding(

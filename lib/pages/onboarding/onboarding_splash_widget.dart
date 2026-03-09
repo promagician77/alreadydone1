@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/pages/subscription/subscription_model.dart';
-import '/services/backend_client.dart';
+import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_personalize_widget.dart';
 
@@ -31,13 +32,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Future<void> _loadSubscriptionStatus() async {
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return;
     try {
-      final status = await BackendClient.getSubscriptionStatus(userId);
-      final subId = status['stripe_subscription_id']?.toString().trim();
-      final hasSub = subId != null && subId.isNotEmpty;
-      if (mounted) safeSetState(() => _model.isSubscribed = hasSub);
+      final status = await RevenueCatService.instance.getSubscriptionStatus();
+      if (mounted) safeSetState(() => _model.isSubscribed = status.isSubscribed);
     } catch (_) {}
   }
 
@@ -191,32 +188,32 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     return Column(
       children: [
         _buildPricingCard(
-          plan: 'Annual',
-          price: '\$69.99',
-          period: '/year',
+          plan: 'Monthly',
+          price: '\$29.99',
+          period: '/month',
           isRecommended: true,
-          savingsLabel: 'Save \$50 vs monthly plan',
+          savingsLabel: 'Save 30% vs weekly plan',
           features: const [
-            'Unlimited manifestation stories',
-            'Custom voice cloning',
+            'Daily manifestation stories',
+            'Clone your own voice',
             'Sleep Mode with theta waves',
-            'All premium voices',
+            'Professional voice available',
           ],
           isSelected: _model.selectedPlan == 0,
           onTap: () => safeSetState(() => _model.selectedPlan = 0),
         ),
         const SizedBox(height: 12),
         _buildPricingCard(
-          plan: 'Monthly',
+          plan: 'Weekly',
           price: '\$9.99',
-          period: '/month',
+          period: '/week',
           isRecommended: false,
           savingsLabel: null,
           features: const [
-            'Unlimited manifestation stories',
-            'Custom voice cloning',
+            'Daily manifestation stories',
+            'Clone your own voice',
             'Sleep Mode with theta waves',
-            'All premium voices',
+            'Professional voice available',
           ],
           isSelected: _model.selectedPlan == 1,
           onTap: () => safeSetState(() => _model.selectedPlan = 1),
@@ -395,16 +392,18 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     );
   }
 
-  String get _planForBackend {
-    if (_model.selectedPlan == 1) return 'monthly';
-    return 'annual';
-  }
-
-  static bool _isStripeConfigError(Object e) {
-    final s = e.toString();
-    return s.contains('StripeConfigException') ||
-        s.contains('publishable') && s.toLowerCase().contains('required') ||
-        s.contains('Publishable Key is required');
+  Package? _findPackage(Offerings? offerings, {required bool wantMonthly}) {
+    final packages = offerings?.current?.availablePackages ?? [];
+    for (final p in packages) {
+      final id = p.identifier.toLowerCase();
+      if (wantMonthly && (id.contains('monthly') || id.contains('\$rc_monthly'))) {
+        return p;
+      }
+      if (!wantMonthly && (id.contains('weekly') || id.contains('\$rc_weekly'))) {
+        return p;
+      }
+    }
+    return packages.isNotEmpty ? packages.first : null;
   }
 
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
@@ -416,8 +415,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     }
 
     final userId = await SupabaseService.getCurrentUserTableId();
-    final email = SupabaseService.currentUser?.email?.trim();
-    if (userId == null || email == null || email.isEmpty) {
+    if (userId == null) {
       AppToast.error(context, 'Please sign in to subscribe');
       return;
     }
@@ -425,70 +423,57 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
 
     try {
-      final setupResponse = await BackendClient.createSetupIntent(
-        userId: userId,
-        customerEmail: email,
-      );
-      final clientSecret = setupResponse['client_secret'] as String?;
-      final setupIntentId = setupResponse['setup_intent_id'] as String?;
-      if (clientSecret == null ||
-          clientSecret.isEmpty ||
-          setupIntentId == null ||
-          setupIntentId.isEmpty) {
-        throw Exception('Invalid setup intent response');
+      final offerings = await RevenueCatService.instance.getOfferings();
+      final wantMonthly = _model.selectedPlan == 0;
+      final package = _findPackage(offerings, wantMonthly: wantMonthly);
+      if (package == null) {
+        if (!mounted) return;
+        AppToast.error(context, 'Plans not available. Please try later.');
+        return;
       }
       if (!mounted) return;
 
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          setupIntentClientSecret: clientSecret,
-          merchantDisplayName: 'Already Done',
-        ),
-      );
-      if (!mounted) return;
-
-      await Stripe.instance.presentPaymentSheet();
-      if (!mounted) return;
-
-      await BackendClient.createSubscription(
-        userId: userId,
-        plan: _planForBackend,
-        setupIntentId: setupIntentId,
-        customerEmail: email,
-      );
+      await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
 
       AppToast.success(
         context,
-        isStartTrial ? '7-day free trial started!' : 'Subscription active!',
+        isStartTrial ? '3-day free trial started!' : 'Subscription active!',
       );
       context.go(OnboardingPersonalizeWidget.routePath);
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
+        AppToast.info(context, 'Payment canceled');
+      } else {
+        AppToast.error(context, e.message ?? 'Payment failed');
+      }
     } catch (e) {
       if (!mounted) return;
-      if (e is StripeException) {
-        if (e.error.code == FailureCode.Canceled) {
-          AppToast.info(context, 'Payment canceled');
-        } else {
-          AppToast.error(context, e.error.localizedMessage ?? 'Payment failed');
-        }
-      } else if (_isStripeConfigError(e)) {
-        AppToast.error(
-          context,
-          'Payment is not configured. Add STRIPE_PUBLISHABLE_KEY to your .env file (get it from Stripe Dashboard → API keys).',
-        );
-      } else {
-        final msg = e.toString().replaceFirst(RegExp(r'^Exception: '), '');
-        AppToast.error(
-          context,
-          msg.startsWith('Instance of ')
-              ? 'Payment failed. Please try again.'
-              : msg,
-        );
-      }
+      AppToast.error(
+        context,
+        e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '').startsWith('Instance of ')
+            ? 'Payment failed. Please try again.'
+            : e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), ''),
+      );
     } finally {
-      if (mounted) {
-        safeSetState(() => _model.isPaymentLoading = false);
-      }
+      if (mounted) safeSetState(() => _model.isPaymentLoading = false);
+    }
+  }
+
+  Future<void> _handleRestorePurchases() async {
+    if (_model.isPaymentLoading) return;
+    safeSetState(() => _model.isPaymentLoading = true);
+    try {
+      await RevenueCatService.instance.restorePurchases();
+      if (!mounted) return;
+      AppToast.success(context, 'Purchases restored');
+      _loadSubscriptionStatus();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, 'Could not restore. Please try again.');
+    } finally {
+      if (mounted) safeSetState(() => _model.isPaymentLoading = false);
     }
   }
 
@@ -518,7 +503,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Widget _buildSecondaryText() {
     return Text(
-      'Free for 7 days, then \$69.99/year or \$9.99/month.\nCancel anytime in Settings.',
+      'Free for 3 days, then \$9.99/week or \$29.99/month.\nCancel anytime in settings.',
       style: GoogleFonts.outfit(
         fontSize: 11,
         color: AuthTheme.inkSoft,
@@ -530,9 +515,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Widget _buildRestoreLink() {
     return GestureDetector(
-      onTap: () {
-        // TODO: Restore purchase
-      },
+      onTap: _handleRestorePurchases,
       child: Text(
         'Restore Purchase',
         style: GoogleFonts.outfit(

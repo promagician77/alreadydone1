@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
-import '/services/backend_client.dart';
+import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
 import '/widgets/animated_waveform_icon.dart';
 import 'subscription_model.dart';
@@ -37,32 +38,16 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Future<void> _loadSubscriptionStatus() async {
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return;
     try {
-      final status = await BackendClient.getSubscriptionStatus(userId);
-      final subId = status['stripe_subscription_id']?.toString().trim();
-      final hasSub = subId != null && subId.isNotEmpty;
-      final plan = (status['subscription_plan'] ?? status['Subscription_Plan'])
-          ?.toString()
-          .trim()
-          .toLowerCase();
-      final statusStr = (status['subscription_status'] ?? status['Subscription_Status'])
-          ?.toString()
-          .trim()
-          .toLowerCase();
-      final isAnnual = plan == 'annual';
-      final isMonthly = plan == 'monthly' || plan == 'weekly';
-      final isTrialing = statusStr == 'trialing';
-      final isCanceled = statusStr == 'canceled';
+      final status = await RevenueCatService.instance.getSubscriptionStatus();
       if (mounted) {
         safeSetState(() {
-          _model.isSubscribed = hasSub;
-          _model.isAnnualPlan = isAnnual;
-          _model.isMonthlyPlan = isMonthly;
-          _model.isTrialing = isTrialing;
-          _model.isCanceled = isCanceled;
-          if (isMonthly && _model.selectedPlan == null) _model.selectedPlan = 0;
+          _model.isSubscribed = status.isSubscribed;
+          _model.isAnnualPlan = status.isAnnualPlan;
+          _model.isMonthlyPlan = status.isMonthlyPlan;
+          _model.isTrialing = status.isTrialing;
+          _model.isCanceled = status.isCanceled;
+          if (status.isMonthlyPlan && _model.selectedPlan == null) _model.selectedPlan = 0;
         });
       }
     } catch (_) {}
@@ -272,7 +257,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         ],
       ),
       child: Text(
-        '✨ Start your 7-day free trial today',
+        '✨ Start your 3-day free trial today',
         style: GoogleFonts.outfit(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -284,43 +269,42 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildPricingCards() {
-    // Canceled: show original UI (annual first). Monthly and not canceled: show upgrade-to-annual UI.
+    // Monthly plan user: show Monthly (current) first, Weekly second.
     final isMonthlyView = _model.isMonthlyPlan && !_model.isCanceled;
     if (isMonthlyView) {
-      // Monthly user: show Monthly (current) first, Annual (upgrade) second.
       return Column(
         children: [
           _buildPricingCard(
             plan: 'Monthly',
-            price: '\$9.99',
+            price: '\$29.99',
             period: '/month',
+            savings: 'Save 30% vs weekly plan',
             breakdown: 'Billed monthly · Cancel anytime',
             features: [
-              'Unlimited daily stories',
-              'Sleep Mode & all speeds',
-              'Re-record voice anytime',
+              'Daily manifestation stories',
+              'Clone your own voice',
+              'Sleep Mode with theta waves',
+              'Professional voice available',
             ],
-            isSelected: _model.selectedPlan == 1,
-            onTap: () => safeSetState(() => _model.selectedPlan = 1),
+            isSelected: _model.selectedPlan == 0,
+            onTap: () => safeSetState(() => _model.selectedPlan = 0),
             badgeLabel: 'CURRENT PLAN',
           ),
           const SizedBox(height: 10),
           _buildPricingCard(
-            plan: 'Annual',
-            price: '\$69.99',
-            period: '/year',
-            savings: 'Save \$50 vs monthly plan',
-            breakdown: 'Equivalent to \$5.83/month · Billed annually',
+            plan: 'Weekly',
+            price: '\$9.99',
+            period: '/week',
+            breakdown: 'Billed weekly · Cancel anytime',
             features: [
-              'Unlimited daily stories',
-              'Sleep Mode & all speeds',
-              'Re-record voice anytime',
-              'Offline access forever',
+              'Daily manifestation stories',
+              'Clone your own voice',
+              'Sleep Mode with theta waves',
+              'Professional voice available',
             ],
             isPopular: false,
-            isSelected: _model.selectedPlan == 0,
-            onTap: () => safeSetState(() => _model.selectedPlan = 0),
-            badgeLabel: 'UPGRADE NOW',
+            isSelected: _model.selectedPlan == 1,
+            onTap: () => safeSetState(() => _model.selectedPlan = 1),
           ),
         ],
       );
@@ -328,16 +312,16 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     return Column(
       children: [
         _buildPricingCard(
-          plan: 'Annual',
-          price: '\$69.99',
-          period: '/year',
-          savings: 'Best Value',
-          breakdown: 'Equivalent to \$5.83/month · Billed annually',
+          plan: 'Monthly',
+          price: '\$29.99',
+          period: '/month',
+          savings: 'BEST VALUE',
+          breakdown: 'Billed monthly · Cancel anytime',
           features: [
-            'Unlimited daily stories',
-            'Sleep Mode & all speeds',
-            'Re-record voice anytime',
-            'Offline access forever',
+            'Daily manifestation stories',
+            'Clone your own voice',
+            'Sleep Mode with theta waves',
+            'Professional voice available',
           ],
           isPopular: true,
           isSelected: _model.selectedPlan == 0,
@@ -345,14 +329,15 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         ),
         const SizedBox(height: 10),
         _buildPricingCard(
-          plan: 'Monthly',
+          plan: 'Weekly',
           price: '\$9.99',
-          period: '/month',
-          breakdown: 'Billed monthly · Cancel anytime',
+          period: '/week',
+          breakdown: 'Billed weekly · Cancel anytime',
           features: [
-            'Unlimited daily stories',
-            'Sleep Mode & all speeds',
-            'Re-record voice anytime',
+            'Daily manifestation stories',
+            'Clone your own voice',
+            'Sleep Mode with theta waves',
+            'Professional voice available',
           ],
           isSelected: _model.selectedPlan == 1,
           onTap: () => safeSetState(() => _model.selectedPlan = 1),
@@ -585,8 +570,8 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     final label = _model.isCanceled
         ? 'Upgrade the Plan'
         : (_model.isMonthlyPlan
-            ? 'Upgrade to Annual'
-            : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start 7-day free trial'));
+            ? 'Upgrade to Monthly'
+            : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start Free Trial'));
     final onTap = _model.isCanceled
         ? () => _handleConfirmPayment(isStartTrial: false)
         : (_model.isMonthlyPlan ? _handleChangeToAnnual : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed));
@@ -610,68 +595,63 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     );
   }
 
+  /// Opens system subscription management (e.g. App Store / Play Store).
   Future<void> _handleCancelPayment() async {
-    if (_model.isPaymentLoading) return;
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) {
-      AppToast.error(context, 'Please sign in');
-      return;
-    }
-    safeSetState(() => _model.isPaymentLoading = true);
-    try {
-      await BackendClient.cancelSubscription(userId: userId);
-      if (!mounted) return;
-      AppToast.success(context, 'Payment canceled');
-      _loadSubscriptionStatus();
-    } catch (e) {
-      if (!mounted) return;
-      final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
-      AppToast.error(
-        context,
-        msg.startsWith('Instance of ') ? 'Could not cancel. Please try again.' : msg,
-      );
-    } finally {
-      if (mounted) safeSetState(() => _model.isPaymentLoading = false);
-    }
+    AppToast.info(
+      context,
+      'Manage or cancel your subscription in your device Settings → Subscriptions.',
+    );
+    _loadSubscriptionStatus();
   }
 
-  /// Plan for backend: "annual" or "monthly". Uses selected plan or default annual for trial.
-  String get _planForBackend {
-    if (_model.selectedPlan == 1) return 'monthly';
-    return 'annual';
-  }
-
-  static bool _isStripeConfigError(Object e) {
-    final s = e.toString();
-    return s.contains('StripeConfigException') ||
-        s.contains('publishable') && s.toLowerCase().contains('required') ||
-        s.contains('Publishable Key is required');
-  }
-
-  /// Called when monthly-plan user taps "Upgrade to Annual". Calls change-plan API (no payment sheet).
+  /// Upgrade monthly → annual: purchase the annual package via RevenueCat.
   Future<void> _handleChangeToAnnual() async {
     if (_model.isPaymentLoading) return;
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) {
-      AppToast.error(context, 'Please sign in to upgrade');
-      return;
-    }
     safeSetState(() => _model.isPaymentLoading = true);
     try {
-      await BackendClient.changeSubscriptionPlan(userId: userId, plan: 'annual');
+      final offerings = await RevenueCatService.instance.getOfferings();
+      final package = _findPackage(offerings, wantMonthly: true);
+      if (package == null) {
+        if (!mounted) return;
+        AppToast.error(context, 'Monthly plan not available. Please try later.');
+        return;
+      }
+      await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
-      AppToast.success(context, 'Upgraded to Annual!');
+      AppToast.success(context, 'Upgraded to Monthly!');
       context.go('/');
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
+        AppToast.info(context, 'Upgrade canceled');
+      } else {
+        AppToast.error(context, e.message ?? 'Upgrade failed');
+      }
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
       AppToast.error(
         context,
-        msg.startsWith('Instance of ') ? 'Upgrade failed. Please try again.' : msg,
+        e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '').startsWith('Instance of ')
+            ? 'Upgrade failed. Please try again.'
+            : e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), ''),
       );
     } finally {
       if (mounted) safeSetState(() => _model.isPaymentLoading = false);
     }
+  }
+
+  Package? _findPackage(Offerings? offerings, {required bool wantMonthly}) {
+    final packages = offerings?.current?.availablePackages ?? [];
+    for (final p in packages) {
+      final id = p.identifier.toLowerCase();
+      if (wantMonthly && (id.contains('monthly') || id.contains('\$rc_monthly'))) {
+        return p;
+      }
+      if (!wantMonthly && (id.contains('weekly') || id.contains('\$rc_weekly'))) {
+        return p;
+      }
+    }
+    return packages.isNotEmpty ? packages.first : null;
   }
 
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
@@ -683,8 +663,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     }
 
     final userId = await SupabaseService.getCurrentUserTableId();
-    final email = SupabaseService.currentUser?.email?.trim();
-    if (userId == null || email == null || email.isEmpty) {
+    if (userId == null) {
       AppToast.error(context, 'Please sign in to subscribe');
       return;
     }
@@ -692,63 +671,54 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
 
     try {
-      final setupResponse = await BackendClient.createSetupIntent(
-        userId: userId,
-        customerEmail: email,
-      );
-      final clientSecret = setupResponse['client_secret'] as String?;
-      final setupIntentId = setupResponse['setup_intent_id'] as String?;
-      if (clientSecret == null || clientSecret.isEmpty || setupIntentId == null || setupIntentId.isEmpty) {
-        throw Exception('Invalid setup intent response');
+      final offerings = await RevenueCatService.instance.getOfferings();
+      final wantMonthly = _model.selectedPlan == 0;
+      final package = _findPackage(offerings, wantMonthly: wantMonthly);
+      if (package == null) {
+        if (!mounted) return;
+        AppToast.error(context, 'Plans not available. Please try later.');
+        return;
       }
       if (!mounted) return;
 
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          setupIntentClientSecret: clientSecret,
-          merchantDisplayName: 'Already Done',
-        ),
-      );
+      await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
 
-      await Stripe.instance.presentPaymentSheet();
-      if (!mounted) return;
-
-      await BackendClient.createSubscription(
-        userId: userId,
-        plan: _planForBackend,
-        setupIntentId: setupIntentId,
-        customerEmail: email,
-      );
-      if (!mounted) return;
-
-      AppToast.success(context, isStartTrial ? '7-day free trial started!' : 'Subscription active!');
+      AppToast.success(context, isStartTrial ? '3-day free trial started!' : 'Subscription active!');
       context.go('/');
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
+        AppToast.info(context, 'Payment canceled');
+      } else {
+        AppToast.error(context, e.message ?? 'Payment failed');
+      }
     } catch (e) {
       if (!mounted) return;
-      if (e is StripeException) {
-        if (e.error.code == FailureCode.Canceled) {
-          AppToast.info(context, 'Payment canceled');
-          context.go(SubscriptionWidget.routePath);
-        } else {
-          AppToast.error(context, e.error.localizedMessage ?? 'Payment failed');
-        }
-      } else if (_isStripeConfigError(e)) {
-        AppToast.error(
-          context,
-          'Payment is not configured. Add STRIPE_PUBLISHABLE_KEY to your .env file (get it from Stripe Dashboard → API keys).',
-        );
-      } else {
-        final msg = e.toString().replaceFirst(RegExp(r'^Exception: '), '');
-        AppToast.error(
-          context,
-          msg.startsWith('Instance of ') ? 'Payment failed. Please try again.' : msg,
-        );
-      }
+      AppToast.error(
+        context,
+        e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '').startsWith('Instance of ')
+            ? 'Payment failed. Please try again.'
+            : e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), ''),
+      );
     } finally {
-      if (mounted) {
-        safeSetState(() => _model.isPaymentLoading = false);
-      }
+      if (mounted) safeSetState(() => _model.isPaymentLoading = false);
+    }
+  }
+
+  Future<void> _handleRestorePurchases() async {
+    if (_model.isPaymentLoading) return;
+    safeSetState(() => _model.isPaymentLoading = true);
+    try {
+      await RevenueCatService.instance.restorePurchases();
+      if (!mounted) return;
+      AppToast.success(context, 'Purchases restored');
+      _loadSubscriptionStatus();
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, 'Could not restore. Please try again.');
+    } finally {
+      if (mounted) safeSetState(() => _model.isPaymentLoading = false);
     }
   }
 
@@ -778,7 +748,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
 
   Widget _buildLegalText() {
     return Text(
-      "After your 7-day trial, you'll be charged the selected plan amount. Cancel anytime in Settings. By continuing, you agree to our Terms and Privacy Policy.",
+      "Free for 3 days, then \$9.99/week or \$29.99/month. Cancel anytime in settings. By continuing, you agree to our Terms and Privacy Policy.",
       style: GoogleFonts.outfit(
         fontSize: 10,
         color: AuthTheme.inkSoft,
@@ -790,9 +760,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
 
   Widget _buildRestoreLink() {
     return GestureDetector(
-      onTap: () {
-        // TODO: Restore purchase
-      },
+      onTap: _handleRestorePurchases,
       child: Text(
         'Restore Purchase',
         style: GoogleFonts.outfit(

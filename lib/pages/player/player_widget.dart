@@ -2734,6 +2734,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
+  void _onDeepenTap() {
+    if (_isDeepening) return;
+    showDeepenConfirmModal(
+      context,
+      onContinue: _deepenManifestation,
+    );
+  }
+
   Widget _buildDeepenButton() {
     final isLoading = _isDeepening;
     return Container(
@@ -2742,7 +2750,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isLoading ? null : () => showDeepenManifestationModal(context, onContinue: _deepenManifestation),
+          onTap: isLoading ? null : _onDeepenTap,
           borderRadius: BorderRadius.circular(14),
           child: Opacity(
             opacity: isLoading ? 0.7 : 1,
