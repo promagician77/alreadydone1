@@ -47,6 +47,8 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
   late AnimationController _sparkleController;
   late AnimationController _slideController;
   late Animation<double> _slideAnimation;
+  late AnimationController _featureController;
+  late List<Animation<double>> _featureAnimations;
 
   @override
   void initState() {
@@ -80,6 +82,28 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
       curve: Curves.easeOutCubic,
     );
     _slideController.forward();
+
+    _featureController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _featureAnimations = [
+      CurvedAnimation(
+        parent: _featureController,
+        curve: const Interval(0.0, 0.33, curve: Curves.easeOut),
+      ),
+      CurvedAnimation(
+        parent: _featureController,
+        curve: const Interval(0.33, 0.66, curve: Curves.easeOut),
+      ),
+      CurvedAnimation(
+        parent: _featureController,
+        curve: const Interval(0.66, 1.0, curve: Curves.easeOut),
+      ),
+    ];
+    Future<void>.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) _featureController.forward();
+    });
   }
 
   @override
@@ -89,6 +113,7 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
     _floatController.dispose();
     _sparkleController.dispose();
     _slideController.dispose();
+    _featureController.dispose();
     super.dispose();
   }
 
@@ -230,7 +255,7 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
               const SizedBox(height: 24),
               _fadeIn(0.4, _buildExplanation(isSmall)),
               const SizedBox(height: 24),
-              _fadeIn(0.5, _buildFeatures(isSmall)),
+              _buildFeatures(isSmall),
               const SizedBox(height: 24),
               _fadeIn(0.5, _buildInfoBox(isSmall)),
               const SizedBox(height: 28),
@@ -271,11 +296,6 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: _DeepenModalColors.gold.withValues(alpha: 0.3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
                       color: Colors.white.withValues(alpha: 0.5),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
@@ -289,6 +309,7 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                   ),
                 ),
               ),
+              // First sparkle (top-right)
               Positioned(
                 top: -10,
                 right: -10,
@@ -303,6 +324,52 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
                       child: Transform.scale(
                         scale: scale,
                         child: const Text('✨', style: TextStyle(fontSize: 24)),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Second flying star (further out, trailing)
+              Positioned(
+                top: -22,
+                right: -18,
+                child: AnimatedBuilder(
+                  animation: _sparkleController,
+                  builder: (context, child) {
+                    final t = _sparkleController.value;
+                    final opacity = (t > 0.3 && t < 0.7) ? (t - 0.3) * 2.5 : 0.0;
+                    final translate = Offset(4 * (1 - t), -6 * (1 - t));
+                    return Opacity(
+                      opacity: opacity.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: translate,
+                        child: Transform.scale(
+                          scale: 0.7,
+                          child: const Text('✨', style: TextStyle(fontSize: 18)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Third flying star (smallest, trailing upward-right)
+              Positioned(
+                top: -28,
+                right: -8,
+                child: AnimatedBuilder(
+                  animation: _sparkleController,
+                  builder: (context, child) {
+                    final t = _sparkleController.value;
+                    final opacity = (t > 0.5 && t < 0.9) ? (t - 0.5) * 2.5 : 0.0;
+                    final translate = Offset(6 * t, -8 * t);
+                    return Opacity(
+                      opacity: opacity.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: translate,
+                        child: Transform.scale(
+                          scale: 0.5,
+                          child: const Text('✨', style: TextStyle(fontSize: 14)),
+                        ),
                       ),
                     );
                   },
@@ -384,50 +451,61 @@ class _DeepenManifestationDialogState extends State<_DeepenManifestationDialog>
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: features.map((f) {
+      children: List.generate(features.length, (index) {
+        final f = features[index];
+        final anim = _featureAnimations[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Container(
-            padding: EdgeInsets.all(isSmall ? 12 : 14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _DeepenModalColors.gold.withValues(alpha: 0.1),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(f.$1, style: TextStyle(fontSize: isSmall ? 18 : 20)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: GoogleFonts.inter(
-                        fontSize: isSmall ? 13 : 14,
-                        height: 1.5,
-                        color: _DeepenModalColors.textDark,
-                      ),
-                      children: [
-                        TextSpan(text: f.$2),
-                        TextSpan(
-                          text: f.$3,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _DeepenModalColors.goldDark,
-                          ),
-                        ),
-                        TextSpan(text: f.$4),
-                      ],
-                    ),
+          child: FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.04, 0),
+                end: Offset.zero,
+              ).animate(anim),
+              child: Container(
+                padding: EdgeInsets.all(isSmall ? 12 : 14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _DeepenModalColors.gold.withValues(alpha: 0.1),
                   ),
                 ),
-              ],
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(f.$1, style: TextStyle(fontSize: isSmall ? 18 : 20)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.inter(
+                            fontSize: isSmall ? 13 : 14,
+                            height: 1.5,
+                            color: _DeepenModalColors.textDark,
+                          ),
+                          children: [
+                            TextSpan(text: f.$2),
+                            TextSpan(
+                              text: f.$3,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: _DeepenModalColors.goldDark,
+                              ),
+                            ),
+                            TextSpan(text: f.$4),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 
