@@ -118,10 +118,34 @@ class RevenueCatService {
   }
 
   /// Fetch current offerings. Returns null on non-iOS (so UI can show iOS-only message).
+  /// In debug, logs what RevenueCat returned so you can fix "plan not available" (check
+  /// dashboard: set a Current offering and add packages whose identifiers contain "weekly" or "monthly").
   Future<Offerings?> getOfferings() async {
     if (!isIOS) return null;
     try {
-      return await Purchases.getOfferings();
+      final offerings = await Purchases.getOfferings();
+      if (kDebugMode && offerings != null) {
+        final current = offerings.current;
+        if (current == null) {
+          debugPrint(
+            'RevenueCat: no current offering. In dashboard set one offering as "Current". '
+            'Available offering ids: ${offerings.all.keys.join(", ")}',
+          );
+        } else {
+          final packages = current.availablePackages;
+          debugPrint(
+            'RevenueCat: current offering="${current.identifier}", '
+            'packages=${packages.map((p) => p.identifier).join(", ")}',
+          );
+          if (packages.isEmpty) {
+            debugPrint(
+              'RevenueCat: no packages in current offering. Add products to this offering '
+              'and ensure App Store Connect in-app products are approved and synced.',
+            );
+          }
+        }
+      }
+      return offerings;
     } catch (e) {
       debugPrint('RevenueCat getOfferings error: $e');
       return null;

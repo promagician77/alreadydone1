@@ -396,14 +396,14 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     final packages = offerings?.current?.availablePackages ?? [];
     for (final p in packages) {
       final id = p.identifier.toLowerCase();
-      if (wantMonthly && (id.contains('monthly') || id.contains('\$rc_monthly'))) {
-        return p;
-      }
-      if (!wantMonthly && (id.contains('weekly') || id.contains('\$rc_weekly'))) {
-        return p;
-      }
+      final isMonthly = id.contains('monthly') || id.contains('month') || id.contains(r'$rc_monthly');
+      final isWeekly = id.contains('weekly') || id.contains('week') || id.contains(r'$rc_weekly');
+      if (wantMonthly && isMonthly) return p;
+      if (!wantMonthly && isWeekly) return p;
     }
-    return packages.isNotEmpty ? packages.first : null;
+    // Fallback: if only one plan exists, use it (dashboard may have single package)
+    if (packages.length == 1) return packages.first;
+    return null;
   }
 
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
