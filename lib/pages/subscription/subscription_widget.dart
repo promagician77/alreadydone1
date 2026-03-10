@@ -43,7 +43,6 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       if (mounted) {
         safeSetState(() {
           _model.isSubscribed = status.isSubscribed;
-          _model.isAnnualPlan = status.isAnnualPlan;
           _model.isMonthlyPlan = status.isMonthlyPlan;
           _model.isTrialing = status.isTrialing;
           _model.isCanceled = status.isCanceled;
@@ -100,7 +99,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       _buildTrialBadge(),
                       const SizedBox(height: 20),
                       _buildPricingCards(),
-                      if (!_model.isAnnualPlan || _model.isCanceled) ...[
+                      if (!_model.isMonthlyPlan || _model.isCanceled) ...[
                         const SizedBox(height: 24),
                         _buildCtaButton(),
                         if (_model.isSubscribed && !_model.isCanceled) ...[

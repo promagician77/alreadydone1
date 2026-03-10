@@ -10,10 +10,7 @@ class SubscriptionModel extends FlutterFlowModel<SubscriptionWidget> {
   /// True when user has stripe_subscription_id (already subscribed).
   bool isSubscribed = false;
 
-  /// True when user's subscription_plan is annual (hide upgrade button).
-  bool isAnnualPlan = false;
-
-  /// True when user's subscription_plan is monthly (show current plan + upgrade UI).
+  /// True when user's plan is monthly (show current plan; hide upgrade CTA when not canceled).
   bool isMonthlyPlan = false;
 
   /// True when subscription_status is trialing (show cancel payment button if monthly).
