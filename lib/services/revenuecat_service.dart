@@ -9,17 +9,17 @@ class RevenueCatService {
   RevenueCatService._();
   static final RevenueCatService instance = RevenueCatService._();
 
-  /// Entitlement identifier configured in RevenueCat dashboard (e.g. "premium").
   static const String entitlementId = 'premium';
-
   static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
 
   bool _configured = false;
+  String? _currentUserId;
 
-  /// Subscriptions are supported only on iOS (App Store). Android/web get false/null.
   bool get isSupported => isIOS;
+  bool get isConfigured => _configured;
 
-  /// Call once at app startup (e.g. from main.dart). Only configures on iOS.
+  /// Call once at app startup. Only configures on iOS.
+  /// Pass [appUserId] to identify the user from the start.
   Future<void> configure({String? appUserId}) async {
     if (!isIOS) {
       debugPrint('RevenueCat: skipped (iOS only)');
@@ -28,23 +28,48 @@ class RevenueCatService {
     if (_configured) return;
     try {
       await Purchases.setLogLevel(LogLevel.debug);
-      await Purchases.configure(PurchasesConfiguration(_appleApiKey));
+
+      final config = PurchasesConfiguration(_appleApiKey);
       if (appUserId != null && appUserId.trim().isNotEmpty) {
-        await Purchases.logIn(appUserId.trim());
+        config.appUserID = appUserId.trim();
       }
+      await Purchases.configure(config);
+
+      _currentUserId = appUserId?.trim();
       _configured = true;
-      debugPrint('RevenueCat: configured');
+      debugPrint('RevenueCat: configured with userId=$_currentUserId');
     } catch (e, st) {
       debugPrint('RevenueCat configure error: $e');
       debugPrint('$st');
     }
   }
 
-  /// Call after user logs in to link RevenueCat to your user id. No-op on non-iOS.
+  /// Ensure the SDK is configured and the correct user is logged in.
+  /// Safe to call multiple times — only acts when needed.
+  Future<void> ensureReady({required String appUserId}) async {
+    if (!isIOS) return;
+
+    // Configure if not yet done
+    if (!_configured) {
+      await configure(appUserId: appUserId);
+      return; // configure already sets the user
+    }
+
+    // If already configured but for a different (or no) user, log in
+    final trimmed = appUserId.trim();
+    if (_currentUserId != trimmed) {
+      await logIn(trimmed);
+    }
+  }
+
+  /// Link RevenueCat to your user id. No-op on non-iOS.
   Future<void> logIn(String appUserId) async {
     if (!isIOS) return;
     try {
-      await Purchases.logIn(appUserId.trim());
+      final trimmed = appUserId.trim();
+      await Purchases.logIn(trimmed);
+      _currentUserId = trimmed;
+      debugPrint('RevenueCat: logIn success for $trimmed');
     } catch (e) {
       debugPrint('RevenueCat logIn error: $e');
     }
@@ -55,6 +80,8 @@ class RevenueCatService {
     if (!isIOS) return;
     try {
       await Purchases.logOut();
+      _currentUserId = null;
+      debugPrint('RevenueCat: logOut success');
     } catch (e) {
       debugPrint('RevenueCat logOut error: $e');
     }
@@ -91,8 +118,6 @@ class RevenueCatService {
 
       final isTrialing = entitlement?.periodType == PeriodType.trial;
 
-      // productIdentifier comes from App Store Connect product ID
-      // e.g. "com.yourapp.weekly" or "com.yourapp.monthly"
       final productId = (entitlement?.productIdentifier ?? '').toLowerCase();
 
       final isWeekly = productId.contains('weekly') ||
@@ -225,7 +250,7 @@ class RevenueCatService {
       if (PurchasesErrorHelper.getErrorCode(e) ==
           PurchasesErrorCode.purchaseCancelledError) {
         debugPrint(
-          'RevenueCat: purchase reported as cancelled. '
+          'RevenueCat: purchase cancelled. '
           'code=${e.code}, message=${e.message}, details=${e.details}',
         );
         rethrow;
@@ -259,7 +284,6 @@ class RevenueCatService {
 // Data classes
 // ---------------------------------------------------------------------------
 
-/// Available weekly/monthly packages (null = not found in current offering).
 class AvailablePlans {
   const AvailablePlans({
     required this.weekly,
@@ -274,7 +298,6 @@ class AvailablePlans {
   bool get hasAnyPlan => hasWeekly || hasMonthly;
 }
 
-/// Status derived from RevenueCat CustomerInfo.
 class RevenueCatSubscriptionStatus {
   const RevenueCatSubscriptionStatus({
     required this.isSubscribed,
@@ -290,6 +313,5 @@ class RevenueCatSubscriptionStatus {
   final bool isWeeklyPlan;
   final bool isMonthlyPlan;
 
-  /// Convenience: active and not canceled
   bool get isActiveAndRenewing => isSubscribed && !isCanceled;
 }

@@ -431,6 +431,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
 
     try {
+      // ✅ Ensure RevenueCat is configured and linked to this user BEFORE purchasing
+      await RevenueCatService.instance.ensureReady(appUserId: userId);
+
       final offerings = await RevenueCatService.instance.getOfferings();
       final wantMonthly = _model.selectedPlan == 0;
       final package = _findPackage(offerings, wantMonthly: wantMonthly);
@@ -456,8 +459,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       context.go(OnboardingPersonalizeWidget.routePath);
     } on PlatformException catch (e) {
       if (!mounted) return;
-      if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
-        // Log full reason (underlyingErrorMessage is often empty when only Apple ID sheet appeared)
+      if (PurchasesErrorHelper.getErrorCode(e) ==
+          PurchasesErrorCode.purchaseCancelledError) {
         debugPrint(
           'Onboarding purchase cancelled: code=${e.code}, '
           'message=${e.message}, details=${e.details}',
