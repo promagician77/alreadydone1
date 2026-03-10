@@ -71,25 +71,13 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
-          if (path == LoginWidget.routePath) {
-            return '/?fromLogin=1';
-          }
           final completed = await OnboardingService.hasCompletedOnboarding();
-          return completed ? '/' : OnboardingSplashWidget.routePath;
+          if (!completed) return OnboardingSplashWidget.routePath;
+          return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
         }
         if (isAuth && !isOnboardingRoute) {
           final completed = await OnboardingService.hasCompletedOnboarding();
-          if (!completed) {
-            if (state.uri.queryParameters['fromLogin'] == '1') return null;
-            final isMainAppRoute = path == '/' ||
-                path == HomeDashboardWidget.routePath ||
-                path == PlayerWidget.routePath ||
-                path == DesiresWidget.routePath ||
-                path == ProfileWidget.routePath ||
-                path == SubscriptionWidget.routePath;
-            if (isMainAppRoute) return null;
-            return OnboardingSplashWidget.routePath;
-          }
+          if (!completed) return OnboardingSplashWidget.routePath;
         }
         if (isAuth && isOnboardingRoute) {
           final completed = await OnboardingService.hasCompletedOnboarding();
