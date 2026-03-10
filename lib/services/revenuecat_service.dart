@@ -9,7 +9,6 @@ class RevenueCatService {
   RevenueCatService._();
   static final RevenueCatService instance = RevenueCatService._();
 
-  // ✅ FIX 2: Changed from 'premium' to match your RevenueCat dashboard
   static const String entitlementId = 'Already Done Pro';
   static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
 
@@ -19,8 +18,6 @@ class RevenueCatService {
   bool get isSupported => isIOS;
   bool get isConfigured => _configured;
 
-  /// Call once at app startup. Only configures on iOS.
-  /// Pass [appUserId] to identify the user from the start.
   Future<void> configure({String? appUserId}) async {
     if (!isIOS) {
       debugPrint('RevenueCat: skipped (iOS only)');
@@ -260,6 +257,9 @@ class RevenueCatService {
           'RevenueCat: purchase cancelled. '
           'code=${e.code}, message=${e.message}, details=${e.details}',
         );
+        // Note: StoreKit can return userCancelled=true even when the subscription
+        // sheet never appeared (e.g. after Apple ID sign-in). Callers may sync and
+        // recheck entitlement when this happens (see RevenueCat/purchases-ios#4903).
         rethrow;
       }
       debugPrint(

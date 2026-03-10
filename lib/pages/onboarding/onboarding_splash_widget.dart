@@ -465,6 +465,25 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           'Onboarding purchase cancelled: code=${e.code}, '
           'message=${e.message}, details=${e.details}',
         );
+        // Workaround for StoreKit bug: sometimes the subscription sheet never
+        // appears after Apple sign-in but StoreKit returns userCancelled=true.
+        // Sync and recheck entitlement; purchase may have completed on Apple's side.
+        try {
+          await RevenueCatService.instance.restorePurchases();
+          await Future<void>.delayed(const Duration(seconds: 2));
+          if (!mounted) return;
+          final status =
+              await RevenueCatService.instance.getSubscriptionStatus();
+          if (status.isSubscribed) {
+            AppToast.success(
+              context,
+              isStartTrial ? '3-day free trial started!' : 'Subscription active!',
+            );
+            context.go(OnboardingPersonalizeWidget.routePath);
+            return;
+          }
+        } catch (_) {}
+        if (!mounted) return;
         AppToast.info(
           context,
           'Subscription not started. Tap Start Free Trial again and complete both Apple ID and the subscription step.',
