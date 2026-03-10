@@ -457,8 +457,17 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
+        // Log full reason so we can see why purchase was cancelled (e.g. after Apple ID sign-in)
+        debugPrint(
+          'Onboarding purchase cancelled: code=${e.code}, '
+          'message=${e.message}, details=${e.details}',
+        );
         AppToast.info(context, 'Payment canceled');
       } else {
+        debugPrint(
+          'Onboarding purchase error: code=${e.code}, '
+          'message=${e.message}, details=${e.details}',
+        );
         AppToast.error(context, e.message ?? 'Payment failed');
       }
     } catch (e) {

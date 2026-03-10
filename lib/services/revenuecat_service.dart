@@ -166,8 +166,6 @@ class RevenueCatService {
     }
   }
 
-  /// Returns weekly and monthly packages from the current offering.
-  /// Both values can be null if not configured in dashboard.
   Future<AvailablePlans> getAvailablePlans() async {
     if (!isIOS) {
       return const AvailablePlans(weekly: null, monthly: null);
@@ -226,10 +224,16 @@ class RevenueCatService {
     } on PlatformException catch (e) {
       if (PurchasesErrorHelper.getErrorCode(e) ==
           PurchasesErrorCode.purchaseCancelledError) {
-        debugPrint('RevenueCat: purchase cancelled by user');
+        debugPrint(
+          'RevenueCat: purchase reported as cancelled. '
+          'code=${e.code}, message=${e.message}, details=${e.details}',
+        );
         rethrow;
       }
-      debugPrint('RevenueCat purchasePackage error: $e');
+      debugPrint(
+        'RevenueCat purchasePackage error: code=${e.code}, '
+        'message=${e.message}, details=${e.details}',
+      );
       rethrow;
     } catch (e) {
       debugPrint('RevenueCat purchasePackage error: $e');
