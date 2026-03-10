@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
-import '/services/supabase_service.dart' show SupabaseService, OAuthProvider;
+import '/services/supabase_service.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/services/app_toast.dart';
 import 'login_model.dart';
@@ -184,7 +184,7 @@ class _LoginWidgetState extends State<LoginWidget> {
 
   Future<void> _handleAppleSignIn() async {
     try {
-      await SupabaseService.signInWithOAuth(provider: OAuthProvider.apple);
+      await SupabaseService.signInWithApple();
     } catch (e) {
       if (mounted) {
         AppToast.error(context, 'Apple sign in error: ${e.toString()}');

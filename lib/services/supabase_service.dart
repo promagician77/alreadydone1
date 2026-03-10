@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
@@ -182,6 +187,67 @@ class SupabaseService {
     );
   }
 
+  /// Apple sign-in: native Sign in with Apple on iOS (Face ID / Touch ID), OAuth redirect on web/Android.
+  static Future<void> signInWithApple() async {
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    if (!isIOS) {
+      await signInWithOAuth(provider: OAuthProvider.apple);
+      return;
+    }
+    try {
+      final rawNonce = _generateSecureNonce();
+      final hashedNonce = _sha256ofString(rawNonce);
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+      final idToken = credential.identityToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception('Apple Sign-In: no identity token');
+      }
+      await client.auth.signInWithIdToken(
+        provider: OAuthProvider.apple,
+        idToken: idToken,
+        nonce: rawNonce,
+      );
+      final user = client.auth.currentUser;
+      if (user != null &&
+          credential.givenName != null &&
+          (credential.givenName!.isNotEmpty || credential.familyName != null)) {
+        final fullName = [credential.givenName, credential.familyName]
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .join(' ')
+            .trim();
+        if (fullName.isNotEmpty) {
+          await client.auth.updateUser(
+            UserAttributes(data: {'full_name': fullName}),
+          );
+        }
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return;
+      throw Exception(e.message);
+    } on PlatformException catch (e) {
+      throw Exception(e.message ?? 'Apple Sign-In failed');
+    }
+  }
+
+  static String _generateSecureNonce() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
+    return base64Url.encode(bytes);
+  }
+
+  static String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.bytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
+  }
+
   /// Google sign-in: native account picker on mobile (no browser), OAuth redirect on web.
   /// Uses GOOGLE_WEB_CLIENT_ID (Supabase/server) and GOOGLE_ANDROID_CLIENT_ID or GOOGLE_IOS_CLIENT_ID (app).
   static Future<void> signInWithGoogle() async {
@@ -206,6 +272,13 @@ class SupabaseService {
         'Add your Google Cloud Android OAuth client ID (package com.alreadydone.app + SHA-1).',
       );
     }
+    if (isIOS && (iosClientId == null || iosClientId.isEmpty)) {
+      throw Exception(
+        'GOOGLE_IOS_CLIENT_ID is not set in .env. '
+        'Add your Google Cloud iOS OAuth client ID (bundle id com.mycompany.alreadyapp). '
+        'Also add the reversed client ID as a URL scheme in ios/Runner/Info.plist.',
+      );
+    }
     final googleSignIn = GoogleSignIn(
       serverClientId: webClientId,
       clientId: isIOS && (iosClientId != null && iosClientId.isNotEmpty) ? iosClientId : null,
@@ -227,9 +300,13 @@ class SupabaseService {
       if (e.code == 'sign_in_failed' &&
           (e.message?.contains('ApiException: 10') ?? false)) {
         throw Exception(
-          'Google Sign-In setup error: add your app\'s SHA-1 and package name '
-          '(com.alreadydone.app) in Google Cloud Console → Credentials → '
-          'Create OAuth 2.0 Client ID → Android. Use Web client ID in Supabase and .env.',
+          isAndroid
+              ? 'Google Sign-In setup error: add your app\'s SHA-1 and package name '
+                '(com.alreadydone.app) in Google Cloud Console → Credentials → '
+                'Create OAuth 2.0 Client ID → Android. Use Web client ID in Supabase and .env.'
+              : 'Google Sign-In setup error: add iOS OAuth client ID (bundle id com.mycompany.alreadyapp) '
+                'in Google Cloud Console, set GOOGLE_IOS_CLIENT_ID in .env, and add the reversed '
+                'client ID URL scheme in ios/Runner/Info.plist.',
         );
       }
       rethrow;
