@@ -457,12 +457,15 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
-        // Log full reason so we can see why purchase was cancelled (e.g. after Apple ID sign-in)
+        // Log full reason (underlyingErrorMessage is often empty when only Apple ID sheet appeared)
         debugPrint(
           'Onboarding purchase cancelled: code=${e.code}, '
           'message=${e.message}, details=${e.details}',
         );
-        AppToast.info(context, 'Payment canceled');
+        AppToast.info(
+          context,
+          'Subscription not started. Tap Start Free Trial again and complete both Apple ID and the subscription step.',
+        );
       } else {
         debugPrint(
           'Onboarding purchase error: code=${e.code}, '
