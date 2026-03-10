@@ -622,6 +622,19 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         AppToast.error(context, 'Monthly plan not available. Please try later.');
         return;
       }
+      if (!mounted) return;
+      try {
+        await RevenueCatService.instance.purchasePackage(package);
+        if (!mounted) return;
+        AppToast.success(context, 'Upgraded to Monthly!');
+        context.go('/');
+        return;
+      } on PlatformException catch (e) {
+        if (PurchasesErrorHelper.getErrorCode(e) != PurchasesErrorCode.purchaseCancelledError) {
+          rethrow;
+        }
+        if (!mounted) return;
+      }
       await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
       AppToast.success(context, 'Upgraded to Monthly!');
@@ -699,9 +712,20 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       }
       if (!mounted) return;
 
+      try {
+        await RevenueCatService.instance.purchasePackage(package);
+        if (!mounted) return;
+        AppToast.success(context, isStartTrial ? '3-day free trial started!' : 'Subscription active!');
+        context.go('/');
+        return;
+      } on PlatformException catch (e) {
+        if (PurchasesErrorHelper.getErrorCode(e) != PurchasesErrorCode.purchaseCancelledError) {
+          rethrow;
+        }
+        if (!mounted) return;
+      }
       await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
-
       AppToast.success(context, isStartTrial ? '3-day free trial started!' : 'Subscription active!');
       context.go('/');
     } on PlatformException catch (e) {
