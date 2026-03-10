@@ -9,7 +9,8 @@ class RevenueCatService {
   RevenueCatService._();
   static final RevenueCatService instance = RevenueCatService._();
 
-  static const String entitlementId = 'premium';
+  // ✅ FIX 2: Changed from 'premium' to match your RevenueCat dashboard
+  static const String entitlementId = 'Already Done Pro';
   static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
 
   bool _configured = false;
@@ -45,6 +46,7 @@ class RevenueCatService {
   }
 
   /// Ensure the SDK is configured and the correct user is logged in.
+  /// ✅ FIX 1: Call this during app startup or login, NOT before purchase.
   /// Safe to call multiple times — only acts when needed.
   Future<void> ensureReady({required String appUserId}) async {
     if (!isIOS) return;
@@ -57,6 +59,10 @@ class RevenueCatService {
 
     // If already configured but for a different (or no) user, log in
     final trimmed = appUserId.trim();
+    debugPrint(
+      'RevenueCat ensureReady: current=$_currentUserId, '
+      'requested=$trimmed, match=${_currentUserId == trimmed}',
+    );
     if (_currentUserId != trimmed) {
       await logIn(trimmed);
     }
@@ -243,6 +249,7 @@ class RevenueCatService {
       );
     }
     try {
+      debugPrint('RevenueCat: starting purchase for ${package.identifier}');
       final result = await Purchases.purchasePackage(package);
       debugPrint('RevenueCat: purchase success for ${package.identifier}');
       return result;
