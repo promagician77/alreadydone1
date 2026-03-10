@@ -431,8 +431,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
 
     try {
-      // ✅ Ensure RevenueCat is configured and linked to this user BEFORE purchasing
-      await RevenueCatService.instance.ensureReady(appUserId: userId);
+      // Ensure RevenueCat is configured and linked to this user BEFORE purchasing
+      await RevenueCatService.instance.ensureReady(appUserId: userId.toString());
 
       final offerings = await RevenueCatService.instance.getOfferings();
       final wantMonthly = _model.selectedPlan == 0;
