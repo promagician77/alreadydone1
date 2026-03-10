@@ -465,22 +465,26 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           'Onboarding purchase cancelled: code=${e.code}, '
           'message=${e.message}, details=${e.details}',
         );
-        // Workaround for StoreKit bug: sometimes the subscription sheet never
-        // appears after Apple sign-in but StoreKit returns userCancelled=true.
-        // Use syncPurchases (no Apple ID prompt); restorePurchases would show a second sign-in.
+        // Workaround for StoreKit bug (iOS 18.3.1–18.5): when the "Receipt Renewal
+        // emails" prompt appears (often on first sign-up / first time per Apple ID),
+        // StoreKit can incorrectly return userCancelled=true even though the
+        // purchase succeeds. RevenueCat only reports what StoreKit returns.
+        // Poll for entitlement; success can show up with delay (up to ~30s).
         try {
           await RevenueCatService.instance.syncPurchases();
-          await Future<void>.delayed(const Duration(seconds: 2));
-          if (!mounted) return;
-          final status =
-              await RevenueCatService.instance.getSubscriptionStatus();
-          if (status.isSubscribed) {
-            AppToast.success(
-              context,
-              isStartTrial ? '3-day free trial started!' : 'Subscription active!',
-            );
-            context.go(OnboardingPersonalizeWidget.routePath);
-            return;
+          for (final waitSeconds in [2, 3, 5]) {
+            await Future<void>.delayed(Duration(seconds: waitSeconds));
+            if (!mounted) return;
+            final status =
+                await RevenueCatService.instance.getSubscriptionStatus();
+            if (status.isSubscribed) {
+              AppToast.success(
+                context,
+                isStartTrial ? '3-day free trial started!' : 'Subscription active!',
+              );
+              context.go(OnboardingPersonalizeWidget.routePath);
+              return;
+            }
           }
         } catch (_) {}
         if (!mounted) return;
