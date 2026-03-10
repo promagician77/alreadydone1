@@ -273,7 +273,20 @@ class RevenueCatService {
     }
   }
 
-  /// Restore previous purchases. No-op on non-iOS.
+  /// Sync purchases to RevenueCat backend from device cache. Does not trigger
+  /// Apple ID prompt (unlike restorePurchases). Use in cancel-workaround flows.
+  Future<void> syncPurchases() async {
+    if (!isIOS) return;
+    try {
+      await Purchases.syncPurchases();
+      debugPrint('RevenueCat: syncPurchases done');
+    } catch (e) {
+      debugPrint('RevenueCat syncPurchases error: $e');
+    }
+  }
+
+  /// Restore previous purchases. Can trigger Apple ID sign-in on iOS.
+  /// Prefer syncPurchases() when you only need to recheck entitlement after a cancel.
   Future<CustomerInfo?> restorePurchases() async {
     if (!isIOS) return null;
     try {

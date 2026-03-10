@@ -467,9 +467,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         );
         // Workaround for StoreKit bug: sometimes the subscription sheet never
         // appears after Apple sign-in but StoreKit returns userCancelled=true.
-        // Sync and recheck entitlement; purchase may have completed on Apple's side.
+        // Use syncPurchases (no Apple ID prompt); restorePurchases would show a second sign-in.
         try {
-          await RevenueCatService.instance.restorePurchases();
+          await RevenueCatService.instance.syncPurchases();
           await Future<void>.delayed(const Duration(seconds: 2));
           if (!mounted) return;
           final status =
