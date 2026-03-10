@@ -446,29 +446,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       }
       if (!mounted) return;
 
-      // First attempt; if cancelled (e.g. only Apple ID sheet appeared), retry once so subscription sheet can show
-      try {
-        await RevenueCatService.instance.purchasePackage(package);
-        if (!mounted) return;
-        AppToast.success(
-          context,
-          isStartTrial ? '3-day free trial started!' : 'Subscription active!',
-        );
-        context.go(OnboardingPersonalizeWidget.routePath);
-        return;
-      } on PlatformException catch (e) {
-        if (PurchasesErrorHelper.getErrorCode(e) != PurchasesErrorCode.purchaseCancelledError) {
-          rethrow;
-        }
-        debugPrint(
-          'Onboarding purchase cancelled (first attempt), retrying: '
-          'code=${e.code}, message=${e.message}',
-        );
-        if (!mounted) return;
-      }
-      // Second attempt (device is now signed in; subscription sheet should appear)
       await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
+
       AppToast.success(
         context,
         isStartTrial ? '3-day free trial started!' : 'Subscription active!',
@@ -477,11 +457,15 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
+        // Log full reason (underlyingErrorMessage is often empty when only Apple ID sheet appeared)
         debugPrint(
           'Onboarding purchase cancelled: code=${e.code}, '
           'message=${e.message}, details=${e.details}',
         );
-        AppToast.info(context, 'Payment canceled');
+        AppToast.info(
+          context,
+          'Subscription not started. Tap Start Free Trial again and complete both Apple ID and the subscription step.',
+        );
       } else {
         debugPrint(
           'Onboarding purchase error: code=${e.code}, '
