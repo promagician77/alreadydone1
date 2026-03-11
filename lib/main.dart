@@ -39,8 +39,11 @@ Future<void> _initializeApp() async {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     }
   } catch (e, st) {
-    debugPrint('Firebase init failed (web/iOS need Firebase configured): $e');
-    debugPrint('$st');
+    // Expected on iOS without GoogleService-Info.plist, or web without Firebase config.
+    debugPrint(
+      'Firebase not initialized (push disabled). '
+      'On iOS: add GoogleService-Info.plist to the Runner target. Error: $e',
+    );
   }
 
   GoRouter.optionURLReflectsImperativeAPIs = true;
