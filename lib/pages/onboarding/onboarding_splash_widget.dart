@@ -172,7 +172,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           ],
         ),
         child: Text(
-          '✨ Start Your 7-Day Free Trial',
+          '✨ Start Your 3-Day Free Trial',
           style: GoogleFonts.outfit(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -197,7 +197,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
             'Daily manifestation stories',
             'Clone your own voice',
             'Sleep Mode with theta waves',
-            'Professional voice available',
+            'Professional voices available',
           ],
           isSelected: _model.selectedPlan == 0,
           onTap: () => safeSetState(() => _model.selectedPlan = 0),
