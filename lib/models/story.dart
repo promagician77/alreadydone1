@@ -15,7 +15,6 @@ class Story {
     this.lastPlayed,
   });
 
-  /// Maps the JSON object from /api/stories into a Story instance.
   factory Story.fromJson(Map<String, dynamic> json) {
     return Story(
       id: json['id'] as int,

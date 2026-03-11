@@ -46,7 +46,7 @@ class FcmService {
       // Send token to backend when user is logged in (may be null if auth not ready yet)
       await _registerTokenWithBackend();
 
-      // Retry token registration after a short delay so auth session has time to restore
+      // Retry token registration after a short delay (auth session restore; on iOS, APNs token may be delayed)
       Future.delayed(const Duration(seconds: 2), () async {
         await _registerTokenWithBackend();
       });
@@ -96,9 +96,18 @@ class FcmService {
   }
 
   /// Get the current FCM token. Returns null if not available.
+  /// On iOS, APNs token can be delayed; we retry once after 3s if null.
   static Future<String?> getToken() async {
     try {
-      return await FirebaseMessaging.instance.getToken();
+      String? token = await FirebaseMessaging.instance.getToken();
+      // iOS: APNs token may not be ready at first call; retry once after a short delay
+      if ((token == null || token.isEmpty) &&
+          !kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.iOS) {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        token = await FirebaseMessaging.instance.getToken();
+      }
+      return token;
     } catch (e) {
       debugPrint('FCM getToken error: $e');
       return null;
