@@ -61,7 +61,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       if (mounted) {
         setState(() {
           _model.isSubscribedFromRC = status.isSubscribed;
-          _model.showUpgradeCardFromRC = status.isMonthlyPlan && !status.isCanceled;
+          _model.showUpgradeCardFromRC = status.isWeeklyPlan && !status.isCanceled;
         });
       }
     } catch (_) {}
@@ -838,7 +838,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
 
   bool get _isSubscribed => _model.isSubscribedFromRC;
 
-  /// True when user's plan is monthly (show upgrade card). From RevenueCat.
+  /// True when user's plan is weekly (show upgrade card). From RevenueCat.
   bool get _showUpgradeCard => _model.showUpgradeCardFromRC;
 
   Widget _buildLogoutSection() {
