@@ -86,7 +86,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// Preset voice IDs and names (must match onboarding_voice_selection_widget).
   /// Used to show "[Name]'s voice" when story.voice_id matches; otherwise "In your voice".
   static const _presetVoices = [
-    ('24EI9FmmGvJruwUi7TJM', 'Marcus'),
+    ('QuCIJW2VbXkVSkVMP2V9', 'Chris'),
     ('8yh4Wuya1OlwcUp0epGF', 'David'),
     ('tJHJUEHzOkMoPmJJ5jo2', 'Alex'),
     ('KGZeK6FsnWQdrkDHnDNA', 'Sarah'),

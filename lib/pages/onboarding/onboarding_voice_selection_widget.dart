@@ -51,20 +51,14 @@ class _OnboardingVoiceSelectionWidgetState
   bool _isLoading = false;
 
   static const _maleVoices = [
-    // Marcus
-    ('24EI9FmmGvJruwUi7TJM', 'Marcus', 'Warm & Soothing'),
-    // David
+    ('QuCIJW2VbXkVSkVMP2V9', 'Chris', 'Warm & Soothing'),
     ('8yh4Wuya1OlwcUp0epGF', 'David', 'Confident & Powerful'), 
-    // Alex
     ('tJHJUEHzOkMoPmJJ5jo2', 'Alex', 'Gentle & Peaceful'),
   ];
 
   static const _femaleVoices = [
-    // Sarah
     ('KGZeK6FsnWQdrkDHnDNA', 'Sarah', 'Warm & Nurturing'),
-    // Maya
     ('NXqsj0QYxuanzBw3KwjB', 'Maya', 'Energetic & Inspiring'),
-    // Luna
     ('VlQRLHkc5IdFj7o0atT1', 'Luna', 'Calm & Serene'),
   ];
 

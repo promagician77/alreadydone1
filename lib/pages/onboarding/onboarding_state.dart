@@ -26,7 +26,7 @@ class OnboardingState {
   /// tapped on onboarding_voice_complete; used by onboarding_player to play.
   String? voicePlayUrl;
 
-  /// Display name of the selected voice (e.g. "Marcus", "My Voice", or user's first name).
+  /// Display name of the selected voice (e.g. "Chris", "My Voice", or user's first name).
   /// Set when creating a clone or when choosing a preset in voice selection.
   String? selectedVoiceName;
 

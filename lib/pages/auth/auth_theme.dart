@@ -3,7 +3,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/widgets/animated_waveform_icon.dart';
 
-/// ALREADY auth design tokens — matches HTML design (pixel-perfect).
 abstract class AuthTheme {
   static const Color warmWhite = Color(0xFFF9F7F4);
   static const Color offWhite = Color(0xFFF2F0ED);

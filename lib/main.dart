@@ -31,7 +31,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _initializeApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase: required for FCM. On web, ensure Firebase JS SDK is loaded in web/index.html.
   try {
     await Firebase.initializeApp();
     if (!kIsWeb) {
@@ -40,7 +39,6 @@ Future<void> _initializeApp() async {
   } catch (e, st) {
     debugPrint('Firebase init failed (web/iOS need Firebase configured): $e');
     debugPrint('$st');
-    // Continue so app still runs; push notifications will be unavailable.
   }
 
   GoRouter.optionURLReflectsImperativeAPIs = true;
@@ -48,7 +46,6 @@ Future<void> _initializeApp() async {
 
   await FlutterFlowTheme.initialize();
 
-  // .env: on web use asset path; ensure .env is in pubspec assets.
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
@@ -76,7 +73,6 @@ Future<void> _initializeApp() async {
 
   AppStateNotifier.instance.initAuthListener();
 
-  // FCM is not supported on web (dart:io / native APIs). Skip to avoid white screen.
   if (!kIsWeb) {
     await FcmService.initialize();
   }
@@ -93,7 +89,6 @@ void main() async {
   });
 }
 
-/// Shown when initialization fails so we don't get a white screen.
 class _ErrorApp extends StatelessWidget {
   const _ErrorApp({required this.message, required this.stack});
 
@@ -249,12 +244,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 }
 
-/// Nav bar design tokens (matches _AppColors)
 class _NavColors {
   static const surface = Color(0xFFFEFDFB);
   static const inkSoft = Color(0xFF78716C);
-  static const gold = Color(0xFFB8861E);
-  /// Matches player sleep mode content (0xFF1A1F3A)
+  static const gold = Color(0xFFB8861E);  
   static const sleepSurface = Color(0xFF1A1F3A);
 }
 
