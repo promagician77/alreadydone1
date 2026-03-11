@@ -41,13 +41,20 @@ class AppStateNotifier extends ChangeNotifier {
   }
 
   void initAuthListener() {
-    SupabaseService.authStateChanges.listen((state) async {
+    final sub = SupabaseService.authStateChanges.listen((state) async {
       final isSignedIn = state.event == AuthChangeEvent.signedIn ||
           state.event == AuthChangeEvent.initialSession;
       if (isSignedIn && state.session != null) {
         await SupabaseService.ensureUserProfileFromAuth();
         await FcmService.onUserSignedIn();
       }
+      notifyListeners();
+    });
+    sub.onError((Object e, StackTrace st) async {
+      debugPrint('Auth state error (e.g. invalid refresh token): $e');
+      try {
+        await SupabaseService.client.auth.signOut();
+      } catch (_) {}
       notifyListeners();
     });
   }

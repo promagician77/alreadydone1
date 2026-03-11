@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -25,7 +26,12 @@ class FcmService {
   static FcmService get instance => _instance;
 
   /// Initialize FCM: permission, Android channel, token registration, listeners.
+  /// No-op if Firebase default app is not created (e.g. iOS without GoogleService-Info.plist).
   static Future<void> initialize() async {
+    if (Firebase.apps.isEmpty) {
+      debugPrint('FcmService: skipping init (no Firebase app)');
+      return;
+    }
     try {
       // Request permission (Android 13+ POST_NOTIFICATIONS and iOS)
       await FirebaseMessaging.instance.requestPermission(

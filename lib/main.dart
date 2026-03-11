@@ -31,8 +31,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _initializeApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  bool firebaseInitialized = false;
   try {
     await Firebase.initializeApp();
+    firebaseInitialized = true;
     if (!kIsWeb) {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     }
@@ -73,7 +75,8 @@ Future<void> _initializeApp() async {
 
   AppStateNotifier.instance.initAuthListener();
 
-  if (!kIsWeb) {
+  // Only init FCM when Firebase has a default app (e.g. iOS needs GoogleService-Info.plist)
+  if (!kIsWeb && firebaseInitialized) {
     await FcmService.initialize();
   }
 }
@@ -85,7 +88,10 @@ void main() async {
   }, (error, stack) {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');
-    runApp(_ErrorApp(message: error.toString(), stack: stack.toString()));
+    // Run in root zone to avoid "Zone mismatch" (binding was initialized in root zone)
+    Zone.root.run(() {
+      runApp(_ErrorApp(message: error.toString(), stack: stack.toString()));
+    });
   });
 }
 
