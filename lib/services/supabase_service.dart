@@ -11,7 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
-const String oauthRedirectUrl = 'alreadydone://alreadydone.app';
+const String oauthRedirectUrl = 'alreadydone://alreadydone.app/auth/callback';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
@@ -191,7 +191,11 @@ class SupabaseService {
   static Future<void> signInWithApple() async {
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     if (!isIOS) {
-      await signInWithOAuth(provider: OAuthProvider.apple);
+      await client.auth.signInWithOAuth(
+        OAuthProvider.apple,
+        redirectTo: oauthRedirectUrl,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
       return;
     }
     try {
