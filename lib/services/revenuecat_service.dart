@@ -16,23 +16,26 @@ class RevenueCatService {
 
   static const String entitlementId = 'Already Done Pro';
   static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
+  /// Play Store (Android) API key from RevenueCat dashboard.
+  static const String _googleApiKey = 'test_EQotKJldPLvrbKzGRkzgUOxTAJu';
 
   bool _configured = false;
   String? _currentUserId;
 
-  bool get isSupported => isIOS;
+  bool get isSupported => isIOS || isAndroid;
   bool get isConfigured => _configured;
 
   Future<void> configure({String? appUserId}) async {
-    if (!isIOS) {
-      debugPrint('RevenueCat: skipped (iOS only)');
+    if (!isIOS && !isAndroid) {
+      debugPrint('RevenueCat: skipped (mobile only)');
       return;
     }
     if (_configured) return;
     try {
       await Purchases.setLogLevel(LogLevel.debug);
 
-      final config = PurchasesConfiguration(_appleApiKey);
+      final apiKey = isIOS ? _appleApiKey : _googleApiKey;
+      final config = PurchasesConfiguration(apiKey);
       if (appUserId != null && appUserId.trim().isNotEmpty) {
         config.appUserID = appUserId.trim();
       }
@@ -40,7 +43,7 @@ class RevenueCatService {
 
       _currentUserId = appUserId?.trim();
       _configured = true;
-      debugPrint('RevenueCat: configured with userId=$_currentUserId');
+      debugPrint('RevenueCat: configured (${isIOS ? "iOS" : "Android"}) userId=$_currentUserId');
     } catch (e, st) {
       debugPrint('RevenueCat configure error: $e');
       debugPrint('$st');
@@ -51,7 +54,7 @@ class RevenueCatService {
   /// ✅ FIX 1: Call this during app startup or login, NOT before purchase.
   /// Safe to call multiple times — only acts when needed.
   Future<void> ensureReady({required String appUserId}) async {
-    if (!isIOS) return;
+    if (!isSupported) return;
 
     // Configure if not yet done
     if (!_configured) {
@@ -70,9 +73,9 @@ class RevenueCatService {
     }
   }
 
-  /// Link RevenueCat to your user id. No-op on non-iOS.
+  /// Link RevenueCat to your user id. No-op on unsupported platforms.
   Future<void> logIn(String appUserId) async {
-    if (!isIOS) return;
+    if (!isSupported) return;
     try {
       final trimmed = appUserId.trim();
       await Purchases.logIn(trimmed);
@@ -83,9 +86,9 @@ class RevenueCatService {
     }
   }
 
-  /// Call when user logs out. No-op on non-iOS.
+  /// Call when user logs out. No-op on unsupported platforms.
   Future<void> logOut() async {
-    if (!isIOS) return;
+    if (!isSupported) return;
     try {
       await Purchases.logOut();
       _currentUserId = null;
@@ -95,9 +98,9 @@ class RevenueCatService {
     }
   }
 
-  /// Whether the user has active premium access. Returns false on non-iOS.
+  /// Whether the user has active premium access. Returns false when unsupported.
   Future<bool> isSubscribed() async {
-    if (!isIOS) return false;
+    if (!isSupported) return false;
     try {
       final info = await Purchases.getCustomerInfo();
       final entitlement = info.entitlements.all[entitlementId];
@@ -108,9 +111,9 @@ class RevenueCatService {
     }
   }
 
-  /// Subscription status for UI. Returns default (not subscribed) on non-iOS.
+  /// Subscription status for UI. Returns default (not subscribed) when unsupported.
   Future<RevenueCatSubscriptionStatus> getSubscriptionStatus() async {
-    if (!isIOS) {
+    if (!isSupported) {
       return const RevenueCatSubscriptionStatus(
         isSubscribed: false,
         isTrialing: false,
@@ -164,9 +167,9 @@ class RevenueCatService {
     }
   }
 
-  /// Fetch current offerings. Returns null on non-iOS.
+  /// Fetch current offerings. Returns null when unsupported.
   Future<Offerings?> getOfferings() async {
-    if (!isIOS) return null;
+    if (!isSupported) return null;
     try {
       final offerings = await Purchases.getOfferings();
       if (kDebugMode && offerings != null) {
@@ -200,7 +203,7 @@ class RevenueCatService {
   }
 
   Future<AvailablePlans> getAvailablePlans() async {
-    if (!isIOS) {
+    if (!isSupported) {
       return const AvailablePlans(weekly: null, monthly: null);
     }
     try {
@@ -242,12 +245,12 @@ class RevenueCatService {
     }
   }
 
-  /// Purchase a package. Throws on non-iOS or if cancelled.
+  /// Purchase a package. Throws when unsupported or if cancelled.
   Future<CustomerInfo?> purchasePackage(Package package) async {
-    if (!isIOS) {
+    if (!isSupported) {
       throw PlatformException(
         code: 'UNSUPPORTED',
-        message: 'Subscriptions are available only on the App Store (iOS).',
+        message: 'Subscriptions are available on the App Store (iOS) or Google Play (Android).',
       );
     }
     try {
@@ -281,7 +284,7 @@ class RevenueCatService {
   /// Sync purchases to RevenueCat backend from device cache. Does not trigger
   /// Apple ID prompt (unlike restorePurchases). Use in cancel-workaround flows.
   Future<void> syncPurchases() async {
-    if (!isIOS) return;
+    if (!isSupported) return;
     try {
       await Purchases.syncPurchases();
       debugPrint('RevenueCat: syncPurchases done');
@@ -293,7 +296,7 @@ class RevenueCatService {
   /// Restore previous purchases. Can trigger Apple ID sign-in on iOS.
   /// Prefer syncPurchases() when you only need to recheck entitlement after a cancel.
   Future<CustomerInfo?> restorePurchases() async {
-    if (!isIOS) return null;
+    if (!isSupported) return null;
     try {
       final info = await Purchases.restorePurchases();
       debugPrint('RevenueCat: restore success');

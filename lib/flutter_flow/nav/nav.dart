@@ -14,6 +14,7 @@ import 'serialization_util.dart';
 
 import '/index.dart';
 import '/services/fcm_service.dart';
+import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '/services/onboarding_service.dart';
@@ -78,11 +79,21 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
+          // Subscribed users skip onboarding and go straight to home
+          if (RevenueCatService.instance.isSupported) {
+            final subscribed = await RevenueCatService.instance.isSubscribed();
+            if (subscribed) return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+          }
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) return OnboardingSplashWidget.routePath;
           return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
         }
         if (isAuth && !isOnboardingRoute) {
+          // Subscribed users stay on current route (e.g. home); others must complete onboarding
+          if (RevenueCatService.instance.isSupported) {
+            final subscribed = await RevenueCatService.instance.isSubscribed();
+            if (subscribed) return null;
+          }
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) return OnboardingSplashWidget.routePath;
         }

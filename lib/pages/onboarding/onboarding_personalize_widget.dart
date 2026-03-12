@@ -26,6 +26,21 @@ Widget _progressBar(int activeSegments) {
   );
 }
 
+/// Same 15 default locations as in profile dream location modal.
+const _popularLocations = [
+  'New York City', 'Paris', 'Bali', 'Tokyo', 'Miami', 'London',
+  'Los Angeles', 'Dubai', 'Sydney', 'Toronto', 'Munich', 'Zurich',
+  'Barcelona', 'Amsterdam', 'Copenhagen',
+];
+
+List<List<T>> _chunked<T>(List<T> list, int size) {
+  final result = <List<T>>[];
+  for (var i = 0; i < list.length; i += size) {
+    result.add(list.sublist(i, (i + size).clamp(0, list.length)));
+  }
+  return result;
+}
+
 Widget _formInput(TextEditingController controller, String hint) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -65,6 +80,15 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
   void initState() {
     super.initState();
     _state = OnboardingState.instance;
+    _state.dreamLocationController.addListener(_onDreamLocationChanged);
+  }
+
+  void _onDreamLocationChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _state.dreamLocationController.removeListener(_onDreamLocationChanged);
+    super.dispose();
   }
 
   @override
@@ -111,6 +135,61 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                     Text('City or country', style: AuthTheme.checkboxLabelStyle.copyWith(fontSize: 11, color: AuthTheme.inkSoft)),
                     const SizedBox(height: 8),
                     _formInput(_state.dreamLocationController, 'Bali'),
+                    const SizedBox(height: 12),
+                    Text(
+                      'POPULAR LOCATIONS',
+                      style: AuthTheme.labelStyle.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                        color: AuthTheme.inkMid,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._chunked(_popularLocations, 3).map((row) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: row.asMap().entries.map((e) {
+                          final loc = e.value;
+                          final isSelected = _state.dreamLocationController.text.trim() == loc;
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(right: e.key < row.length - 1 ? 8 : 0),
+                              child: Pressable(
+                                onTap: () {
+                                  _state.dreamLocationController.text = loc;
+                                  setState(() {});
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AuthTheme.goldPale : AuthTheme.surface,
+                                    border: Border.all(
+                                      color: isSelected ? AuthTheme.gold : AuthTheme.stone,
+                                      width: 1.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      loc,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isSelected ? AuthTheme.gold : AuthTheme.ink,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    )),
                     const SizedBox(height: 20),
                     Text('Choose Your Energy Word', style: AuthTheme.labelStyle),
                     const SizedBox(height: 8),
