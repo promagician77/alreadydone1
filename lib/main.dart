@@ -31,19 +31,23 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _initializeApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  debugPrint('🔍 Initializing Firebase...');
   bool firebaseInitialized = false;
   try {
     await Firebase.initializeApp();
     firebaseInitialized = true;
+
+    debugPrint('✅ Firebase initialized successfully');
+    debugPrint('   App name: ${Firebase.app().name}');
+    debugPrint('   Options: ${Firebase.app().options.projectId}');
+
     if (!kIsWeb) {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      debugPrint('✅ FirebaseMessaging background handler registered');
     }
   } catch (e, st) {
-    // Expected on iOS without GoogleService-Info.plist, or web without Firebase config.
-    debugPrint(
-      'Firebase not initialized (push disabled). '
-      'On iOS: add GoogleService-Info.plist to the Runner target. Error: $e',
-    );
+    debugPrint('❌ Firebase initialization failed: $e');
+    debugPrint('$st');
   }
 
   GoRouter.optionURLReflectsImperativeAPIs = true;
@@ -63,24 +67,37 @@ Future<void> _initializeApp() async {
   if (supabaseUrl == null || supabaseUrl.isEmpty || supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
     throw Exception('SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env');
   }
+  debugPrint('🔍 Initializing Supabase...');
   await SupabaseService.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  debugPrint('✅ Supabase initialized successfully');
 
+  debugPrint('🔍 Initializing BackendClient...');
   BackendClient.initialize(baseUrl: dotenv.env['BACKEND_URL']);
+  debugPrint('✅ BackendClient initialized successfully');
 
+  debugPrint('🔍 Initializing RevenueCat...');
   await RevenueCatService.instance.configure();
+  debugPrint('✅ RevenueCat initialized successfully');
 
+  debugPrint('🔍 Checking backend connection...');
   final connected = await BackendClient.checkConnection();
   if (connected) {
     debugPrint('Backend connected at ${BackendClient.baseUrl}');
   } else {
     debugPrint('Backend unreachable at ${BackendClient.baseUrl} — is the server running?');
   }
+  debugPrint('✅ Backend connection checked successfully');
 
+  debugPrint('🔍 Initializing AuthListener...');
   AppStateNotifier.instance.initAuthListener();
+  debugPrint('✅ AuthListener initialized successfully');
 
-  // Only init FCM when Firebase has a default app (e.g. iOS needs GoogleService-Info.plist)
+  debugPrint('🔍 Initializing FCM...');
   if (!kIsWeb && firebaseInitialized) {
     await FcmService.initialize();
+    debugPrint('✅ FCM initialized successfully');
+  } else {
+    debugPrint('❌ FCM not initialized (Firebase not initialized)');
   }
 }
 
@@ -91,7 +108,7 @@ void main() async {
   }, (error, stack) {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');
-    // Run in root zone to avoid "Zone mismatch" (binding was initialized in root zone)
+
     Zone.root.run(() {
       runApp(_ErrorApp(message: error.toString(), stack: stack.toString()));
     });

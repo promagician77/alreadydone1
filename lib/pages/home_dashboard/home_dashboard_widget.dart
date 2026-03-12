@@ -302,12 +302,16 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
 
     try {
-      final profile = await BackendClient.getUserProfile(userId);
-      final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
-      // if (voiceId.isEmpty) {
-      //   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice not available')));
-      //   return;
-      // }
+      // Use voice_id from the selected story first; only fall back to profile if story has none.
+      String voiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim() ?? '';
+      if (voiceId.isEmpty) {
+        final profile = await BackendClient.getUserProfile(userId);
+        voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
+      }
+      if (voiceId.isEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice not available')));
+        return;
+      }
 
       String? playUrl;
       try {
@@ -327,7 +331,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
       if (mounted) {
         final storyText = (story['story'] ?? story['content'])?.toString().trim();
-        final voiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
         context.pushNamed(PlayerWidget.routeName, extra: {
           'storyId': storyId,
           'categoryLabel': (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
@@ -336,7 +339,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
           'durationLabel': _durationFromStory(story),
           'playUrl': playUrl,
           if (storyText != null && storyText.isNotEmpty) 'storyPreview': storyText,
-          if (voiceId != null && voiceId.isNotEmpty) 'voiceId': voiceId,
+          'voiceId': voiceId,
         });
       }
     } catch (e) {

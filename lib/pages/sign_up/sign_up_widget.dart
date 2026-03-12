@@ -259,7 +259,6 @@ class _SignUpWidgetState extends State<SignUpWidget> {
           duration: const Duration(seconds: 45),
         );
 
-        // Navigate to the email verification screen, passing the email
         context.go('/verifyEmailOtp?email=$email');
       }
     } catch (e) {
