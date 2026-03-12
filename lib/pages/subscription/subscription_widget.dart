@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
+import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
@@ -573,7 +574,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start Free Trial'));
     final onTap = _model.isCanceled
         ? () => _handleConfirmPayment(isStartTrial: false)
-        : (_model.isMonthlyPlan ? _handleChangeToAnnual : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed));
+        : (_model.isMonthlyPlan ? _handleChangeToMonthly : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed));
     return _ctaButton(
       label: label,
       onTap: onTap,
@@ -603,8 +604,8 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     _loadSubscriptionStatus();
   }
 
-  /// Upgrade monthly → annual: purchase the annual package via RevenueCat.
-  Future<void> _handleChangeToAnnual() async {
+  /// Upgrade weekly → monthly: purchase the monthly package via RevenueCat.
+  Future<void> _handleChangeToMonthly() async {
     if (_model.isPaymentLoading) return;
     if (!RevenueCatService.instance.isSupported) {
       AppToast.error(
@@ -699,8 +700,23 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       }
       if (!mounted) return;
 
-      await RevenueCatService.instance.purchasePackage(package);
+      final info = await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
+
+      if (info != null) {
+        try {
+          final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
+          await BackendClient.updateUserRevenueCatSubscription(
+            userId,
+            rcCustomerId: payload['rc_customer_id']!,
+            rcSubscriptionStatus: payload['rc_subscription_status']!,
+            rcSubscriptionPlan: payload['rc_subscription_plan']!,
+            subscriptionProvider: payload['subscription_provider']!,
+          );
+        } catch (e) {
+          debugPrint('Backend subscription sync failed: $e');
+        }
+      }
 
       AppToast.success(context, isStartTrial ? '3-day free trial started!' : 'Subscription active!');
       context.go('/');
@@ -735,8 +751,23 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     }
     safeSetState(() => _model.isPaymentLoading = true);
     try {
-      await RevenueCatService.instance.restorePurchases();
+      final userId = await SupabaseService.getCurrentUserTableId();
+      final info = await RevenueCatService.instance.restorePurchases();
       if (!mounted) return;
+      if (info != null && userId != null) {
+        try {
+          final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
+          await BackendClient.updateUserRevenueCatSubscription(
+            userId,
+            rcCustomerId: payload['rc_customer_id']!,
+            rcSubscriptionStatus: payload['rc_subscription_status']!,
+            rcSubscriptionPlan: payload['rc_subscription_plan']!,
+            subscriptionProvider: payload['subscription_provider']!,
+          );
+        } catch (e) {
+          debugPrint('Backend subscription sync after restore failed: $e');
+        }
+      }
       AppToast.success(context, 'Purchases restored');
       _loadSubscriptionStatus();
     } catch (e) {

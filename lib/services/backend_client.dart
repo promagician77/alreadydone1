@@ -87,6 +87,40 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {'updated': true};
   }
 
+  /// PATCH api/users/{user_id} - update user with RevenueCat subscription info.
+  /// Body: { rc_customer_id, rc_subscription_status, rc_subscription_plan, subscription_provider }.
+  static Future<Map<String, dynamic>> updateUserRevenueCatSubscription(
+    int userId, {
+    required String rcCustomerId,
+    required String rcSubscriptionStatus,
+    required String rcSubscriptionPlan,
+    required String subscriptionProvider,
+  }) async {
+    final body = <String, dynamic>{
+      'rc_customer_id': rcCustomerId,
+      'rc_subscription_status': rcSubscriptionStatus,
+      'rc_subscription_plan': rcSubscriptionPlan,
+      'subscription_provider': subscriptionProvider,
+    };
+    final response = await client
+        .patch(
+          resolve('/api/users/$userId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body),
+        )
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception('Subscription update timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception(
+        'Subscription update failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'updated': true};
+  }
+
   /// GET api/users/{user_id} - get user profile.
   /// Returns { id, name, email, voice_id, speed, is_MorningTime_Reminder, is_BedTime_Reminder, location, energyWord, lovedOne, ... }.
   static Future<Map<String, dynamic>> getUserProfile(int userId) async {
@@ -436,8 +470,6 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {};
   }
 
-  /// POST api/subscription/change-plan
-  /// Body: { "user_id": int, "plan": "Annual" }. Changes existing subscription plan (e.g. monthly → annual).
   static Future<Map<String, dynamic>> changeSubscriptionPlan({
     required int userId,
     required String plan,

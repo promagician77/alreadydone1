@@ -16,7 +16,6 @@ import 'player_modals/player_modals.dart';
 import 'player_model.dart';
 export 'player_model.dart';
 
-/// Design tokens from HTML (Story Player)
 class _PlayerColors {
   static const warmWhite = Color(0xFFF9F7F4);
   static const surface = Color(0xFFFEFDFB);
@@ -55,13 +54,9 @@ class PlayerWidget extends StatefulWidget {
   final String? subtitle;
   final String? durationLabel;
 
-  /// Voice URL from api/voice/speak. When provided, used directly for playback.
   final String? playUrl;
-
-  /// Story text for preview. When provided, used for STORY PREVIEW section.
   final String? storyPreview;
 
-  /// Story's voice_id from Supabase. Used to show "In your voice" vs "[Name]'s voice".
   final String? voiceId;
 
   static String routeName = 'Player';
@@ -78,13 +73,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  /// Background theta track player (mp3 at ~20% volume).
   final AudioPlayer _thetaTrackPlayer = AudioPlayer();
 
-  /// Available background theta tracks (files under assets/audios/theta/).
-  /// Path is relative to assets folder; audioplayers adds asset prefix automatically.
-  /// Preset voice IDs and names (must match onboarding_voice_selection_widget).
-  /// Used to show "[Name]'s voice" when story.voice_id matches; otherwise "In your voice".
   static const _presetVoices = [
     ('QuCIJW2VbXkVSkVMP2V9', 'Chris'),
     ('8yh4Wuya1OlwcUp0epGF', 'David'),
@@ -128,25 +118,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
   String? _voiceId;
   bool _loading = true;
   String? _loadError;
-  /// True when opened with no params and user has no stories (nothing to play).
   bool _hasNoStory = false;
 
-  /// Current story id (set when we have a playable story). Used for skip prev/next.
   int? _currentStoryId;
-
-  /// True while generate-audio API is running for voice dropdown change.
   bool _isGeneratingVoice = false;
 
-  /// True while deepen story API is running.
   bool _isDeepening = false;
 
-  /// Cache: (storyId, voiceId) -> playUrl. Used so switching back to a previously used voice is instant.
   static final Map<String, String> _voicePlayUrlCache = {};
 
   static String _voiceCacheKey(int storyId, String voiceId) =>
       '${storyId}_$voiceId';
 
-  /// Dropdown value: preset id or 'my_voice' for user's cloned voice.
   String get _voiceDropdownValue {
     final id = _voiceId?.trim();
     if (id == null || id.isEmpty) return _voiceDropdownMyVoice;
@@ -158,7 +141,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   static const String _voiceDropdownMyVoice = 'my_voice';
 
-  /// "In your voice" when voice_id is custom/unknown; "[Name]'s voice" when preset.
   String get _voiceLabel {
     final id = _voiceId?.trim();
     if (id == null || id.isEmpty) return 'In your voice';
@@ -166,8 +148,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return name != null ? "$name's voice" : 'In your voice';
   }
 
-  /// Category line for header: avoid "X · Already Done · Already Done" when
-  /// categoryLabel already contains " · Already Done" (e.g. from desires page).
   String get _categoryHeaderLine {
     final raw = (_categoryLabel ?? 'Love').trim();
     final lower = raw.toLowerCase();
@@ -179,7 +159,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     } else if (lower.endsWith(completeSuffix)) {
       withoutSuffix = raw.substring(0, raw.length - completeSuffix.length).trim();
     }
-    // Trim trailing separator if present
     withoutSuffix = withoutSuffix.replaceAll(RegExp(r'\s*·\s*$'), '').trim();
     final category = withoutSuffix.isEmpty ? 'Love' : withoutSuffix;
     return '${category.toUpperCase()} · ALREADY DONE';
@@ -192,41 +171,25 @@ class _PlayerWidgetState extends State<PlayerWidget>
   int? _sleepTimerMinutes = 30;
   DateTime? _sleepModeStartedAt;
 
-  /// Single unified timer for sleep mode (countdown + volume).
   Timer? _sleepMasterTimer;
 
-  /// Playback speed options (used for both normal and sleep mode).
   static const List<double> _speedOptions = [0.5, 0.75, 1.0];
 
-  /// Playback speed used for both normal and sleep mode (single shared value).
-  /// When user changes speed in either Playback Settings or Sleep Mode settings, both stay in sync.
   double _normalPlaybackRate = 1.0;
-
-  /// Loop voice playback (both common and sleep mode). When true, voice repeats.
   bool _loopEnabled = false;
 
-  /// Notifier so Playback Settings modal updates the Loop row immediately when changed.
   final ValueNotifier<bool> _loopNotifier = ValueNotifier(false);
-
-  /// Notifier so Playback Settings modal updates the Speed row immediately when changed.
   final ValueNotifier<String> _speedLabelNotifier = ValueNotifier<String>('Normal (1.0x)');
 
-  /// Notifier so Sleep Mode Settings modal updates the Background Sound row immediately when changed.
   late final ValueNotifier<String> _backgroundSoundNameNotifier;
-
-  /// Sleep mode: target narration volume (70% per client spec).
   static const double _sleepVolumeTarget = 0.7;
 
-  /// Sleep mode: background theta track volume (20% per client spec).
   static const double _thetaVolumeTarget = 0.2;
 
-  /// Initial volume fade-in duration (seconds) — voice fades from 1.0 → 0.7.
   static const int _sleepVolumeFadeInSeconds = 120;
 
-  /// Fade-to-silence duration at end of sleep timer (seconds).
   static const int _sleepFadeOutSeconds = 60;
 
-  /// Screen brightness when sleep mode active (~40%).
   static const double _sleepBrightness = 0.4;
 
   late AnimationController _waveformController;
@@ -236,9 +199,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
   String get _currentThetaTrackName => _thetaTracks[_selectedThetaIndex].$1;
 
   // ---------------------------------------------------------------------------
-  // Audio context helper — builds a "mix with others" context so both players
-  // can produce sound simultaneously without stealing each other's session.
-  // ---------------------------------------------------------------------------
   AudioContext _buildMixAudioContext() {
     return AudioContextConfig(
       focus: AudioContextConfigFocus.mixWithOthers,
@@ -246,8 +206,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     ).build();
   }
 
-  /// Re-apply the mix audio context to BOTH players. Call this before any
-  /// play() to ensure the native audio session isn't reset to exclusive mode.
   Future<void> _applyMixContext() async {
     final ctx = _buildMixAudioContext();
     await _audioPlayer.setAudioContext(ctx);
@@ -267,7 +225,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _thetaTrackPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
 
-    // Initial audio context (will be re-applied before each play()).
     _applyMixContext();
 
     _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
@@ -316,12 +273,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _saveLastPlayed();
         return;
       }
-      // If user has no stories, show "No story" and don't use stale last-played.
       final userId = await SupabaseService.getCurrentUserTableId();
       if (userId != null) {
         try {
           final res = await BackendClient.getStories(userId);
+          debugPrint('res: $res');
           final list = (res['stories'] as List<dynamic>?) ?? [];
+          debugPrint('list: $list');
           if (list.isEmpty) {
             await LastPlayedService.clearLastPlayed();
             if (!mounted) return;
@@ -333,9 +291,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
             return;
           }
         } catch (_) {
-          // Continue to try lastPlayed / fallback
         }
       }
+      
       final lastPlayed = await LastPlayedService.loadLastPlayed();
       if (lastPlayed != null &&
           lastPlayed['playUrl']?.toString().trim().isNotEmpty == true) {
@@ -377,6 +335,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         return;
       }
 
+      // No last played: use last created story (by created_at).
       final fallback = await _loadLastCreatedStory();
       if (fallback != null && !mounted) return;
       if (fallback != null) {
@@ -888,7 +847,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     'past_due'
   ];
 
-  static const _sleepModeAllowedPlans = ['monthly', 'annual'];
+  static const _sleepModeAllowedPlans = ['monthly', 'weekly'];
 
   static bool _canUseSleepMode(String? status, String? plan) {
     final s = (status ?? '').toString().toLowerCase().trim();
@@ -993,12 +952,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     await _audioPlayer.seek(target);
   }
 
-  /// Skip to previous story (by create time). If at first, wrap to last.
   Future<void> _skipToPreviousStory() async {
     await _skipToAdjacentStory(previous: true);
   }
 
-  /// Skip to next story (by create time). If at last, wrap to first.
   Future<void> _skipToNextStory() async {
     await _skipToAdjacentStory(previous: false);
   }
@@ -1045,7 +1002,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       final storyVoiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
 
-      // Use the playUrl of that story (from the list). Fall back to API only if missing.
       String? playUrl = (story['playUrl'] ?? story['play_url'])?.toString().trim();
       if (playUrl == null || playUrl.isEmpty) {
         try {
@@ -1222,7 +1178,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
               onSelect: (m) => setState(() => _sleepTimerMinutes = m),
               onStartSleepMode: () {
                 Navigator.of(context).pop();
-                // Use the single entry point!
                 final playUrl = _playUrl?.trim();
                 if (playUrl != null && playUrl.isNotEmpty) {
                   _startSleepSession(playUrl);

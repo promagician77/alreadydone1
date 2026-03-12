@@ -57,8 +57,9 @@ class _StoryItem {
   final String name;
   final String meta; // e.g. "Today · 3:42"
   final String? storyContent; // story text for preview
+  final String? voiceId; // voice used for this story (from story, not profile)
 
-  _StoryItem({this.id, required this.name, required this.meta, this.storyContent});
+  _StoryItem({this.id, required this.name, required this.meta, this.storyContent, this.voiceId});
 }
 
 class DesiresWidget extends StatefulWidget {
@@ -185,11 +186,13 @@ class _DesiresWidgetState extends State<DesiresWidget> {
                 final playLength = (s['play_length'] ?? s['duration'])?.toString();
                 final lastPlayed = (s['last_played'] ?? s['last_played_at'])?.toString();
                 final meta = _formatStoryMeta(playLength, lastPlayed);
+                final voiceId = (s['voice_id'] ?? s['voice_Id'])?.toString().trim();
                 return _StoryItem(
                   id: _intFrom(s['id']),
                   name: title,
                   meta: meta,
                   storyContent: storyContent,
+                  voiceId: voiceId != null && voiceId.isNotEmpty ? voiceId : null,
                 );
               }).toList(),
             ));
@@ -235,16 +238,23 @@ class _DesiresWidgetState extends State<DesiresWidget> {
     }
   }
 
-  Future<void> _navigateToPlayerWithVoice(int storyId, String title, String categoryLabel, String durationLabel, [String? storyPreview]) async {
+  Future<void> _navigateToPlayerWithVoice(int storyId, String title, String categoryLabel, String durationLabel, [String? storyPreview, String? storyVoiceId]) async {
     final userId = await SupabaseService.getCurrentUserTableId();
+
+    debugPrint('userId: $userId');
     if (userId == null) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in')));
       return;
     }
 
     try {
-      final profile = await BackendClient.getUserProfile(userId);
-      final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
+      // Use voice_id from the selected story first; only fall back to profile if story has none.
+      String voiceId = (storyVoiceId ?? '').trim();
+      if (voiceId.isEmpty) {
+        final profile = await BackendClient.getUserProfile(userId);
+        debugPrint('profile: $profile');
+        voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
+      }
       if (voiceId.isEmpty) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voice not available')));
         return;
@@ -605,6 +615,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
               categoryLabel,
               story.meta,
               story.storyContent,
+              story.voiceId,
             );
           }
         },

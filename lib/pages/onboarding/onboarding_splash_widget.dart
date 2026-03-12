@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/pages/subscription/subscription_model.dart';
+import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
@@ -448,8 +449,23 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       }
       if (!mounted) return;
 
-      await RevenueCatService.instance.purchasePackage(package);
+      final info = await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
+
+      if (info != null) {
+        try {
+          final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
+          await BackendClient.updateUserRevenueCatSubscription(
+            userId,
+            rcCustomerId: payload['rc_customer_id']!,
+            rcSubscriptionStatus: payload['rc_subscription_status']!,
+            rcSubscriptionPlan: payload['rc_subscription_plan']!,
+            subscriptionProvider: payload['subscription_provider']!,
+          );
+        } catch (e) {
+          debugPrint('Backend subscription sync failed: $e');
+        }
+      }
 
       AppToast.success(
         context,
@@ -474,15 +490,28 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           for (final waitSeconds in [2, 3, 5]) {
             await Future<void>.delayed(Duration(seconds: waitSeconds));
             if (!mounted) return;
-            final status =
-                await RevenueCatService.instance.getSubscriptionStatus();
-            if (status.isSubscribed) {
-              AppToast.success(
-                context,
-                isStartTrial ? '3-day free trial started!' : 'Subscription active!',
-              );
-              context.go(OnboardingPersonalizeWidget.routePath);
-              return;
+            final info = await RevenueCatService.instance.getCustomerInfo();
+            if (info != null) {
+              final status = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
+              if (status['rc_subscription_status'] != 'canceled') {
+                try {
+                  await BackendClient.updateUserRevenueCatSubscription(
+                    userId,
+                    rcCustomerId: status['rc_customer_id']!,
+                    rcSubscriptionStatus: status['rc_subscription_status']!,
+                    rcSubscriptionPlan: status['rc_subscription_plan']!,
+                    subscriptionProvider: status['subscription_provider']!,
+                  );
+                } catch (e) {
+                  debugPrint('Backend subscription sync (workaround) failed: $e');
+                }
+                AppToast.success(
+                  context,
+                  isStartTrial ? '3-day free trial started!' : 'Subscription active!',
+                );
+                context.go(OnboardingPersonalizeWidget.routePath);
+                return;
+              }
             }
           }
         } catch (_) {}
@@ -522,8 +551,23 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     }
     safeSetState(() => _model.isPaymentLoading = true);
     try {
-      await RevenueCatService.instance.restorePurchases();
+      final userId = await SupabaseService.getCurrentUserTableId();
+      final info = await RevenueCatService.instance.restorePurchases();
       if (!mounted) return;
+      if (info != null && userId != null) {
+        try {
+          final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
+          await BackendClient.updateUserRevenueCatSubscription(
+            userId,
+            rcCustomerId: payload['rc_customer_id']!,
+            rcSubscriptionStatus: payload['rc_subscription_status']!,
+            rcSubscriptionPlan: payload['rc_subscription_plan']!,
+            subscriptionProvider: payload['subscription_provider']!,
+          );
+        } catch (e) {
+          debugPrint('Backend subscription sync after restore failed: $e');
+        }
+      }
       AppToast.success(context, 'Purchases restored');
       _loadSubscriptionStatus();
     } catch (e) {

@@ -12,7 +12,7 @@ class _SleepColors {
 }
 
 /// Playback Settings modal - shown when clicking settings icon in player.
-/// [sleepModeAllowed] gates sleep mode by subscription (trialing/active + monthly/annual).
+/// [sleepModeAllowed] gates sleep mode by subscription (trialing/active + weekly/monthly).
 /// [loopListenable] when provided, the Loop row updates immediately when the value changes.
 /// [speedListenable] when provided, the Speed row updates immediately when speed is changed.
 void showPlaybackSettingsModal(
