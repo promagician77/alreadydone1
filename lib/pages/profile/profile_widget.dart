@@ -776,7 +776,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'UPGRADE TO ANNUAL PLAN',
+                'UPGRADE TO MONTHLY PLAN',
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   letterSpacing: 1.5,
@@ -786,7 +786,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Save 42% \nBy Switching to the Annual Plan',
+                'Save 30% \nBy Switching to the Monthly Plan',
                 style: GoogleFonts.cormorantGaramond(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
@@ -796,7 +796,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                '\$69.99/year',
+                'Billed monthly · Cancel anytime',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.8),
@@ -819,7 +819,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                   ),
                   child: Center(
                     child: Text(
-                      _isSubscribed ? 'Upgrade the Annual' : 'Start Free Trial',
+                      _isSubscribed ? 'Upgrade to Monthly' : 'Start Free Trial',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -838,7 +838,6 @@ class _ProfileWidgetState extends State<ProfileWidget> {
 
   bool get _isSubscribed => _model.isSubscribedFromRC;
 
-  /// True when user's plan is weekly (show upgrade card). From RevenueCat.
   bool get _showUpgradeCard => _model.showUpgradeCardFromRC;
 
   Widget _buildLogoutSection() {

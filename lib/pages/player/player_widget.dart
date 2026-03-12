@@ -293,7 +293,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         } catch (_) {
         }
       }
-      // Navbar case: load last played story first, then fall back to last created story.
+      
       final lastPlayed = await LastPlayedService.loadLastPlayed();
       if (lastPlayed != null &&
           lastPlayed['playUrl']?.toString().trim().isNotEmpty == true) {
@@ -847,7 +847,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     'past_due'
   ];
 
-  static const _sleepModeAllowedPlans = ['monthly', 'annual'];
+  static const _sleepModeAllowedPlans = ['monthly', 'weekly'];
 
   static bool _canUseSleepMode(String? status, String? plan) {
     final s = (status ?? '').toString().toLowerCase().trim();

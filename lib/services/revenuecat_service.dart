@@ -306,6 +306,47 @@ class RevenueCatService {
       rethrow;
     }
   }
+
+  /// Fetch current customer info from RevenueCat (e.g. after syncPurchases).
+  Future<CustomerInfo?> getCustomerInfo() async {
+    if (!isSupported) return null;
+    try {
+      return await Purchases.getCustomerInfo();
+    } catch (e) {
+      debugPrint('RevenueCat getCustomerInfo error: $e');
+      return null;
+    }
+  }
+
+  /// Build payload for PATCH api/users/{user_id}: rc_customer_id, rc_subscription_status,
+  /// rc_subscription_plan, subscription_provider. Use after purchase or restore.
+  Map<String, String> getSubscriptionPayloadForBackend(CustomerInfo info) {
+    final entitlement = info.entitlements.all[entitlementId];
+    final isActive = entitlement?.isActive == true;
+    final isTrialing = entitlement?.periodType == PeriodType.trial;
+    final canceled = entitlement?.unsubscribeDetectedAt != null;
+
+    String status = 'canceled';
+    if (isActive) {
+      status = isTrialing ? 'trialing' : 'active';
+    }
+
+    final productId = (entitlement?.productIdentifier ?? '').toLowerCase();
+    final isWeekly = productId.contains('weekly') ||
+        productId.contains('week') ||
+        productId.contains(r'$rc_weekly');
+    final isMonthly = productId.contains('monthly') ||
+        productId.contains('month') ||
+        productId.contains(r'$rc_monthly');
+    final String plan = isWeekly ? 'weekly' : (isMonthly ? 'monthly' : 'unknown');
+
+    return {
+      'rc_customer_id': info.originalAppUserId,
+      'rc_subscription_status': status,
+      'rc_subscription_plan': plan,
+      'subscription_provider': 'revenue_cat',
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------
