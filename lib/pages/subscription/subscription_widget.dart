@@ -45,9 +45,11 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         safeSetState(() {
           _model.isSubscribed = status.isSubscribed;
           _model.isMonthlyPlan = status.isMonthlyPlan;
+          _model.isWeeklyPlan = status.isWeeklyPlan;
           _model.isTrialing = status.isTrialing;
           _model.isCanceled = status.isCanceled;
           if (status.isMonthlyPlan && _model.selectedPlan == null) _model.selectedPlan = 0;
+          if (status.isWeeklyPlan && _model.selectedPlan == null) _model.selectedPlan = 0;
         });
       }
     } catch (_) {}
@@ -269,7 +271,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildPricingCards() {
-    // Monthly plan user: show Monthly (current) first, Weekly second.
+    // Monthly plan user: show Monthly (current) first, Weekly second. No upgrade CTA.
     final isMonthlyView = _model.isMonthlyPlan && !_model.isCanceled;
     if (isMonthlyView) {
       return Column(
@@ -309,6 +311,48 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         ],
       );
     }
+    // Weekly plan user: show Weekly (current) first, Monthly (upgrade) second.
+    final isWeeklyView = _model.isWeeklyPlan && !_model.isCanceled;
+    if (isWeeklyView) {
+      return Column(
+        children: [
+          _buildPricingCard(
+            plan: 'Weekly',
+            price: '\$9.99',
+            period: '/week',
+            breakdown: 'Billed weekly · Cancel anytime',
+            features: [
+              'Daily manifestation stories',
+              'Clone your own voice',
+              'Sleep Mode with theta waves',
+              'Professional voice available',
+            ],
+            isPopular: false,
+            isSelected: _model.selectedPlan == 1,
+            onTap: () => safeSetState(() => _model.selectedPlan = 1),
+            badgeLabel: 'CURRENT PLAN',
+          ),
+          const SizedBox(height: 10),
+          _buildPricingCard(
+            plan: 'Monthly',
+            price: '\$29.99',
+            period: '/month',
+            savings: 'Save 30% vs weekly plan',
+            breakdown: 'Billed monthly · Cancel anytime',
+            features: [
+              'Daily manifestation stories',
+              'Clone your own voice',
+              'Sleep Mode with theta waves',
+              'Professional voice available',
+            ],
+            isSelected: _model.selectedPlan == 0,
+            onTap: () => safeSetState(() => _model.selectedPlan = 0),
+            badgeLabel: 'UPGRADE NOW',
+          ),
+        ],
+      );
+    }
+    // Not subscribed or canceled: show Monthly (best value) first, Weekly second.
     return Column(
       children: [
         _buildPricingCard(
@@ -569,12 +613,12 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   Widget _buildCtaButton() {
     final label = _model.isCanceled
         ? 'Upgrade the Plan'
-        : (_model.isMonthlyPlan
+        : (_model.isWeeklyPlan
             ? 'Upgrade to Monthly'
             : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start Free Trial'));
     final onTap = _model.isCanceled
         ? () => _handleConfirmPayment(isStartTrial: false)
-        : (_model.isMonthlyPlan ? _handleChangeToMonthly : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed));
+        : (_model.isWeeklyPlan ? _handleChangeToMonthly : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed));
     return _ctaButton(
       label: label,
       onTap: onTap,
