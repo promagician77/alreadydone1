@@ -13,7 +13,6 @@ import '/flutter_flow/flutter_flow_util.dart';
 import 'serialization_util.dart';
 
 import '/index.dart';
-import '/services/backend_client.dart';
 import '/services/fcm_service.dart';
 import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
@@ -26,28 +25,6 @@ export 'serialization_util.dart';
 const kTransitionInfoKey = '__transition_info__';
 
 GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
-
-/// True if user profile (Supabase/backend) has active subscription: plan is weekly or monthly
-/// and rc_subscription_status is not canceled.
-Future<bool> _hasActiveSubscriptionFromProfile() async {
-  try {
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return false;
-    final profile = await BackendClient.getUserProfile(userId);
-    final plan = (profile['rc_subscription_plan'] ?? profile['rc_subscription_Plan'])
-        ?.toString()
-        .toLowerCase()
-        .trim();
-    final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-        ?.toString()
-        .toLowerCase()
-        .trim();
-    if (status == 'canceled') return false;
-    return plan == 'weekly' || plan == 'monthly';
-  } catch (_) {
-    return false;
-  }
-}
 
 class AppStateNotifier extends ChangeNotifier {
   AppStateNotifier._();
@@ -107,11 +84,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             final subscribed = await RevenueCatService.instance.isSubscribed();
             if (subscribed) return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
           }
-          // Check Supabase/backend profile: active weekly or monthly and not canceled -> go home
-          final hasActiveSubscriptionFromProfile = await _hasActiveSubscriptionFromProfile();
-          if (hasActiveSubscriptionFromProfile) {
-            return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
-          }
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) return OnboardingSplashWidget.routePath;
           return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
@@ -122,8 +94,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             final subscribed = await RevenueCatService.instance.isSubscribed();
             if (subscribed) return null;
           }
-          final hasActiveSubscriptionFromProfile = await _hasActiveSubscriptionFromProfile();
-          if (hasActiveSubscriptionFromProfile) return null;
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) return OnboardingSplashWidget.routePath;
         }
