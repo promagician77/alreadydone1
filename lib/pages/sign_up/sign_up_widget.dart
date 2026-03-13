@@ -263,7 +263,15 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, 'Error: ${e.toString()}');
+        if (SupabaseService.isEmailAlreadyRegisteredError(e)) {
+          AppToast.info(
+            context,
+            'This email is already registered. Please sign in instead.',
+          );
+          context.go('/login');
+        } else {
+          AppToast.error(context, 'Error: ${e.toString()}');
+        }
       }
     } finally {
       if (mounted) {

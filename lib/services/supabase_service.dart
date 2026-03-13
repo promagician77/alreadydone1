@@ -13,6 +13,14 @@ export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
 const String oauthRedirectUrl = 'alreadydone://alreadydone.app/auth/callback';
 
+/// Thrown when sign-up is attempted with an email that is already registered.
+class EmailAlreadyRegisteredException implements Exception {
+  const EmailAlreadyRegisteredException();
+  @override
+  String toString() =>
+      'This email is already registered. Please sign in instead.';
+}
+
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
@@ -47,13 +55,21 @@ class SupabaseService {
     return null;
   }
 
+  /// Thrown when signUp is called with an email that is already registered.
+  /// UI can catch this and show "Please sign in" instead of a generic error.
+  static bool isEmailAlreadyRegisteredError(Object e) {
+    return e is EmailAlreadyRegisteredException ||
+        (e.toString().contains('already registered') ||
+            e.toString().toLowerCase().contains('already been registered'));
+  }
+
   static Future<AuthResponse> signUp({
     required String email,
     required String password,
     String? fullName,
     Map<String, dynamic>? metadata,
   }) async {
-    return await client.auth.signUp(
+    final response = await client.auth.signUp(
       email: email,
       password: password,
       data: {
@@ -61,6 +77,14 @@ class SupabaseService {
         if (metadata != null) ...metadata,
       },
     );
+    // Double signup: when email confirmation is enabled, Supabase returns a user
+    // but with empty identities when the email already exists.
+    if (response.user != null &&
+        (response.user!.identities == null ||
+            response.user!.identities!.isEmpty)) {
+      throw const EmailAlreadyRegisteredException();
+    }
+    return response;
   }
 
   static Future<void> sendEmailOtp({
