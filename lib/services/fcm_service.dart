@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'backend_client.dart';
@@ -41,7 +42,8 @@ class FcmService {
       );
 
       // iOS: show notification banner/sound when app is in foreground (otherwise iOS hides it)
-      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
@@ -53,7 +55,7 @@ class FcmService {
       await _registerTokenWithBackend();
 
       // Retry token registration after a short delay (auth session restore; on iOS, APNs token may be delayed)
-      Future.delayed(const Duration(seconds: 2), () async {
+      Future.delayed(const Duration(seconds: 5), () async {
         await _registerTokenWithBackend();
       });
 
@@ -94,26 +96,41 @@ class FcmService {
         playSound: true,
         enableVibration: true,
       );
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+          _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(channel);
     }
   }
 
   /// Get the current FCM token. Returns null if not available.
-  /// On iOS, APNs token can be delayed; we retry once after 3s if null.
+  /// On iOS, explicitly waits for APNs token before requesting FCM token.
   static Future<String?> getToken() async {
     try {
-      String? token = await FirebaseMessaging.instance.getToken();
-      // iOS: APNs token may not be ready at first call; retry once after a short delay
-      if ((token == null || token.isEmpty) &&
-          !kIsWeb &&
-          defaultTargetPlatform == TargetPlatform.iOS) {
-        await Future<void>.delayed(const Duration(seconds: 3));
-        token = await FirebaseMessaging.instance.getToken();
+      // iOS: APNS token must be available before FCM can generate its token.
+      // Explicitly wait for it with retries.
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        String? apnsToken =
+            await FirebaseMessaging.instance.getAPNSToken();
+        int retries = 0;
+        const maxRetries = 5;
+        while (apnsToken == null && retries < maxRetries) {
+          debugPrint(
+              'FCM: APNS token not ready, retry ${retries + 1}/$maxRetries...');
+          await Future<void>.delayed(const Duration(seconds: 2));
+          apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+          retries++;
+        }
+        if (apnsToken == null) {
+          debugPrint(
+              'FCM: APNS token not available after $maxRetries retries');
+          return null;
+        }
+        debugPrint(
+            'FCM: APNS token obtained (length: ${apnsToken.length})');
       }
-      return token;
+
+      final token = await FirebaseMessaging.instance.getToken();
+      return (token != null && token.isNotEmpty) ? token : null;
     } catch (e) {
       debugPrint('FCM getToken error: $e');
       return null;
@@ -122,8 +139,13 @@ class FcmService {
 
   static void _onForegroundMessage(RemoteMessage message) {
     // Prefer notification payload; fall back to data for data-only messages
-    String title = message.notification?.title ?? message.data['title'] ?? 'Notification';
-    String body = message.notification?.body ?? message.data['body'] ?? message.data['message'] ?? '';
+    final String title = message.notification?.title ??
+        message.data['title'] ??
+        'Notification';
+    final String body = message.notification?.body ??
+        message.data['body'] ??
+        message.data['message'] ??
+        '';
     debugPrint('FCM foreground: $title - $body');
     _showLocalNotification(title: title, body: body);
   }
@@ -157,7 +179,8 @@ class FcmService {
   }
 
   static void _onMessageOpenedApp(RemoteMessage message) {
-    debugPrint('FCM opened from background: ${message.notification?.title}');
+    debugPrint(
+        'FCM opened from background: ${message.notification?.title}');
   }
 
   static void _onTokenRefresh(String newToken) {
