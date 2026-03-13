@@ -71,30 +71,34 @@ class AppStateNotifier extends ChangeNotifier {
 }
 
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: '/',
+      initialLocation: AppSplashWidget.routePath,
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
       redirect: (context, state) async {
         final isAuth = appStateNotifier.isAuthenticated;
         final path = state.uri.path;
+        final isAppSplash = path == AppSplashWidget.routePath;
         final isAuthRoute = path == LoginWidget.routePath ||
             path == SignUpWidget.routePath ||
             path == PasswordResetWidget.routePath ||
             path == EmailVerificationWidget.routePath;
         final isOnboardingRoute = path.startsWith('/onboarding');
 
+        if (isAppSplash) return null;
+
         if (!isAuth && !isAuthRoute) {
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
-          // Subscribed users skip onboarding and go straight to home
+          // After login: subscribed → home; not subscribed → onboarding flow
           if (RevenueCatService.instance.isSupported) {
             final subscribed = await RevenueCatService.instance.isSubscribed();
             if (subscribed) return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+            return OnboardingOriginSplashWidget.routePath;
           }
           final completed = await OnboardingService.hasCompletedOnboarding();
-          if (!completed) return OnboardingSplashWidget.routePath;
+          if (!completed) return OnboardingOriginSplashWidget.routePath;
           return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
         }
         if (isAuth && !isOnboardingRoute) {
@@ -104,11 +108,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             if (subscribed) return null;
           }
           final completed = await OnboardingService.hasCompletedOnboarding();
-          if (!completed) return OnboardingSplashWidget.routePath;
+          if (!completed) return OnboardingOriginSplashWidget.routePath;
         }
         if (isAuth && isOnboardingRoute) {
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (completed && path == OnboardingSplashWidget.routePath) {
+            return '/';
+          }
+          if (completed && path == OnboardingOriginSplashWidget.routePath) {
             return '/';
           }
         }
@@ -186,6 +193,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
               : ProfileWidget(),
         ),
         FFRoute(
+          name: AppSplashWidget.routeName,
+          path: AppSplashWidget.routePath,
+          builder: (context, params) => AppSplashWidget(),
+        ),
+        FFRoute(
           name: SignUpWidget.routeName,
           path: SignUpWidget.routePath,
           builder: (context, params) => SignUpWidget(),
@@ -231,6 +243,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => OnboardingDesireWidget(
             fromDesires: params.state.extraMap['fromDesires'] == true,
           ),
+        ),
+        FFRoute(
+          name: OnboardingOriginSplashWidget.routeName,
+          path: OnboardingOriginSplashWidget.routePath,
+          builder: (context, params) => OnboardingOriginSplashWidget(),
         ),
         FFRoute(
           name: OnboardingPersonalizeWidget.routeName,

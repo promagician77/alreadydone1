@@ -5,7 +5,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart' show SupabaseService;
 import '/flutter_flow/nav/nav.dart';
-import '/pages/onboarding/onboarding_splash_widget.dart';
+import '/pages/onboarding/onboarding_origin_splash_widget.dart';
 import '/services/app_toast.dart';
 import 'email_verification_model.dart';
 export 'email_verification_model.dart';
@@ -200,7 +200,7 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
             context,
             widget.isEmailChange ? 'Email updated successfully!' : 'Email verified! Welcome.',
           );
-          context.go(widget.isEmailChange ? '/' : OnboardingSplashWidget.routePath);
+          context.go(widget.isEmailChange ? '/' : OnboardingOriginSplashWidget.routePath);
         }
       }
     } catch (e) {

@@ -10,7 +10,7 @@ import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
-import 'onboarding_personalize_widget.dart';
+import 'onboarding_player_widget.dart';
 
 class OnboardingSplashWidget extends StatefulWidget {
   const OnboardingSplashWidget({super.key});
@@ -75,6 +75,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                         _buildSecondaryText(),
                         const SizedBox(height: 10),
                         _buildRestoreLink(),
+                        const SizedBox(height: 16),
+                        _buildContinueWithFreeLink(),
                         const SizedBox(height: 12),
                         _buildFooterLinks(),
                       ],
@@ -471,7 +473,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         context,
         isStartTrial ? '3-day free trial started!' : 'Subscription active!',
       );
-      context.go(OnboardingPersonalizeWidget.routePath);
+      context.go(OnboardingPlayerWidget.routePath);
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) ==
@@ -509,7 +511,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                   context,
                   isStartTrial ? '3-day free trial started!' : 'Subscription active!',
                 );
-                context.go(OnboardingPersonalizeWidget.routePath);
+                context.go(OnboardingPlayerWidget.routePath);
                 return;
               }
             }
@@ -623,6 +625,21 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           fontSize: 12,
           fontWeight: FontWeight.w500,
           color: AuthTheme.goldDark,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _buildContinueWithFreeLink() {
+    return GestureDetector(
+      onTap: () => context.go(OnboardingPlayerWidget.routePath),
+      child: Text(
+        'Continue with free',
+        style: GoogleFonts.outfit(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AuthTheme.inkSoft,
         ),
         textAlign: TextAlign.center,
       ),

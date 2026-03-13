@@ -6,7 +6,7 @@ import '/widgets/pressable.dart';
 import '/services/app_toast.dart';
 import 'onboarding_state.dart';
 import 'onboarding_desire_widget.dart';
-import 'onboarding_splash_widget.dart';
+import 'onboarding_origin_splash_widget.dart';
 
 Widget _progressBar(int activeSegments) {
   return Padding(
@@ -105,7 +105,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 22),
                   color: AuthTheme.gold,
-                  onPressed: () => context.go(OnboardingSplashWidget.routePath),
+                  onPressed: () => context.go(OnboardingOriginSplashWidget.routePath),
                 ),
               ),
             ),

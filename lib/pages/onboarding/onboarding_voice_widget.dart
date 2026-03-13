@@ -13,6 +13,7 @@ import '/services/app_toast.dart';
 import 'onboarding_state.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_player_widget.dart';
+import 'onboarding_splash_widget.dart';
 import 'celebration_overlay.dart';
 import 'recording_circle.dart';
 
@@ -215,7 +216,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       showCelebrationOverlay(
         context,
         message: 'Perfect! Your voice is cloned.',
-        onComplete: () => context.go(OnboardingPlayerWidget.routePath),
+        onComplete: () => context.go(OnboardingSplashWidget.routePath),
         duration: const Duration(milliseconds: 2500),
       );
     } catch (e) {
