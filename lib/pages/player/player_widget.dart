@@ -273,14 +273,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _saveLastPlayed();
         return;
       }
+      List<dynamic>? storiesList;
       final userId = await SupabaseService.getCurrentUserTableId();
       if (userId != null) {
         try {
           final res = await BackendClient.getStories(userId);
           debugPrint('res: $res');
-          final list = (res['stories'] as List<dynamic>?) ?? [];
-          debugPrint('list: $list');
-          if (list.isEmpty) {
+          storiesList = (res['stories'] as List<dynamic>?) ?? [];
+          debugPrint('list: $storiesList');
+          if (storiesList.isEmpty) {
             await LastPlayedService.clearLastPlayed();
             if (!mounted) return;
             setState(() {
@@ -293,7 +294,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         } catch (_) {
         }
       }
-      
+
       final lastPlayed = await LastPlayedService.loadLastPlayed();
       if (lastPlayed != null &&
           lastPlayed['playUrl']?.toString().trim().isNotEmpty == true) {
@@ -336,21 +337,27 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
 
       // No last played: use last created story (by created_at).
-      final fallback = await _loadLastCreatedStory();
+      Map<String, dynamic>? fallback = await _loadLastCreatedStory();
+      if (fallback == null &&
+          storiesList != null &&
+          storiesList.isNotEmpty) {
+        fallback = await _loadFirstAvailableFromList(storiesList);
+      }
       if (fallback != null && !mounted) return;
-      if (fallback != null) {
-        final playUrl = fallback['playUrl']!.toString().trim();
-        final voiceId = fallback['voiceId']?.toString().trim();
-        final storyId = fallback['storyId'] is int
-            ? fallback['storyId'] as int
-            : int.tryParse(fallback['storyId']?.toString() ?? '');
+      final fallbackMap = fallback;
+      if (fallbackMap != null) {
+        final playUrl = fallbackMap['playUrl']!.toString().trim();
+        final voiceId = fallbackMap['voiceId']?.toString().trim();
+        final storyId = fallbackMap['storyId'] is int
+            ? fallbackMap['storyId'] as int
+            : int.tryParse(fallbackMap['storyId']?.toString() ?? '');
         setState(() {
           _playUrl = playUrl;
-          _title = fallback['title'];
-          _categoryLabel = fallback['categoryLabel'] ?? 'Love';
-          _durationLabel = fallback['durationLabel'];
-          _previewContent = fallback['storyPreview'];
-          _fullStoryContent = fallback['storyContent']?.toString().trim();
+          _title = fallbackMap['title'];
+          _categoryLabel = fallbackMap['categoryLabel'] ?? 'Love';
+          _durationLabel = fallbackMap['durationLabel'];
+          _previewContent = fallbackMap['storyPreview'];
+          _fullStoryContent = fallbackMap['storyContent']?.toString().trim();
           _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
           _currentStoryId = storyId;
           _loading = false;
@@ -363,13 +370,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _voicePlayUrlCache[_voiceCacheKey(storyId, voiceId)] = playUrl;
         }
         LastPlayedService.saveLastPlayed(
-          storyId: fallback['storyId'] as int?,
+          storyId: fallbackMap['storyId'] as int?,
           playUrl: playUrl,
           title: _title,
           categoryLabel: _categoryLabel,
           durationLabel: _durationLabel,
           storyPreview: _previewContent,
-          storyContent: fallback['storyContent']?.toString().trim(),
+          storyContent: fallbackMap['storyContent']?.toString().trim(),
           voiceId: _voiceId,
         );
         _maybeAutoPlayAndActivateSleepMode();
@@ -513,6 +520,65 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
       });
     }
+  }
+
+  /// When last played and _loadLastCreatedStory both fail, try loading the first story
+  /// from the list that has a playUrl (e.g. from navbar with no params).
+  Future<Map<String, dynamic>?> _loadFirstAvailableFromList(List<dynamic> list) async {
+    final mapped = list
+        .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+        .toList();
+    if (mapped.isEmpty) return null;
+    mapped.sort((a, b) {
+      final aAt = a['created_at'] ?? a['id'] ?? 0;
+      final bAt = b['created_at'] ?? b['id'] ?? 0;
+      if (aAt == bAt) return 0;
+      return bAt.toString().compareTo(aAt.toString());
+    });
+    for (final story in mapped) {
+      final storyId = story['id'] is int
+          ? story['id'] as int
+          : int.tryParse(story['id']?.toString() ?? '');
+      if (storyId == null) continue;
+      try {
+        final res = await BackendClient.getStoryPlayUrl(storyId);
+        final playUrl = res['playUrl']?.toString().trim();
+        if (playUrl == null || playUrl.isEmpty) continue;
+        final content =
+            (story['story'] ?? story['content'])?.toString().trim();
+        final preview = content != null && content.isNotEmpty ? content : null;
+        final duration = story['play_length'] ?? story['duration'];
+        int secs = 0;
+        if (duration != null) {
+          if (duration is int) {
+            secs = duration;
+          } else if (duration is num) {
+            secs = duration.round();
+          } else {
+            secs = int.tryParse(duration.toString()) ?? 0;
+          }
+        }
+        final m = secs ~/ 60;
+        final s = secs % 60;
+        final durationLabel =
+            '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+        final storyVoiceId =
+            (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
+        return {
+          'playUrl': playUrl,
+          'storyId': storyId,
+          'title': (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString(),
+          'categoryLabel': (story['desire_name'] ?? story['category'] ?? 'Love').toString(),
+          'durationLabel': durationLabel,
+          'storyPreview': preview,
+          'storyContent': content,
+          if (storyVoiceId != null && storyVoiceId.isNotEmpty) 'voiceId': storyVoiceId,
+        };
+      } catch (_) {
+        continue;
+      }
+    }
+    return null;
   }
 
   /// Load the last created story when no last played exists.
