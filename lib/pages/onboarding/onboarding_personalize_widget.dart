@@ -7,6 +7,7 @@ import '/services/app_toast.dart';
 import 'onboarding_state.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_origin_splash_widget.dart';
+import '/services/onboarding_service.dart';
 
 Widget _progressBar(int activeSegments) {
   return Padding(
@@ -240,7 +241,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                   color: AuthTheme.gold,
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
-                    onTap: () {
+                    onTap: () async {
                       final name = _state.firstNameController.text.trim();
                       final place = _state.dreamLocationController.text.trim();
                       final loved = _state.lovedOneController.text.trim();
@@ -256,6 +257,8 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                         AppToast.info(context, 'Please enter someone you love');
                         return;
                       }
+                      await _state.persistToPrefs(OnboardingDesireWidget.routePath);
+                      if (!context.mounted) return;
                       context.go(OnboardingDesireWidget.routePath);
                     },
                     borderRadius: BorderRadius.circular(12),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/services/onboarding_service.dart';
 
 /// Shared state for the onboarding flow across separate route pages.
 /// Cleared when onboarding completes.
@@ -71,6 +72,40 @@ class OnboardingState {
     recordingDurationSec = null;
     voicePlayUrl = null;
     selectedVoiceName = null;
+  }
+
+  /// Persist current form values and the reached step path to SharedPreferences.
+  /// Call on every "Continue" tap so the user can resume if the app is killed.
+  Future<void> persistToPrefs(String stepPath) async {
+    final data = <String, dynamic>{
+      'firstName': firstNameController.text.trim(),
+      'dreamLocation': dreamLocationController.text.trim(),
+      'lovedOne': lovedOneController.text.trim(),
+      'desireDescription': desireDescriptionController.text.trim(),
+      'selectedEnergyWord': selectedEnergyWord,
+      'selectedCategory': selectedCategory,
+    };
+    await OnboardingService.saveProgress(stepPath: stepPath, data: data);
+  }
+
+  /// Restore form values from SharedPreferences (call on re-launch mid-onboarding).
+  /// Returns the saved step path, or null if nothing was saved.
+  static Future<String?> restoreFromPrefs() async {
+    final step = await OnboardingService.getSavedStep();
+    if (step == null) return null;
+    final data = await OnboardingService.loadProgress();
+    final inst = OnboardingState.instance;
+    final firstName = data['firstName']?.toString() ?? '';
+    final dreamLocation = data['dreamLocation']?.toString() ?? '';
+    final lovedOne = data['lovedOne']?.toString() ?? '';
+    final desireDescription = data['desireDescription']?.toString() ?? '';
+    if (firstName.isNotEmpty) inst.firstNameController.text = firstName;
+    if (dreamLocation.isNotEmpty) inst.dreamLocationController.text = dreamLocation;
+    if (lovedOne.isNotEmpty) inst.lovedOneController.text = lovedOne;
+    if (desireDescription.isNotEmpty) inst.desireDescriptionController.text = desireDescription;
+    if (data['selectedEnergyWord'] is int) inst.selectedEnergyWord = data['selectedEnergyWord'] as int;
+    if (data['selectedCategory'] is int) inst.selectedCategory = data['selectedCategory'] as int;
+    return step;
   }
 
   void dispose() {

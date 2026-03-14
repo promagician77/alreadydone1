@@ -118,7 +118,8 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       if (mounted) {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
-        context.go(OnboardingVoiceSelectionWidget.routePath);
+        await _state.persistToPrefs(OnboardingVoiceSelectionWidget.routePath);
+        if (mounted) context.go(OnboardingVoiceSelectionWidget.routePath);
       }
     } catch (e) {
       if (mounted) {

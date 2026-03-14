@@ -4,12 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/widgets/animated_waveform_icon.dart';
 import 'app_splash_model.dart';
 export 'app_splash_model.dart';
 
 /// App-branded splash shown ~2s after install before login.
-/// Matches HTML design: navy gradient, gold particles, waveform logo, "Already Done", loading dots.
+/// Navy gradient, gold particles, app logo, "Already Done", loading dots.
 class AppSplashWidget extends StatefulWidget {
   const AppSplashWidget({super.key});
 
@@ -168,10 +167,32 @@ class _AppSplashWidgetState extends State<AppSplashWidget>
               ],
             ),
           ),
-          // Waveform icon (same as login/signup wave effect)
-          const AnimatedWaveformIcon(
-            size: AnimatedWaveformSize.splash,
-            wrapped: false,
+          // App icon (Already Done logo)
+          Container(
+            width: 140,
+            height: 140,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: _gold.withValues(alpha: 0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Image.asset(
+                'assets/icon/app_icon.png',
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
         ],
       ),

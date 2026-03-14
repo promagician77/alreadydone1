@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '/services/sleep_mode_notifier.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
+import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import '/index.dart';
@@ -227,7 +228,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     _applyMixContext();
 
-    _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
+    _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) async {
       if (!_disposed && mounted) {
         _stopThetaBackground();
         setState(() {
@@ -236,6 +237,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
         });
         if (_sleepModeActive) {
           _endSleepSession();
+        }
+        // After playback completes, send non-subscribed users to the paywall.
+        final subscribed = RevenueCatService.instance.isSupported
+            ? await RevenueCatService.instance.isSubscribed()
+            : false;
+        if (!subscribed && mounted) {
+          context.go(SubscriptionWidget.routePath);
         }
       }
     });
@@ -970,6 +978,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
         await _audioPlayer.pause();
         if (_sleepModeActive) await _thetaTrackPlayer.pause();
         if (mounted) setState(() => _isPlaying = false);
+        // Send non-subscribed users to paywall when they pause.
+        final subscribed = RevenueCatService.instance.isSupported
+            ? await RevenueCatService.instance.isSubscribed()
+            : false;
+        if (!subscribed && mounted) {
+          context.go(SubscriptionWidget.routePath);
+          return;
+        }
       } else {
         await _applyMixContext();
 
@@ -2757,6 +2773,33 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   void _onDeepenTap() {
     if (_isDeepening) return;
+    // Check subscription; send non-subscribers to the subscription page.
+    _checkSubscriptionThenDeepen();
+  }
+
+  Future<void> _checkSubscriptionThenDeepen() async {
+    bool isSubscribed = false;
+    if (RevenueCatService.instance.isSupported) {
+      isSubscribed = await RevenueCatService.instance.isSubscribed();
+    }
+    if (!isSubscribed) {
+      try {
+        final userId = await SupabaseService.getCurrentUserTableId();
+        if (userId != null) {
+          final profile = await BackendClient.getUserProfile(userId);
+          final plan = (profile['rc_subscription_plan'] ?? profile['rc_subscription_Plan'])
+              ?.toString().toLowerCase().trim();
+          final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+              ?.toString().toLowerCase().trim();
+          isSubscribed = (plan == 'weekly' || plan == 'monthly') && status != 'canceled';
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    if (!isSubscribed) {
+      context.go(SubscriptionWidget.routePath);
+      return;
+    }
     showDeepenConfirmModal(
       context,
       onContinue: _deepenManifestation,

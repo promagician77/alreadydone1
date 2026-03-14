@@ -6,6 +6,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/onboarding_service.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
+import 'onboarding_splash_widget.dart';
 import 'onboarding_state.dart';
 
 /// Formats seconds as "X min Y sec" (readable) or "0:00" (short).
@@ -111,11 +112,18 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   void initState() {
     super.initState();
     _state = OnboardingState.instance;
+    // Mark that the user has generated their first story so relaunch routing works.
+    OnboardingService.setFirstStoryGenerated();
     _audioPlayer.onPlayerComplete.listen((_) {
-      if (mounted) setState(() {
-        _isPlaying = false;
-        _position = Duration.zero;
-      });
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _position = Duration.zero;
+          _playCount++;
+        });
+        // When the story finishes, navigate to the paywall automatically.
+        context.go(OnboardingSplashWidget.routePath);
+      }
     });
     _audioPlayer.onDurationChanged.listen((d) {
       if (mounted) setState(() => _duration = d);
@@ -190,9 +198,8 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   }
 
   Future<void> _completeOnboarding() async {
-    await OnboardingService.setOnboardingCompleted();
-    _state.clear();
-    if (mounted) context.go('/');
+    // Direct user to the paywall; onboarding will be marked complete after they subscribe.
+    if (mounted) context.go(OnboardingSplashWidget.routePath);
   }
 
   Widget _buildStoryPreview() {

@@ -55,7 +55,7 @@ class _LoginWidgetState extends State<LoginWidget> {
                       const SizedBox(height: 28),
                       const Center(child: WaveformIcon()),
                       const SizedBox(height: 20),
-                      Text('Welcome back.', textAlign: TextAlign.center, style: AuthTheme.welcomeTitleStyle),
+                      Text('Sign in', textAlign: TextAlign.center, style: AuthTheme.welcomeTitleStyle),
                       const SizedBox(height: 8),
                       Text('Your voice is ready for you', textAlign: TextAlign.center, style: AuthTheme.welcomeSubStyle),
                       const SizedBox(height: 24),

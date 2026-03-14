@@ -64,6 +64,8 @@ class AppStateNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Auth state: we keep users logged in indefinitely (no expiration). Session is persisted
+  /// by Supabase; sign-out only on user action (profile) or auth error (e.g. invalid refresh token).
   void initAuthListener() {
     final sub = SupabaseService.authStateChanges.listen((state) async {
       final isSignedIn = state.event == AuthChangeEvent.signedIn ||
@@ -114,17 +116,25 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
-          // After login: subscribed → home; not subscribed → onboarding flow
+          // After login: subscribed → home; not subscribed → resume onboarding or paywall
           if (RevenueCatService.instance.isSupported) {
             final subscribed = await RevenueCatService.instance.isSubscribed();
             if (subscribed) return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
-            return OnboardingOriginSplashWidget.routePath;
+          } else {
+            // Non-RevenueCat platforms: check backend profile
+            final hasActiveSubscriptionFromProfile = await _hasActiveSubscriptionFromProfile();
+            if (hasActiveSubscriptionFromProfile) {
+              return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+            }
           }
-          // Check Supabase/backend profile: active weekly or monthly and not canceled -> go home
-          final hasActiveSubscriptionFromProfile = await _hasActiveSubscriptionFromProfile();
-          if (hasActiveSubscriptionFromProfile) {
-            return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+          // Not subscribed: if first story already generated → paywall
+          if (await OnboardingService.hasGeneratedFirstStory()) {
+            return OnboardingSplashWidget.routePath;
           }
+          // Resume mid-onboarding if a step was saved
+          final savedStep = await OnboardingService.getSavedStep();
+          if (savedStep != null) return savedStep;
+          // Check if onboarding completed without subscription
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) return OnboardingOriginSplashWidget.routePath;
           return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
@@ -137,8 +147,17 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           }
           final hasActiveSubscriptionFromProfile = await _hasActiveSubscriptionFromProfile();
           if (hasActiveSubscriptionFromProfile) return null;
+          // Not subscribed: if first story already generated → paywall
+          if (await OnboardingService.hasGeneratedFirstStory()) {
+            return OnboardingSplashWidget.routePath;
+          }
           final completed = await OnboardingService.hasCompletedOnboarding();
-          if (!completed) return OnboardingOriginSplashWidget.routePath;
+          if (!completed) {
+            // Resume mid-onboarding if a step was saved
+            final savedStep = await OnboardingService.getSavedStep();
+            if (savedStep != null) return savedStep;
+            return OnboardingOriginSplashWidget.routePath;
+          }
         }
         if (isAuth && isOnboardingRoute) {
           final completed = await OnboardingService.hasCompletedOnboarding();

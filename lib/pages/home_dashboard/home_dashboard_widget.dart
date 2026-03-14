@@ -513,8 +513,13 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-            'GOOD MORNING',
+          Text(
+            () {
+              final hour = DateTime.now().hour;
+              if (hour < 12) return 'GOOD MORNING';
+              if (hour < 17) return 'GOOD AFTERNOON';
+              return 'GOOD EVENING';
+            }(),
             style: GoogleFonts.outfit(
               fontSize: 12,
               letterSpacing: 1.5,

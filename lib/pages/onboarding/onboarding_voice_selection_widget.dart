@@ -10,7 +10,6 @@ import '/services/supabase_service.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_player_widget.dart';
 import 'onboarding_voice_widget.dart';
-import 'onboarding_splash_widget.dart';
 import 'onboarding_state.dart';
 
 Widget _progressBar(int activeSegments) {
@@ -311,7 +310,7 @@ class _OnboardingVoiceSelectionWidgetState
       OnboardingState.instance.selectedVoiceName = 'My Voice';
       if (!mounted) return;
       Navigator.of(dialogContext).pop();
-      context.go(OnboardingSplashWidget.routePath);
+      context.go(OnboardingPlayerWidget.routePath);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -669,7 +668,7 @@ class _OnboardingVoiceSelectionWidgetState
               OnboardingState.instance.selectedVoiceName = _selectedVoiceDisplayName;
 
               if (mounted) {
-                context.go(OnboardingSplashWidget.routePath);
+                context.go(OnboardingPlayerWidget.routePath);
               }
             } catch (e) {
               if (mounted) {

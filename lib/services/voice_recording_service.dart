@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -17,6 +18,11 @@ class VoiceRecordingService {
   }
 
   Future<String> start() async {
+    if (kIsWeb) {
+      throw UnsupportedError(
+        'Voice recording is not supported on web. Please use the iOS or Android app.',
+      );
+    }
     if (await _recorder.isRecording()) throw StateError('Already recording');
     final granted = await requestPermission();
     if (!granted) {

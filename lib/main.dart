@@ -28,27 +28,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
-Future<void> _initializeApp() async {
+/// Minimal init so the first frame (splash) can paint immediately. Keeps blank white screen short.
+Future<void> _initializeAppCritical() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  debugPrint('🔍 Initializing Firebase...');
-  bool firebaseInitialized = false;
-  try {
-    await Firebase.initializeApp();
-    firebaseInitialized = true;
-
-    debugPrint('✅ Firebase initialized successfully');
-    debugPrint('   App name: ${Firebase.app().name}');
-    debugPrint('   Options: ${Firebase.app().options.projectId}');
-
-    if (!kIsWeb) {
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-      debugPrint('✅ FirebaseMessaging background handler registered');
-    }
-  } catch (e, st) {
-    debugPrint('❌ Firebase initialization failed: $e');
-    debugPrint('$st');
-  }
 
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
@@ -71,40 +53,67 @@ Future<void> _initializeApp() async {
   await SupabaseService.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   debugPrint('✅ Supabase initialized successfully');
 
-  debugPrint('🔍 Initializing BackendClient...');
   BackendClient.initialize(baseUrl: dotenv.env['BACKEND_URL']);
-  debugPrint('✅ BackendClient initialized successfully');
-
-  debugPrint('🔍 Initializing RevenueCat...');
-  await RevenueCatService.instance.configure();
-  debugPrint('✅ RevenueCat initialized successfully');
-
-  debugPrint('🔍 Checking backend connection...');
-  final connected = await BackendClient.checkConnection();
-  if (connected) {
-    debugPrint('Backend connected at ${BackendClient.baseUrl}');
-  } else {
-    debugPrint('Backend unreachable at ${BackendClient.baseUrl} — is the server running?');
-  }
-  debugPrint('✅ Backend connection checked successfully');
 
   debugPrint('🔍 Initializing AuthListener...');
   AppStateNotifier.instance.initAuthListener();
   debugPrint('✅ AuthListener initialized successfully');
+}
 
-  debugPrint('🔍 Initializing FCM...');
+/// Slow init (Firebase, RevenueCat, backend check, FCM). Run after first frame to avoid blocking splash.
+Future<void> _initializeAppDeferred() async {
+  debugPrint('🔍 Deferred: Firebase...');
+  bool firebaseInitialized = false;
+  try {
+    await Firebase.initializeApp();
+    firebaseInitialized = true;
+    debugPrint('✅ Firebase initialized successfully');
+    if (!kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    }
+  } catch (e, st) {
+    debugPrint('❌ Firebase initialization failed: $e');
+    debugPrint('$st');
+  }
+
+  debugPrint('🔍 Deferred: RevenueCat...');
+  try {
+    await RevenueCatService.instance.configure();
+    debugPrint('✅ RevenueCat initialized successfully');
+  } catch (e) {
+    debugPrint('RevenueCat configure error: $e');
+  }
+
+  debugPrint('🔍 Deferred: Backend connection check...');
+  try {
+    final connected = await BackendClient.checkConnection();
+    if (connected) {
+      debugPrint('Backend connected at ${BackendClient.baseUrl}');
+    } else {
+      debugPrint('Backend unreachable at ${BackendClient.baseUrl}');
+    }
+  } catch (e) {
+    debugPrint('Backend check failed: $e');
+  }
+
   if (!kIsWeb && firebaseInitialized) {
-    await FcmService.initialize();
-    debugPrint('✅ FCM initialized successfully');
-  } else {
-    debugPrint('❌ FCM not initialized (Firebase not initialized)');
+    debugPrint('🔍 Deferred: FCM...');
+    try {
+      await FcmService.initialize();
+      debugPrint('✅ FCM initialized successfully');
+    } catch (e) {
+      debugPrint('FCM init failed: $e');
+    }
   }
 }
 
 void main() async {
   runZonedGuarded(() async {
-    await _initializeApp();
+    await _initializeAppCritical();
     runApp(MyApp());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeAppDeferred();
+    });
   }, (error, stack) {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');

@@ -1,12 +1,43 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/services/supabase_service.dart';
 
 class OnboardingService {
   static const _keyPrefix = 'onboarding_completed_';
+  static const _stepPrefix = 'onboarding_step_';
+  static const _dataPrefix = 'onboarding_data_';
+  static const _firstStoryPrefix = 'first_story_generated_';
 
   static String _storageKey() {
     final userId = SupabaseService.currentUser?.id;
     return '$_keyPrefix${userId?.toLowerCase() ?? 'guest'}';
+  }
+
+  static String _stepKey() {
+    final userId = SupabaseService.currentUser?.id;
+    return '$_stepPrefix${userId?.toLowerCase() ?? 'guest'}';
+  }
+
+  static String _dataKey() {
+    final userId = SupabaseService.currentUser?.id;
+    return '$_dataPrefix${userId?.toLowerCase() ?? 'guest'}';
+  }
+
+  static String _firstStoryKey() {
+    final userId = SupabaseService.currentUser?.id;
+    return '$_firstStoryPrefix${userId?.toLowerCase() ?? 'guest'}';
+  }
+
+  /// Mark that the user has generated their first story (used for relaunch routing).
+  static Future<void> setFirstStoryGenerated() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_firstStoryKey(), true);
+  }
+
+  /// Returns true if the user has already generated their first story.
+  static Future<bool> hasGeneratedFirstStory() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_firstStoryKey()) ?? false;
   }
 
   /// Check if user has completed onboarding. Uses Supabase Users table as source
@@ -52,6 +83,46 @@ class OnboardingService {
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_storageKey(), true);
+    // Clear in-progress step/data on completion
+    await prefs.remove(_stepKey());
+    await prefs.remove(_dataKey());
+  }
+
+  /// Save the current onboarding step route path and form data.
+  /// Call this on each "Continue" tap so the user can resume after an app kill.
+  static Future<void> saveProgress({
+    required String stepPath,
+    required Map<String, dynamic> data,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_stepKey(), stepPath);
+    await prefs.setString(_dataKey(), jsonEncode(data));
+  }
+
+  /// Returns the saved step path (e.g. '/onboarding/desire'), or null if none saved.
+  static Future<String?> getSavedStep() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_stepKey());
+  }
+
+  /// Returns the saved form data map, or empty map if none saved.
+  static Future<Map<String, dynamic>> loadProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_dataKey());
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Clear saved progress without marking onboarding complete (e.g. on sign-out).
+  static Future<void> clearProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_stepKey());
+    await prefs.remove(_dataKey());
   }
 }
 

@@ -60,13 +60,19 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                         text: TextSpan(
                           style: AuthTheme.welcomeTitleStyle,
                           children: [
-                            const TextSpan(text: 'Your dream life.\n'),
-                            TextSpan(text: 'Already', style: AuthTheme.welcomeTitleItalicStyle),
-                            const TextSpan(text: ' here.'),
+                            const TextSpan(text: 'Welcome to '),
+                            TextSpan(text: 'Already Done', style: AuthTheme.welcomeTitleItalicStyle),
+                            const TextSpan(text: '.'),
                           ],
                         ),
                       ),
                       const SizedBox(height: 8),
+                      Text(
+                        'Listen To Stories of Your Dream Life in Your Own Voice',
+                        textAlign: TextAlign.center,
+                        style: AuthTheme.welcomeSubStyle,
+                      ),
+                      const SizedBox(height: 6),
                       Text(
                         'Create your account to begin manifesting',
                         textAlign: TextAlign.center,

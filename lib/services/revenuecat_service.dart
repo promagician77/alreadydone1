@@ -17,7 +17,7 @@ class RevenueCatService {
   static const String entitlementId = 'Already Done Pro';
   static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
   /// Play Store (Android) API key from RevenueCat dashboard.
-  static const String _googleApiKey = 'test_EQotKJldPLvrbKzGRkzgUOxTAJu';
+  static const String _googleApiKey = 'goog_hiqmzFQRWIuFQiPVNczWgVORlDF';
 
   bool _configured = false;
   String? _currentUserId;

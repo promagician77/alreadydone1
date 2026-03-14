@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
-import '/widgets/animated_waveform_icon.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_origin_splash_model.dart';
 import 'onboarding_personalize_widget.dart';
 
 export 'onboarding_origin_splash_model.dart';
 
-/// First screen of onboarding flow (from origin HTML): waveform, "Your dream life. Already done.", "Start Manifesting".
+/// First screen of onboarding flow: app avatar, "Your dream life. Already done.", "Start Manifesting".
 /// Shown before the paywall/onboarding_splash; tap goes to personalization.
 class OnboardingOriginSplashWidget extends StatefulWidget {
   const OnboardingOriginSplashWidget({super.key});
@@ -52,7 +51,7 @@ class _OnboardingOriginSplashWidgetState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 32),
-                    _buildWaveform(),
+                    _buildLogo(),
                     const SizedBox(height: 28),
                     _buildTitle(),
                     const SizedBox(height: 12),
@@ -79,15 +78,31 @@ class _OnboardingOriginSplashWidgetState
     );
   }
 
-  Widget _buildWaveform() {
-    return const Center(
-      child: SizedBox(
+  Widget _buildLogo() {
+    return Center(
+      child: Container(
         width: 120,
-        height: 85,
-        child: Center(
-          child: AnimatedWaveformIcon(
-            size: AnimatedWaveformSize.splash,
-            wrapped: false,
+        height: 120,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: AuthTheme.ink.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: AuthTheme.gold.withValues(alpha: 0.2),
+              blurRadius: 24,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Image.asset(
+            'assets/icon/app_icon.png',
+            fit: BoxFit.cover,
           ),
         ),
       ),

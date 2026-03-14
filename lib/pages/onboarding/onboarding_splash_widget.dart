@@ -8,6 +8,7 @@ import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
+import '/services/onboarding_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_player_widget.dart';
@@ -473,7 +474,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         context,
         isStartTrial ? '3-day free trial started!' : 'Subscription active!',
       );
-      context.go(OnboardingPlayerWidget.routePath);
+      await OnboardingService.setOnboardingCompleted();
+      if (!mounted) return;
+      context.go('/');
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) ==
@@ -511,7 +514,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                   context,
                   isStartTrial ? '3-day free trial started!' : 'Subscription active!',
                 );
-                context.go(OnboardingPlayerWidget.routePath);
+                await OnboardingService.setOnboardingCompleted();
+                if (!mounted) return;
+                context.go('/');
                 return;
               }
             }
