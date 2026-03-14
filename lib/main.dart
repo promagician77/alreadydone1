@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -38,7 +39,10 @@ Future<void> _initializeAppCritical() async {
   await FlutterFlowTheme.initialize();
 
   try {
-    await dotenv.load(fileName: ".env");
+    // Load from asset bundle so .env is found in iOS/Android release (TestFlight, Play Store).
+    // dotenv.load(fileName: ".env") uses filesystem and fails on real devices.
+    final content = await rootBundle.loadString('.env');
+    dotenv.loadFromString(fileInput: content);
   } catch (e) {
     debugPrint('dotenv load failed: $e');
     rethrow;
