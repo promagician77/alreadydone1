@@ -29,7 +29,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
-/// Minimal init so the first frame (splash) can paint immediately. Keeps blank white screen short.
 Future<void> _initializeAppCritical() async {
   WidgetsFlutterBinding.ensureInitialized();
 

@@ -10,6 +10,7 @@ import '/flutter_flow/nav/nav.dart';
 import 'onboarding_state.dart';
 import 'onboarding_personalize_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
+import 'onboarding_splash_widget.dart';
 
 Widget _progressBar(int activeSegments) {
   return Padding(
@@ -80,6 +81,8 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
   Future<void> _handleCreateStory() async {
     final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return;
+
     final body = _state.toStoryRequestBody(userId);
 
     final name = body['name'] as String? ?? '';
@@ -97,6 +100,37 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         AppToast.info(context, 'Please fill in ${missing.join(', ')}');
       }
       return;
+    }
+
+    // Unsubscribed users can create only 1 story; check profile and story count before calling API.
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+
+      debugPrint('Profile: $profile');
+      final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+          ?.toString()
+          .toLowerCase()
+          .trim();
+
+      debugPrint('Status: $status');
+      final isSubscribed = status == 'active' || status == 'trial';
+  
+      if (!isSubscribed) {
+        debugPrint('Not subscribed');
+        final res = await BackendClient.getStories(userId);
+        final list = res['stories'];
+        final storyCount = list is List ? list.length : 0;
+        if (storyCount >= 1 && mounted) {
+          AppToast.info(
+            context,
+            'You can create one story per day without a subscription. Subscribe to create more.',
+          );
+          context.go(OnboardingSplashWidget.routePath);
+          return;
+        }
+      }
+    } catch (_) {
+      // If profile/stories fetch fails, let the backend enforce the limit (may get 403).
     }
 
     try {

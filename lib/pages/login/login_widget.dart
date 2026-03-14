@@ -167,6 +167,7 @@ class _LoginWidgetState extends State<LoginWidget> {
     try {
       final response = await SupabaseService.signIn(email: email, password: password);
 
+      debugPrint('Login response: $response');
       if (response.user != null && mounted) {
         AppToast.success(context, 'Welcome back!');
         context.go('/?fromLogin=1');

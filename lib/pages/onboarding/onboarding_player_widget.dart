@@ -202,6 +202,66 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     if (mounted) context.go(OnboardingSplashWidget.routePath);
   }
 
+  /// Deepen is shown in onboarding but user can't generate (1 story/day limit); tap → paywall.
+  Widget _buildDeepenButton() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 0),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.go(OnboardingSplashWidget.routePath),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AuthTheme.gold.withValues(alpha: 0.15),
+                  AuthTheme.surface,
+                ],
+              ),
+              border: Border.all(color: AuthTheme.gold.withValues(alpha: 0.5), width: 2),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AuthTheme.ink.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('✨', style: GoogleFonts.outfit(fontSize: 14)),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Deepen This Manifestation',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AuthTheme.goldDark,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text('→', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AuthTheme.goldDark)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStoryPreview() {
     final story = (_state.generatedStory?['story']?.toString() ?? '').trim();
     if (story.isEmpty) return const SizedBox.shrink();
@@ -379,6 +439,8 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    _buildDeepenButton(),
                     const SizedBox(height: 24),
                     if (_state.generatedStory?['story'] != null &&
                         (_state.generatedStory!['story'] as String).trim().isNotEmpty) ...[

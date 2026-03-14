@@ -27,23 +27,20 @@ const kTransitionInfoKey = '__transition_info__';
 
 GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
-/// True if user profile (Supabase/backend) has active subscription: plan is weekly or monthly
-/// and rc_subscription_status is not canceled.
-Future<bool> _hasActiveSubscriptionFromProfile() async {
+/// True if user profile (Supabase users table) has rc_subscription_status of "active" or "trial".
+/// Used after sign-in/sign-up to send subscribed users to home and others to onboarding flow.
+Future<bool> _hasSubscribedStatusFromProfile() async {
   try {
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null) return false;
     final profile = await BackendClient.getUserProfile(userId);
-    final plan = (profile['rc_subscription_plan'] ?? profile['rc_subscription_Plan'])
-        ?.toString()
-        .toLowerCase()
-        .trim();
+    debugPrint('User profile: $profile');
     final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
         ?.toString()
         .toLowerCase()
         .trim();
-    if (status == 'canceled') return false;
-    return plan == 'weekly' || plan == 'monthly';
+    debugPrint('Status: $status');
+    return status == 'active' || status == 'trial';
   } catch (_) {
     return false;
   }
@@ -116,17 +113,10 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
-          // After login: subscribed → home; not subscribed → resume onboarding or paywall
-          if (RevenueCatService.instance.isSupported) {
-            final subscribed = await RevenueCatService.instance.isSubscribed();
-            if (subscribed) return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
-          } else {
-            // Non-RevenueCat platforms: check backend profile
-            final hasActiveSubscriptionFromProfile = await _hasActiveSubscriptionFromProfile();
-            if (hasActiveSubscriptionFromProfile) {
-              return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
-            }
-          }
+          // After sign-in/sign-up: check Supabase users table rc_subscription_status.
+          // If active or trial → home; else → default onboarding flow.
+          final subscribed = await _hasSubscribedStatusFromProfile();
+          if (subscribed) return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
           // Not subscribed: if first story already generated → paywall
           if (await OnboardingService.hasGeneratedFirstStory()) {
             return OnboardingSplashWidget.routePath;
@@ -140,13 +130,9 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
         }
         if (isAuth && !isOnboardingRoute) {
-          // Subscribed users stay on current route (e.g. home); others must complete onboarding
-          if (RevenueCatService.instance.isSupported) {
-            final subscribed = await RevenueCatService.instance.isSubscribed();
-            if (subscribed) return null;
-          }
-          final hasActiveSubscriptionFromProfile = await _hasActiveSubscriptionFromProfile();
-          if (hasActiveSubscriptionFromProfile) return null;
+          // Subscribed (rc_subscription_status active/trial) stay on current route; others → onboarding
+          final subscribed = await _hasSubscribedStatusFromProfile();
+          if (subscribed) return null;
           // Not subscribed: if first story already generated → paywall
           if (await OnboardingService.hasGeneratedFirstStory()) {
             return OnboardingSplashWidget.routePath;
