@@ -660,7 +660,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       context,
       'Manage or cancel your subscription in your device Settings → Subscriptions.',
     );
-    _loadSubscriptionStatus();
+    _loadProfileSubscriptionState();
   }
 
   /// Upgrade weekly → monthly: purchase the monthly package via RevenueCat.
@@ -828,7 +828,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         }
       }
       AppToast.success(context, 'Purchases restored');
-      _loadSubscriptionStatus();
+      _loadProfileSubscriptionState();
     } catch (e) {
       if (!mounted) return;
       AppToast.error(context, 'Could not restore. Please try again.');
