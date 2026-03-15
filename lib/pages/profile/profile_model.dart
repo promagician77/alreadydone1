@@ -26,6 +26,7 @@ class ProfileModel extends FlutterFlowModel<ProfileWidget> {
   String? profileError;
   /// Subscription status from RevenueCat (no backend).
   bool isSubscribedFromRC = false;
+  bool showUpgradeCardFromRC = false;
 
   @override
   void initState(BuildContext context) {}
