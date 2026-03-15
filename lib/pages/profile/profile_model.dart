@@ -24,9 +24,11 @@ class ProfileModel extends FlutterFlowModel<ProfileWidget> {
   bool profileLoading = true;
   /// Non-null if profile fetch failed.
   String? profileError;
-  /// Subscription status from RevenueCat (no backend).
+  /// Subscription status from profile (rc_subscription_status / rc_subscription_plan).
   bool isSubscribedFromRC = false;
   bool showUpgradeCardFromRC = false;
+  /// Label for Subscription row: 'Free', 'Weekly', 'Monthly', or 'Trial'.
+  String subscriptionRowLabel = 'Free';
 
   @override
   void initState(BuildContext context) {}

@@ -64,9 +64,21 @@ class _ProfileWidgetState extends State<ProfileWidget> {
         .trim()
         .toLowerCase();
     final isWeeklyPlan = rcPlan != null && rcPlan.isNotEmpty && (rcPlan.contains('week'));
+    final isMonthlyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('month') && !rcPlan.contains('week');
     final isCanceled = rcStatus == 'canceled' || rcStatus == 'cancelled';
     _model.isSubscribedFromRC = rcStatus == 'active' || rcStatus == 'trial';
     _model.showUpgradeCardFromRC = isWeeklyPlan && !isCanceled;
+    if (!_model.isSubscribedFromRC || isCanceled) {
+      _model.subscriptionRowLabel = 'Free';
+    } else if (rcStatus == 'trial') {
+      _model.subscriptionRowLabel = 'Trial';
+    } else if (isMonthlyPlan) {
+      _model.subscriptionRowLabel = 'Monthly';
+    } else if (isWeeklyPlan) {
+      _model.subscriptionRowLabel = 'Weekly';
+    } else {
+      _model.subscriptionRowLabel = 'Active';
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -422,7 +434,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                   },
                                 );
                               }),
-                              ('Subscription', 'Free →', () => context.go(SubscriptionWidget.routePath)),
+                              ('Subscription', '${_model.subscriptionRowLabel} →', () => context.go(SubscriptionWidget.routePath)),
                             ]),
                             if (_showUpgradeCard) ...[
                               const SizedBox(height: 24),
