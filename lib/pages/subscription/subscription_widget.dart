@@ -35,24 +35,39 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => SubscriptionModel());
-    _loadSubscriptionStatus();
+    _loadProfileSubscriptionState();
   }
 
-  Future<void> _loadSubscriptionStatus() async {
+  /// Derive subscription/plan state from user profile so the correct theme shows:
+  /// when rc_subscription_plan is weekly, show weekly (current) + monthly "UPGRADE NOW" UI.
+  Future<void> _loadProfileSubscriptionState() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
     try {
-      final status = await RevenueCatService.instance.getSubscriptionStatus();
-      if (mounted) {
-        safeSetState(() {
-          _model.isSubscribed = status.isSubscribed;
-          _model.isMonthlyPlan = status.isMonthlyPlan;
-          _model.isWeeklyPlan = status.isWeeklyPlan;
-          _model.isTrialing = status.isTrialing;
-          _model.isCanceled = status.isCanceled;
-          if (status.isMonthlyPlan && _model.selectedPlan == null) _model.selectedPlan = 0;
-          if (status.isWeeklyPlan && _model.selectedPlan == null) _model.selectedPlan = 0;
-        });
-      }
-    } catch (_) {}
+      final profile = await BackendClient.getUserProfile(userId);
+      if (!mounted) return;
+      final rcStatus = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+          ?.toString()
+          .trim()
+          .toLowerCase();
+      final rcPlan = (profile['rc_subscription_plan'] ?? profile['rc_subscription_Plan'])
+          ?.toString()
+          .trim()
+          .toLowerCase();
+      final isWeeklyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('week');
+      final isMonthlyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('month') && !rcPlan.contains('week');
+      final isCanceled = rcStatus == 'canceled' || rcStatus == 'cancelled';
+      safeSetState(() {
+        _model.isSubscribed = rcStatus == 'active' || rcStatus == 'trial';
+        _model.isMonthlyPlan = isMonthlyPlan;
+        _model.isWeeklyPlan = isWeeklyPlan;
+        _model.isTrialing = rcStatus == 'trial';
+        _model.isCanceled = isCanceled;
+        if (_model.selectedPlan == null) _model.selectedPlan = 0;
+      });
+    } catch (_) {
+      if (mounted) safeSetState(() {});
+    }
   }
 
   @override
