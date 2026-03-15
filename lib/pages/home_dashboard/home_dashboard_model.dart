@@ -62,6 +62,10 @@ class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
   /// From user profile: rc_subscription_plan (e.g. plan name). For display or future use.
   String? rcSubscriptionPlan;
 
+  /// True once user profile (with rc_ fields) has been loaded. With [subscriptionStatusLoaded],
+  /// used to avoid showing Sleep Mode card until both are ready (no flash of wrong state).
+  bool profileSubscriptionReady = false;
+
   @override
   void initState(BuildContext context) {}
 

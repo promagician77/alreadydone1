@@ -160,7 +160,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   Future<void> _loadUserProfile() async {
     if (!mounted) return;
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return;
+    if (userId == null) {
+      if (mounted) safeSetState(() => _model.profileSubscriptionReady = true);
+      return;
+    }
     try {
       final profile = await BackendClient.getUserProfile(userId);
       if (!mounted) return;
@@ -181,9 +184,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         _model.dayStreak = dayStreak;
         _model.rcSubscriptionStatus = rcStatus?.isNotEmpty == true ? rcStatus : null;
         _model.rcSubscriptionPlan = rcPlan?.isNotEmpty == true ? rcPlan : null;
+        _model.profileSubscriptionReady = true;
       });
     } catch (_) {
-      // ignore; keep userName/voiceId null
+      if (mounted) safeSetState(() => _model.profileSubscriptionReady = true);
     }
   }
 
@@ -458,9 +462,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                             ),
                       const SizedBox(height: 16),
 
-                      // Sleep Mode premium card — hide when RevenueCat says subscribed or when
-                      // user profile rc_subscription_status is 'active'.
-                      if (_model.subscriptionStatusLoaded &&
+                      // Sleep Mode premium card — show loading until both profile and subscription
+                      // status are loaded to avoid flashing wrong state.
+                      if (!_model.profileSubscriptionReady || !_model.subscriptionStatusLoaded)
+                        _buildSleepCardLoadingPlaceholder()
+                      else if (_model.subscriptionStatusLoaded &&
                           !_model.isSubscribed &&
                           _model.rcSubscriptionStatus != 'active' &&
                           _model.rcSubscriptionStatus != 'trial') ...[
@@ -731,6 +737,23 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Shown until profile and subscription status are loaded to avoid flashing sleep card.
+  Widget _buildSleepCardLoadingPlaceholder() {
+    return SizedBox(
+      height: 200,
+      child: Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: _AppColors.gold,
+          ),
         ),
       ),
     );
