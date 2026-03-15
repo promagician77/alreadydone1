@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_origin_splash_model.dart';
@@ -44,13 +45,24 @@ class _OnboardingOriginSplashWidgetState
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+                  color: AuthTheme.gold,
+                  onPressed: () => context.pop(),
+                ),
+              ),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
                     _buildLogo(),
                     const SizedBox(height: 28),
                     _buildTitle(),

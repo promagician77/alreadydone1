@@ -87,11 +87,18 @@ class RevenueCatService {
   }
 
   /// Call when user logs out. No-op on unsupported platforms.
+  /// Only calls native Purchases.logOut() when the SDK has been configured,
+  /// to avoid native fatalError (CommonFunctionality.sharedInstance) when
+  /// logout runs before deferred init (e.g. user signs out before configure).
   Future<void> logOut() async {
     if (!isSupported) return;
+    _currentUserId = null;
+    if (!_configured) {
+      debugPrint('RevenueCat: logOut skipped (SDK not configured)');
+      return;
+    }
     try {
       await Purchases.logOut();
-      _currentUserId = null;
       debugPrint('RevenueCat: logOut success');
     } catch (e) {
       debugPrint('RevenueCat logOut error: $e');
