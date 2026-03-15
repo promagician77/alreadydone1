@@ -61,11 +61,30 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       if (mounted) {
         setState(() {
           _model.isSubscribedFromRC = status.isSubscribed;
-          _model.showUpgradeCardFromRC = status.isWeeklyPlan && !status.isCanceled;
         });
       }
     } catch (_) {}
   }
+
+  /// rc_subscription_status from user profile (e.g. 'active', 'inactive', 'canceled'). Null if not loaded.
+  String? get _rcSubscriptionStatus {
+    final data = _model.profileData;
+    if (data == null) return null;
+    final v = data['rc_subscription_status'] ?? data['rc_subscription_Status'];
+    return v?.toString().trim().toLowerCase();
+  }
+
+  /// rc_subscription_plan from user profile (e.g. 'weekly', 'monthly'). Null if not loaded.
+  String? get _rcSubscriptionPlan {
+    final data = _model.profileData;
+    if (data == null) return null;
+    final v = data['rc_subscription_plan'];
+    return v?.toString().trim().toLowerCase();
+  }
+
+  bool get _isRcStatusActive => _rcSubscriptionStatus == 'active';
+  bool get _isRcPlanWeekly => _rcSubscriptionPlan == 'weekly';
+  bool get _isRcPlanMonthly => _rcSubscriptionPlan == 'monthly';
 
   Future<void> _loadProfile() async {
     final userId = await SupabaseService.getCurrentUserTableId();
@@ -776,7 +795,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'UPGRADE TO MONTHLY PLAN',
+                _showMonthlyUpgradeCopy ? 'UPGRADE TO MONTHLY PLAN' : 'START YOUR SUBSCRIPTION',
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   letterSpacing: 1.5,
@@ -786,7 +805,9 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Save 30% \nBy Switching to the Monthly Plan',
+                _showMonthlyUpgradeCopy
+                    ? 'Save 30% \nBy Switching to the Monthly Plan'
+                    : 'Unlock Sleep Mode and all stories with a free trial',
                 style: GoogleFonts.cormorantGaramond(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
@@ -796,7 +817,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Billed monthly · Cancel anytime',
+                _showMonthlyUpgradeCopy ? 'Billed monthly · Cancel anytime' : 'Start free · Cancel anytime',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.8),
@@ -819,7 +840,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                   ),
                   child: Center(
                     child: Text(
-                      _isSubscribed ? 'Upgrade to Monthly' : 'Start Free Trial',
+                      _showMonthlyUpgradeCopy ? 'Upgrade to Monthly' : 'Start Free Trial',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -838,7 +859,15 @@ class _ProfileWidgetState extends State<ProfileWidget> {
 
   bool get _isSubscribed => _model.isSubscribedFromRC;
 
-  bool get _showUpgradeCard => _model.showUpgradeCardFromRC;
+  /// Show subscription card when: profile loaded and (status is inactive OR plan is weekly), and plan is not monthly.
+  bool get _showUpgradeCard {
+    if (_model.profileLoading || _model.profileData == null) return false;
+    if (_isRcPlanMonthly) return false;
+    return !_isRcStatusActive || _isRcPlanWeekly;
+  }
+
+  /// True when the card should show "Upgrade to Monthly" copy (weekly plan). Else "Start Free Trial" (inactive).
+  bool get _showMonthlyUpgradeCopy => _isRcPlanWeekly;
 
   Widget _buildLogoutSection() {
     return Padding(
