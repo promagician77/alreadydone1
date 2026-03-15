@@ -170,10 +170,17 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       final dayStreak = rawStreak is int
           ? rawStreak
           : (int.tryParse(rawStreak?.toString() ?? '0') ?? 0);
+      final rcStatus = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+          ?.toString()
+          .trim()
+          .toLowerCase();
+      final rcPlan = profile['rc_subscription_plan']?.toString().trim();
       safeSetState(() {
         _model.userName = name.isNotEmpty ? name : null;
         _model.voiceId = voiceId.isNotEmpty ? voiceId : null;
         _model.dayStreak = dayStreak;
+        _model.rcSubscriptionStatus = rcStatus?.isNotEmpty == true ? rcStatus : null;
+        _model.rcSubscriptionPlan = rcPlan?.isNotEmpty == true ? rcPlan : null;
       });
     } catch (_) {
       // ignore; keep userName/voiceId null
@@ -451,9 +458,12 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                             ),
                       const SizedBox(height: 16),
 
-                      // Sleep Mode premium card — only show when we know user is not subscribed
-                      // (avoids flash: card visible for a moment then disappearing for subscribed users)
-                      if (_model.subscriptionStatusLoaded && !_model.isSubscribed) ...[
+                      // Sleep Mode premium card — hide when RevenueCat says subscribed or when
+                      // user profile rc_subscription_status is 'active'.
+                      if (_model.subscriptionStatusLoaded &&
+                          !_model.isSubscribed &&
+                          _model.rcSubscriptionStatus != 'active' &&
+                          _model.rcSubscriptionStatus != 'trial') ...[
                         _buildSleepCard(context),
                         const SizedBox(height: 20),
                       ],

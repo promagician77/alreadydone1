@@ -55,6 +55,13 @@ class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
   /// to avoid it flashing visible for a moment before hiding for subscribed users.
   bool subscriptionStatusLoaded = false;
 
+  /// From user profile: rc_subscription_status (e.g. 'active', 'trial', 'canceled'). When
+  /// 'active', the Unlock Sleep Mode card is hidden.
+  String? rcSubscriptionStatus;
+
+  /// From user profile: rc_subscription_plan (e.g. plan name). For display or future use.
+  String? rcSubscriptionPlan;
+
   @override
   void initState(BuildContext context) {}
 
