@@ -42,7 +42,10 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   /// when rc_subscription_plan is weekly, show weekly (current) + monthly "UPGRADE NOW" UI.
   Future<void> _loadProfileSubscriptionState() async {
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null || !mounted) return;
+    if (userId == null || !mounted) {
+      if (mounted) safeSetState(() => _model.subscriptionStateLoaded = true);
+      return;
+    }
     try {
       final profile = await BackendClient.getUserProfile(userId);
       if (!mounted) return;
@@ -64,9 +67,10 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         _model.isTrialing = rcStatus == 'trial';
         _model.isCanceled = isCanceled;
         if (_model.selectedPlan == null) _model.selectedPlan = 0;
+        _model.subscriptionStateLoaded = true;
       });
     } catch (_) {
-      if (mounted) safeSetState(() {});
+      if (mounted) safeSetState(() => _model.subscriptionStateLoaded = true);
     }
   }
 
@@ -116,19 +120,23 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       const SizedBox(height: 24),
                       _buildTrialBadge(),
                       const SizedBox(height: 20),
-                      _buildPricingCards(),
-                      if (!_model.isMonthlyPlan || _model.isCanceled) ...[
-                        const SizedBox(height: 24),
-                        _buildCtaButton(),
-                        if (_model.isSubscribed && !_model.isCanceled) ...[
-                          const SizedBox(height: 12),
-                          _buildCancelPaymentButton(),
-                        ],
-                      ] else ...[
-                        const SizedBox(height: 24),
-                        if (_model.isSubscribed && !_model.isCanceled) ...[
-                          _buildCancelPaymentButton(),
-                          const SizedBox(height: 12),
+                      if (!_model.subscriptionStateLoaded)
+                        _buildPricingCardsLoadingPlaceholder()
+                      else ...[
+                        _buildPricingCards(),
+                        if (!_model.isMonthlyPlan || _model.isCanceled) ...[
+                          const SizedBox(height: 24),
+                          _buildCtaButton(),
+                          if (_model.isSubscribed && !_model.isCanceled) ...[
+                            const SizedBox(height: 12),
+                            _buildCancelPaymentButton(),
+                          ],
+                        ] else ...[
+                          const SizedBox(height: 24),
+                          if (_model.isSubscribed && !_model.isCanceled) ...[
+                            _buildCancelPaymentButton(),
+                            const SizedBox(height: 12),
+                          ],
                         ],
                       ],
                       if (_model.isPaymentLoading)
@@ -281,6 +289,23 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           color: AuthTheme.surface,
         ),
         textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  /// Shown until profile subscription state is loaded to avoid flashing wrong layout.
+  Widget _buildPricingCardsLoadingPlaceholder() {
+    return SizedBox(
+      height: 320,
+      child: Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AuthTheme.gold,
+          ),
+        ),
       ),
     );
   }
