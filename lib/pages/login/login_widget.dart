@@ -3,7 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
+import 'package:go_router/go_router.dart';
 import '/flutter_flow/nav/nav.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
 import 'login_model.dart';
@@ -27,6 +29,19 @@ class _LoginWidgetState extends State<LoginWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginModel());
+    _loadWelcomeBackState();
+  }
+
+  Future<void> _loadWelcomeBackState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSignedInBefore = prefs.getBool('user_has_signed_in_once') ?? false;
+    if (mounted) setState(() => _model.userHasSignedInBefore = hasSignedInBefore);
+  }
+
+  /// True when user came from Log Out (query param) or session expired (has signed in before).
+  bool _showWelcomeBack(BuildContext context) {
+    return GoRouterState.of(context).uri.queryParameters['welcomeBack'] == 'true' ||
+        _model.userHasSignedInBefore;
   }
 
   @override
@@ -56,7 +71,13 @@ class _LoginWidgetState extends State<LoginWidget> {
                       const SizedBox(height: 28),
                       const Center(child: WaveformIcon()),
                       const SizedBox(height: 20),
-                      Text('Sign in', textAlign: TextAlign.center, style: AuthTheme.welcomeTitleStyle),
+                      Text(
+                        _showWelcomeBack(context)
+                            ? 'Welcome Back'
+                            : 'Sign in',
+                        textAlign: TextAlign.center,
+                        style: AuthTheme.welcomeTitleStyle,
+                      ),
                       const SizedBox(height: 8),
                       Text('Your voice is ready for you', textAlign: TextAlign.center, style: AuthTheme.welcomeSubStyle),
                       const SizedBox(height: 24),

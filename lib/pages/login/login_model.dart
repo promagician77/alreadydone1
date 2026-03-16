@@ -8,6 +8,8 @@ class LoginModel extends FlutterFlowModel<LoginWidget> {
   final passwordFocusNode = FocusNode();
   final passwordTextController = TextEditingController();
   bool isLoading = false;
+  /// True if user has signed in at least once (persisted); used to show "Welcome Back" after session expiry.
+  bool userHasSignedInBefore = false;
 
   @override
   void initState(BuildContext context) {}
