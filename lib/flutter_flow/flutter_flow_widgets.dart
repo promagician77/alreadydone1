@@ -380,11 +380,10 @@ class _FFFocusIndicatorState extends State<FFFocusIndicator> {
       // Builder mode: pass focus node to builder
       childWidget = widget.builder!(_focusNode);
     } else if (hasInteractions) {
-      // Child mode with interactions: wrap in InkWell
+      // Child mode with interactions: wrap in InkWell with visible tap feedback
       childWidget = InkWell(
-        splashColor: Colors.transparent,
-        hoverColor: Colors.transparent,
-        highlightColor: Colors.transparent,
+        splashColor: Colors.black.withValues(alpha: 0.12),
+        highlightColor: Colors.black.withValues(alpha: 0.06),
         focusNode: _focusNode,
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,

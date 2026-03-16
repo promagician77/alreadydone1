@@ -688,6 +688,16 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     _loadProfileSubscriptionState();
   }
 
+  /// After successful subscribe: go to returnTo query param if set (e.g. from onboarding), else home.
+  void _goAfterSubscribe(BuildContext context) {
+    final returnTo = GoRouterState.of(context).uri.queryParameters['returnTo'];
+    if (returnTo != null && returnTo.isNotEmpty) {
+      context.go(returnTo);
+    } else {
+      context.go('/');
+    }
+  }
+
   /// Upgrade weekly → monthly: purchase the monthly package via RevenueCat.
   Future<void> _handleChangeToMonthly() async {
     if (_model.isPaymentLoading) return;
@@ -710,7 +720,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
       AppToast.success(context, 'Upgraded to Monthly!');
-      context.go('/');
+      _goAfterSubscribe(context);
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
@@ -803,7 +813,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       }
 
       AppToast.success(context, isStartTrial ? '3-day free trial started!' : 'Subscription active!');
-      context.go('/');
+      _goAfterSubscribe(context);
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
@@ -899,16 +909,20 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildRestoreLink() {
-    return GestureDetector(
+    return Pressable(
       onTap: _handleRestorePurchases,
-      child: Text(
-        'Restore Purchase',
-        style: GoogleFonts.outfit(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: AuthTheme.inkSoft,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Text(
+          'Restore Purchase',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AuthTheme.inkSoft,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }

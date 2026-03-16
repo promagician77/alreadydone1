@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/services/app_toast.dart';
 import '/services/backend_client.dart';
+import '/widgets/pressable.dart';
 import 'shared.dart';
 
 /// Narration Speed modal. Calls PATCH /api/users/{user_id} with the selected speed on Save.
@@ -93,9 +94,9 @@ class _NarrationSpeedSheetState extends State<NarrationSpeedSheet> {
             final isCurrent = value == widget.currentSpeed.toLowerCase();
             return AbsorbPointer(
               absorbing: _saving,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+              child: Pressable(
                 onTap: () => setState(() => _selected = value),
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 margin: const EdgeInsets.only(bottom: 2),

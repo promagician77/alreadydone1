@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
@@ -44,6 +45,16 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   void dispose() {
     _model.dispose();
     super.dispose();
+  }
+
+  /// After successful subscribe: go to returnTo query param if set (e.g. /onboarding/player), else home.
+  void _goAfterSubscribe(BuildContext context) {
+    final returnTo = GoRouterState.of(context).uri.queryParameters['returnTo'];
+    if (returnTo != null && returnTo.isNotEmpty) {
+      context.go(returnTo);
+    } else {
+      context.go('/');
+    }
   }
 
   @override
@@ -476,7 +487,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       );
       await OnboardingService.setOnboardingCompleted();
       if (!mounted) return;
-      context.go('/');
+      _goAfterSubscribe(context);
     } on PlatformException catch (e) {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) ==
@@ -511,7 +522,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                 );
                 await OnboardingService.setOnboardingCompleted();
                 if (!mounted) return;
-                context.go('/');
+                _goAfterSubscribe(context);
                 return;
               }
             }
@@ -617,31 +628,39 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildRestoreLink() {
-    return GestureDetector(
+    return Pressable(
       onTap: _handleRestorePurchases,
-      child: Text(
-        'Restore Purchase',
-        style: GoogleFonts.outfit(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: AuthTheme.goldDark,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Text(
+          'Restore Purchase',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AuthTheme.goldDark,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }
 
   Widget _buildContinueWithFreeLink() {
-    return GestureDetector(
+    return Pressable(
       onTap: () => context.go(OnboardingPlayerWidget.routePath),
-      child: Text(
-        'Continue with free',
-        style: GoogleFonts.outfit(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: AuthTheme.inkSoft,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Text(
+          'Continue with free',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AuthTheme.inkSoft,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }
@@ -650,30 +669,38 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        GestureDetector(
+        Pressable(
           onTap: () {
             // TODO: Open Terms of Service
           },
-          child: Text(
-            'Terms of Service',
-            style: GoogleFonts.outfit(
-              fontSize: 10,
-              color: AuthTheme.inkSoft,
-              decoration: TextDecoration.underline,
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            child: Text(
+              'Terms of Service',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                color: AuthTheme.inkSoft,
+                decoration: TextDecoration.underline,
+              ),
             ),
           ),
         ),
         const SizedBox(width: 16),
-        GestureDetector(
+        Pressable(
           onTap: () {
             // TODO: Open Privacy Policy
           },
-          child: Text(
-            'Privacy Policy',
-            style: GoogleFonts.outfit(
-              fontSize: 10,
-              color: AuthTheme.inkSoft,
-              decoration: TextDecoration.underline,
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            child: Text(
+              'Privacy Policy',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                color: AuthTheme.inkSoft,
+                decoration: TextDecoration.underline,
+              ),
             ),
           ),
         ),

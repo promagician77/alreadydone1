@@ -111,10 +111,11 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
           ?.toString()
           .toLowerCase()
           .trim();
-
+        
       debugPrint('Status: $status');
+
       final isSubscribed = status == 'active' || status == 'trial';
-  
+      debugPrint('Is subscribed: $isSubscribed');
       if (!isSubscribed) {
         debugPrint('Not subscribed');
         final res = await BackendClient.getStories(userId);
@@ -159,6 +160,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       if (mounted) {
         setState(() => _state.isGenerating = false);
         final msg = e.toString();
+        debugPrint('Error: $msg');
         if (msg.contains('403') &&
             (msg.contains('Non-subscribers') || msg.contains('1 story per day'))) {
           AppToast.info(

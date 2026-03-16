@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/pages/profile/profile_modals/shared.dart';
+import '/widgets/pressable.dart';
 
 /// Shows the deepened story result: theme as title and story content in a scrollable body.
 void showDeepenResultModal(
@@ -83,14 +84,18 @@ void showDeepenResultModal(
           ),
           const SizedBox(height: 20),
           Center(
-            child: GestureDetector(
+            child: Pressable(
               onTap: () => Navigator.of(ctx).pop(),
-              child: Text(
-                'Close',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: ModalColors.inkSoft,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Text(
+                  'Close',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: ModalColors.inkSoft,
+                  ),
                 ),
               ),
             ),

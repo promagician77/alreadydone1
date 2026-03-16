@@ -5,6 +5,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/services/app_toast.dart';
+import '/widgets/pressable.dart';
 import 'login_model.dart';
 export 'login_model.dart';
 
@@ -79,9 +80,13 @@ class _LoginWidgetState extends State<LoginWidget> {
                       const SizedBox(height: 8),
                       Align(
                         alignment: Alignment.centerRight,
-                        child: GestureDetector(
+                        child: Pressable(
                           onTap: () => context.go('/passwordReset'),
-                          child: Text('Forgot password?', style: AuthTheme.forgotLinkStyle),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            child: Text('Forgot password?', style: AuthTheme.forgotLinkStyle),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -271,7 +276,14 @@ class _LoginWidgetState extends State<LoginWidget> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(text, style: AuthTheme.footerStyle),
-          GestureDetector(onTap: onTap, child: Text(linkText, style: AuthTheme.footerLinkStyle)),
+          Pressable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          child: Text(linkText, style: AuthTheme.footerLinkStyle),
+        ),
+      ),
         ],
       ),
     );

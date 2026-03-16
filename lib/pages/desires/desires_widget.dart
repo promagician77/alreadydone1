@@ -7,6 +7,7 @@ import '/services/supabase_service.dart';
 import '/services/backend_client.dart';
 import '/services/app_toast.dart';
 import '/pages/onboarding/onboarding_state.dart';
+import '/widgets/pressable.dart';
 import 'desires_model.dart';
 export 'desires_model.dart';
 
@@ -514,29 +515,30 @@ class _DesiresWidgetState extends State<DesiresWidget> {
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final active = _selectedFilter == i;
-          return GestureDetector(
+          return Pressable(
             onTap: () => setState(() => _selectedFilter = i),
-                                child: Container(
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
+              decoration: BoxDecoration(
                 color: active ? _DesiresColors.goldPale : _DesiresColors.surface,
-                                    border: Border.all(
+                border: Border.all(
                   color: active ? _DesiresColors.gold : _DesiresColors.stone,
                   width: 1.5,
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Center(
-                                      child: Text(
+                child: Text(
                   pills[i],
                   style: GoogleFonts.outfit(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: active ? _DesiresColors.gold : _DesiresColors.inkSoft,
                   ),
-                                            ),
-                                      ),
-                                    ),
+                ),
+              ),
+            ),
           );
         },
       ),
@@ -946,13 +948,14 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   }
 
   Widget _buildAddButton() {
-    return GestureDetector(
+    return Pressable(
       onTap: _handleAddNewManifestation,
-                          child: Container(
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
         margin: const EdgeInsets.only(top: 20),
-                            width: double.infinity,
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
+        decoration: BoxDecoration(
           color: _DesiresColors.gold,
           borderRadius: BorderRadius.circular(10),
         ),

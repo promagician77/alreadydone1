@@ -251,9 +251,6 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {'story': decoded};
   }
 
-  /// POST api/voice/clone - upload audio file(s) for voice cloning.
-  /// Matches backend: Form fields user_id, name, gender (optional); File field "files" with audio/* Content-Type.
-  /// Returns { "voice_id": "...", "requires_verification": bool }.
   static Future<Map<String, dynamic>> uploadVoiceClone({
     required int userId,
     required String name,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/pages/profile/profile_modals/shared.dart';
+import '/widgets/pressable.dart';
 
 /// Sleep mode colors
 class _SleepColors {
@@ -175,14 +176,18 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
           ),
           const SizedBox(height: 16),
           Center(
-            child: GestureDetector(
+            child: Pressable(
               onTap: widget.onClose,
-              child: Text(
-                'Close',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: ModalColors.inkSoft,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Text(
+                  'Close',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: ModalColors.inkSoft,
+                  ),
                 ),
               ),
             ),
@@ -253,8 +258,9 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
     required String value,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
@@ -289,11 +295,12 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
 
   Widget _timerBtn(String label, int? minutes) {
     final isSelected = _selectedTimer == minutes;
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         setState(() => _selectedTimer = minutes);
         widget.onTimerSelect(minutes);
       },
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
@@ -356,7 +363,11 @@ class _SleepModeSettingsSheetState extends State<_SleepModeSettingsSheet> {
       ),
     );
     if (onTap != null) {
-      return GestureDetector(onTap: onTap, child: child);
+      return Pressable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: child,
+      );
     }
     return child;
   }

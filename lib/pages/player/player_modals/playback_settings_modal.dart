@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/pages/profile/profile_modals/shared.dart';
+import '/widgets/pressable.dart';
 
 /// Sleep mode colors (from HTML design)
 class _SleepColors {
@@ -223,8 +224,9 @@ class _PlaybackSettingsSheet extends StatelessWidget {
       ),
     );
     if (onTap != null) {
-      return GestureDetector(
+      return Pressable(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: child,
       );
     }

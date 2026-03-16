@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
+import '/pages/player/player_modals/player_modals.dart';
+import '/services/backend_client.dart';
 import '/services/onboarding_service.dart';
+import '/services/supabase_service.dart';
+import '/widgets/pressable.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
 import 'onboarding_splash_widget.dart';
@@ -60,7 +64,11 @@ Widget _playerControl({
     child: Icon(icon, size: 14, color: AuthTheme.ink),
   );
   if (onTap != null) {
-    return GestureDetector(onTap: onTap, child: child);
+    return Pressable(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(size / 2),
+      child: child,
+    );
   }
   return child;
 }
@@ -99,6 +107,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   /// User must play the voice at least this many times before Continue is allowed.
   static const int _minPlayCount = 1;
   int _playCount = 0;
+  bool _isDeepening = false;
 
   String? get _playUrl => _state.voicePlayUrl;
 
@@ -198,63 +207,195 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   }
 
   Future<void> _completeOnboarding() async {
-    // Direct user to the paywall; onboarding will be marked complete after they subscribe.
-    if (mounted) context.go(OnboardingSplashWidget.routePath);
+    bool isSubscribed = false;
+    try {
+      final userId = await SupabaseService.getCurrentUserTableId();
+      if (userId != null) {
+        final profile = await BackendClient.getUserProfile(userId);
+        final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+            ?.toString().toLowerCase().trim();
+        isSubscribed = status == 'active' || status == 'trial';
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    if (isSubscribed) {
+      context.go('/');
+    } else {
+      final returnTo = Uri.encodeComponent(OnboardingPlayerWidget.routePath);
+      context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+    }
   }
 
-  /// Deepen is shown in onboarding but user can't generate (1 story/day limit); tap → paywall.
+  Future<void> _onDeepenTap() async {
+    if (_isDeepening) return;
+    bool isSubscribed = false;
+    try {
+      final userId = await SupabaseService.getCurrentUserTableId();
+      if (userId != null) {
+        final profile = await BackendClient.getUserProfile(userId);
+        final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+            ?.toString().toLowerCase().trim();
+        isSubscribed = status == 'active' || status == 'trial';
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    if (isSubscribed) {
+      showDeepenConfirmModal(context, onContinue: _deepenManifestation);
+    } else {
+      final returnTo = Uri.encodeComponent(OnboardingPlayerWidget.routePath);
+      context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+    }
+  }
+
+  Future<void> _deepenManifestation() async {
+    if (_isDeepening) return;
+    if (!mounted) return;
+    setState(() => _isDeepening = true);
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) {
+      if (mounted) setState(() => _isDeepening = false);
+      return;
+    }
+    final story = _state.generatedStory;
+    final storyIdRaw = story?['id'];
+    final storyId = storyIdRaw is int ? storyIdRaw : int.tryParse(storyIdRaw?.toString() ?? '');
+    if (storyId == null) {
+      if (mounted) {
+        setState(() => _isDeepening = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No story selected to deepen.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) {
+      setState(() => _isDeepening = false);
+      return;
+    }
+    String name = '';
+    String location = '';
+    String energyWord = '';
+    String lovedOne = '';
+    String dreamLocation = '';
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      name = (profile['name'] ?? '').toString().trim();
+      location = (profile['location'] ?? profile['dream_place'] ?? '').toString().trim();
+      energyWord = (profile['energyWord'] ?? '').toString().trim();
+      lovedOne = (profile['lovedOne'] ?? profile['someone_you_love'] ?? '').toString().trim();
+      dreamLocation = (profile['dream_place'] ?? profile['dreamLocation'] ?? '').toString().trim();
+    } catch (_) {}
+    if (!mounted) {
+      setState(() => _isDeepening = false);
+      return;
+    }
+    try {
+      final res = await BackendClient.deepenStory(
+        userId: userId,
+        storyId: storyId,
+        name: name,
+        location: location,
+        energyWord: energyWord,
+        lovedOne: lovedOne,
+        dreamLocation: dreamLocation,
+      );
+      if (!mounted) return;
+      final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString();
+      final storyText = (res['story'] ?? res['content'] ?? '').toString().trim();
+      if (storyText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Deepen response had no story content.')),
+        );
+        return;
+      }
+      showDeepenResultModal(context, theme: theme, story: storyText);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDeepening = false);
+    }
+  }
+
   Widget _buildDeepenButton() {
+    final isLoading = _isDeepening;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 0),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.go(OnboardingSplashWidget.routePath),
+          onTap: isLoading ? null : _onDeepenTap,
           borderRadius: BorderRadius.circular(14),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AuthTheme.gold.withValues(alpha: 0.15),
-                  AuthTheme.surface,
+          child: Opacity(
+            opacity: isLoading ? 0.7 : 1,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AuthTheme.gold.withValues(alpha: 0.15),
+                    AuthTheme.surface,
+                  ],
+                ),
+                border: Border.all(color: AuthTheme.gold.withValues(alpha: 0.5), width: 2),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: AuthTheme.ink.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
                 ],
               ),
-              border: Border.all(color: AuthTheme.gold.withValues(alpha: 0.5), width: 2),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: AuthTheme.ink.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('✨', style: GoogleFonts.outfit(fontSize: 14)),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'Deepen This Manifestation',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AuthTheme.goldDark,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isLoading) ...[
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AuthTheme.goldDark,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text('→', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AuthTheme.goldDark)),
-              ],
+                    const SizedBox(width: 12),
+                    Text(
+                      'Deepening...',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AuthTheme.goldDark,
+                      ),
+                    ),
+                  ] else ...[
+                    Text('✨', style: GoogleFonts.outfit(fontSize: 14)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Deepen This Manifestation',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AuthTheme.goldDark,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('→', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AuthTheme.goldDark)),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -311,17 +452,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 8, top: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, size: 22),
-                  color: AuthTheme.gold,
-                  onPressed: () => context.go(OnboardingVoiceSelectionWidget.routePath),
-                ),
-              ),
-            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
@@ -341,17 +471,21 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 6),
-                    GestureDetector(
+                    Pressable(
                       onTap: () => context.go(OnboardingVoiceSelectionWidget.routePath),
-                      child: Text(
-                        'Change Voice',
-                        style: AuthTheme.welcomeSubStyle.copyWith(
-                          color: AuthTheme.gold,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                          decorationColor: AuthTheme.gold,
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                        child: Text(
+                          'Change Voice',
+                          style: AuthTheme.welcomeSubStyle.copyWith(
+                            color: AuthTheme.gold,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                            decorationColor: AuthTheme.gold,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -403,10 +537,11 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                                 onTap: _duration.inSeconds > 0 ? _skipBackward : null,
                               ),
                               const SizedBox(width: 16),
-                              GestureDetector(
+                              Pressable(
                                 onTap: _playUrl != null && _playUrl!.isNotEmpty
                                     ? _togglePlayPause
                                     : null,
+                                borderRadius: BorderRadius.circular(28),
                                 child: Container(
                                   width: 56,
                                   height: 56,

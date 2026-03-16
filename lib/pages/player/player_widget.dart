@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import '/services/sleep_mode_notifier.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
-import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import '/index.dart';
@@ -237,13 +236,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
         });
         if (_sleepModeActive) {
           _endSleepSession();
-        }
-        // After playback completes, send non-subscribed users to the paywall.
-        final subscribed = RevenueCatService.instance.isSupported
-            ? await RevenueCatService.instance.isSubscribed()
-            : false;
-        if (!subscribed && mounted) {
-          context.go(SubscriptionWidget.routePath);
         }
       }
     });
@@ -978,14 +970,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
         await _audioPlayer.pause();
         if (_sleepModeActive) await _thetaTrackPlayer.pause();
         if (mounted) setState(() => _isPlaying = false);
-        // Send non-subscribed users to paywall when they pause.
-        final subscribed = RevenueCatService.instance.isSupported
-            ? await RevenueCatService.instance.isSubscribed()
-            : false;
-        if (!subscribed && mounted) {
-          context.go(SubscriptionWidget.routePath);
-          return;
-        }
       } else {
         await _applyMixContext();
 
@@ -1337,8 +1321,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 children: List<Widget>.from(
                   _speedOptions.map<Widget>((v) {
                     final isSelected = v == current;
-                    return GestureDetector(
+                    return Pressable(
                       onTap: () => Navigator.of(ctx).pop(v),
+                      borderRadius: BorderRadius.circular(10),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(
@@ -1460,8 +1445,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ...[false, true].map<Widget>((value) {
                 final isOn = value;
                 final isSelected = current == value;
-                return GestureDetector(
+                return Pressable(
                   onTap: () => Navigator.of(ctx).pop(value),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(
@@ -1591,8 +1577,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 children: List<Widget>.from(
                   _speedOptions.map<Widget>((v) {
                     final isSelected = v == current;
-                    return GestureDetector(
+                    return Pressable(
                       onTap: () => Navigator.of(ctx).pop(v),
+                      borderRadius: BorderRadius.circular(10),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(
@@ -1720,8 +1707,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
                     children: List.generate(_thetaTracks.length, (index) {
                       final track = _thetaTracks[index];
                       final isSelected = index == currentIndex;
-                      return GestureDetector(
+                      return Pressable(
                         onTap: () => Navigator.of(ctx).pop(index),
+                        borderRadius: BorderRadius.circular(10),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.symmetric(
@@ -2057,20 +2045,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
               width: settingsIconSize,
               height: settingsIconSize,
               child: Center(
-                child: GestureDetector(
+                child: Pressable(
                   onTap: _openSettingsModal,
-                  behavior: HitTestBehavior.opaque,
+                  borderRadius: BorderRadius.circular(12),
                   child: Padding(
                     padding: const EdgeInsets.all(10),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Icon(
-                        Icons.settings,
-                        size: 24,
-                        color: _sleepModeActive
-                            ? Colors.white.withValues(alpha: 0.7)
-                            : _PlayerColors.inkSoft,
-                        ),
+                    child: Icon(
+                      Icons.settings,
+                      size: 24,
+                      color: _sleepModeActive
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : _PlayerColors.inkSoft,
                     ),
                   ),
                 ),
@@ -2779,22 +2764,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _checkSubscriptionThenDeepen() async {
     bool isSubscribed = false;
-    if (RevenueCatService.instance.isSupported) {
-      isSubscribed = await RevenueCatService.instance.isSubscribed();
-    }
-    if (!isSubscribed) {
-      try {
-        final userId = await SupabaseService.getCurrentUserTableId();
-        if (userId != null) {
-          final profile = await BackendClient.getUserProfile(userId);
-          final plan = (profile['rc_subscription_plan'] ?? profile['rc_subscription_Plan'])
-              ?.toString().toLowerCase().trim();
-          final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-              ?.toString().toLowerCase().trim();
-          isSubscribed = (plan == 'weekly' || plan == 'monthly') && status != 'canceled';
-        }
-      } catch (_) {}
-    }
+    try {
+      final userId = await SupabaseService.getCurrentUserTableId();
+      if (userId != null) {
+        final profile = await BackendClient.getUserProfile(userId);
+        final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+            ?.toString().toLowerCase().trim();
+        // Same as after sign-in: active or trial = subscribed for feature access.
+        isSubscribed = status == 'active' || status == 'trial';
+      }
+    } catch (_) {}
     if (!mounted) return;
     if (!isSubscribed) {
       context.go(SubscriptionWidget.routePath);

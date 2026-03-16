@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/pages/profile/profile_modals/shared.dart';
+import '/widgets/pressable.dart';
 
 class _SleepColors {
   _SleepColors._();
@@ -218,8 +219,9 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> {
             borderRadius: BorderRadius.circular(12),
           );
 
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: 16),
         decoration: decoration,
@@ -239,11 +241,12 @@ class _SleepTimerSheetState extends State<_SleepTimerSheet> {
 
   Widget _timerBtn(String label, int? minutes) {
     final isSelected = _selected == minutes;
-    return GestureDetector(
+    return Pressable(
       onTap: () {
         setState(() => _selected = minutes);
         widget.onSelect(minutes);
       },
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(

@@ -452,15 +452,19 @@ class _CustomTimeSheetState extends State<_CustomTimeSheet> {
           ),
           const SizedBox(height: 16),
           Center(
-            child: GestureDetector(
+            child: Pressable(
               onTap: widget.isSaving ? null : widget.onBack,
-              child: Text(
-                '← Back to Quick Select',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: ModalColors.gold,
-                  decoration: TextDecoration.underline,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Text(
+                  '← Back to Quick Select',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: ModalColors.gold,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ),

@@ -196,69 +196,86 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
   }
 
   Widget _buildIcon() {
-    const double circleSize = 70;
-    const double sparkleSize = 24;
-    // Sparkle above the circle, horizontally centered with the circle
-    const double sparkleLeft = 180;
-    return Padding(
+  const double circleSize = 70;
+  return Center(
+    child: Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: circleSize,
-            height: circleSize,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  _DeepenConfirmColors.goldLight,
-                  _DeepenConfirmColors.gold,
+      child: SizedBox(
+        width: circleSize,
+        height: circleSize,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: circleSize,
+              height: circleSize,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _DeepenConfirmColors.goldLight,
+                    _DeepenConfirmColors.gold,
+                  ],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _DeepenConfirmColors.gold.withValues(alpha: 0.3),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
                 ],
               ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: _DeepenConfirmColors.gold.withValues(alpha: 0.3),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Text('🌟', style: TextStyle(fontSize: 36)),
-            ),
-          ),
-          Positioned(
-            left: sparkleLeft,
-            top: -4,
-            child: AnimatedBuilder(
-              animation: _sparkleValue,
-              builder: (context, child) {
-                final t = _sparkleValue.value;
-                final opacity = math.sin(math.pi * t);
-                final scale = 0.8 + 0.4 * math.sin(math.pi * t);
-                final rotation = t * math.pi;
-                return Opacity(
-                  opacity: opacity.clamp(0.0, 1.0),
-                  child: Transform.rotate(
-                    angle: rotation,
-                    child: Transform.scale(
-                      scale: scale,
-                      child: child,
-                    ),
+              child: const Center(
+                child: Text(
+                  '🌟',
+                  style: TextStyle(
+                    fontSize: 36,
+                    decoration: TextDecoration.none,
+                    decorationColor: null,
                   ),
-                );
-              },
-              child: const Text('✨', style: TextStyle(fontSize: 24)),
+                ),
+              ),
             ),
-          ),
-        ],
+            // Sparkle at top-right edge of the circle
+            Positioned(
+              right: -8,
+              top: -8,
+              child: AnimatedBuilder(
+                animation: _sparkleValue,
+                builder: (context, child) {
+                  final t = _sparkleValue.value;
+                  final opacity = math.sin(math.pi * t);
+                  final scale = 0.8 + 0.4 * math.sin(math.pi * t);
+                  final rotation = t * math.pi;
+                  return Opacity(
+                    opacity: opacity.clamp(0.0, 1.0),
+                    child: Transform.rotate(
+                      angle: rotation,
+                      child: Transform.scale(
+                        scale: scale,
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  '✨',
+                  style: TextStyle(
+                    fontSize: 20,
+                    decoration: TextDecoration.none,
+                    decorationColor: null,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTitle() {
     return Text(
@@ -270,6 +287,8 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
         color: _DeepenConfirmColors.textDark,
         height: 1.2,
         letterSpacing: -0.5,
+        decoration: TextDecoration.none,
+        decorationColor: null,
       ),
     );
   }
@@ -283,6 +302,8 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
         fontWeight: FontWeight.w500,
         color: _DeepenConfirmColors.goldDark,
         letterSpacing: 2,
+        decoration: TextDecoration.none,
+        decorationColor: null,
       ),
     );
   }
@@ -336,7 +357,14 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(f.$1, style: const TextStyle(fontSize: 20)),
+                Text(
+                  f.$1,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    decoration: TextDecoration.none,
+                    decorationColor: null,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: RichText(
@@ -388,7 +416,14 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('ℹ️', style: TextStyle(fontSize: 24)),
+          const Text(
+            'ℹ️',
+            style: TextStyle(
+              fontSize: 24,
+              decoration: TextDecoration.none,
+              decorationColor: null,
+            ),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: RichText(
