@@ -11,7 +11,7 @@ class RevenueCatService {
 
   static const String entitlementId = 'Already Done Pro';
   static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
-  static const String _googleApiKey = 'goog_hiqmzFQRWIuFQiPVNczWgVORlDF';
+  static const String _googleApiKey = 'test_EQotKJldPLvrbKzGRkzgUOxTAJu';
 
   bool _configured = false;
   String? _currentUserId;
