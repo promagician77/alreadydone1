@@ -427,7 +427,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     if (!RevenueCatService.instance.isSupported) {
       AppToast.error(
         context,
-        'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+        'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
       );
       return;
     }
@@ -457,7 +457,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           context,
           RevenueCatService.instance.isSupported
               ? 'Plans not available. Please try later.'
-              : 'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+              : 'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
         );
         return;
       }
@@ -558,7 +558,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     if (!RevenueCatService.instance.isSupported) {
       AppToast.error(
         context,
-        'Subscriptions are available on the App Store. Please use an iPhone or iPad to subscribe.',
+        'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
       );
       return;
     }

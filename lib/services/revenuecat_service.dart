@@ -5,18 +5,12 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '/utils/platform_utils.dart';
 
-/// RevenueCat on iOS is a layer on top of [StoreKit]. Apple requires all
-/// in-app purchases to go through StoreKit; there is no other way. RevenueCat
-/// uses StoreKit to perform the purchase, then syncs results to its backend.
-/// When StoreKit misreports (e.g. PURCHASE_CANCELLED after success), we only
-/// see what StoreKit returns; the workaround is to recheck entitlement.
 class RevenueCatService {
   RevenueCatService._();
   static final RevenueCatService instance = RevenueCatService._();
 
   static const String entitlementId = 'Already Done Pro';
   static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
-  /// Play Store (Android) API key from RevenueCat dashboard.
   static const String _googleApiKey = 'goog_hiqmzFQRWIuFQiPVNczWgVORlDF';
 
   bool _configured = false;

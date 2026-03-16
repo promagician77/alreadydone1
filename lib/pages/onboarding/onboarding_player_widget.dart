@@ -162,10 +162,11 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     try {
       if (_isPlaying) {
         await _audioPlayer.pause();
-        if (mounted) setState(() => _isPlaying = false);
+        if (mounted) {
+          setState(() => _isPlaying = false);
+          context.go(OnboardingSplashWidget.routePath);
+        }
       } else {
-        // resume() only works when paused mid-track; it won't restart after completion.
-        // Use play() when: first load, at start (position 0), or at end — otherwise resume().
         final atStart = _position == Duration.zero;
         final atEnd = _duration > Duration.zero && _position >= _duration;
         if (atStart || atEnd) {
