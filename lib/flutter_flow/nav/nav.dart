@@ -21,11 +21,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '/services/onboarding_service.dart';
 
-/// SharedPreferences key: set when user has signed in at least once (used for "Welcome Back" on login after session expiry).
-const String _keyUserHasSignedInOnce = 'user_has_signed_in_once';
-
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
+
+/// SharedPreferences key: set when user has signed in at least once (used for "Welcome Back" on login after session expiry).
+const String _keyUserHasSignedInOnce = 'user_has_signed_in_once';
 
 const kTransitionInfoKey = '__transition_info__';
 
