@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
@@ -200,7 +201,7 @@ class _LoginWidgetState extends State<LoginWidget> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, 'Login failed: ${e.toString()}');
+        AppToast.error(context, _loginErrorMessage(e));
       }
     } finally {
       if (mounted) {
@@ -214,7 +215,7 @@ class _LoginWidgetState extends State<LoginWidget> {
       await SupabaseService.signInWithApple();
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, 'Apple sign in error: ${e.toString()}');
+        AppToast.error(context, _socialSignInErrorMessage('Apple', e));
       }
     }
   }
@@ -224,9 +225,33 @@ class _LoginWidgetState extends State<LoginWidget> {
       await SupabaseService.signInWithGoogle();
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, 'Google sign in error: ${e.toString()}');
+        AppToast.error(context, _socialSignInErrorMessage('Google', e));
       }
     }
+  }
+
+  /// User-friendly message for email/password login errors (no raw exception text).
+  String _loginErrorMessage(dynamic e) {
+    if (e is AuthException) {
+      final code = e.statusCode?.toString() ?? '';
+      final msg = (e.message ?? '').toLowerCase();
+      if (e.code == 'invalid_credentials' || msg.contains('invalid') && msg.contains('credential')) {
+        return 'Invalid email or password.';
+      }
+      if (e.code == 'email_not_confirmed' || msg.contains('email not confirmed')) {
+        return 'Please confirm your email address.';
+      }
+    }
+    final s = e.toString().toLowerCase();
+    if (s.contains('invalid') && (s.contains('credential') || s.contains('login'))) {
+      return 'Invalid email or password.';
+    }
+    return 'Login failed. Please try again.';
+  }
+
+  /// User-friendly message for Apple/Google sign-in (no raw exception text).
+  String _socialSignInErrorMessage(String provider, dynamic e) {
+    return 'Could not sign in with $provider. Please try again.';
   }
 
   Widget _divider() {
