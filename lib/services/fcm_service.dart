@@ -7,16 +7,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'backend_client.dart';
 import 'supabase_service.dart';
 
-/// Default Android notification channel ID. Must match AndroidManifest meta-data
-/// so FCM uses this channel when displaying notifications.
 const String _kAndroidChannelId = 'fcm_default_channel';
 const String _kAndroidChannelName = 'Notifications';
 
-/// FCM (Firebase Cloud Messaging) service for push notifications.
-/// - On app start / when needed: get token and send to backend (Users.fcm_token).
-/// - On token refresh: send new token to backend.
-/// - On user login: send token to backend (auth listener calls onUserSignedIn).
-/// - Foreground: show local notification so the user sees the message.
 class FcmService {
   FcmService._();
 
@@ -26,22 +19,18 @@ class FcmService {
 
   static FcmService get instance => _instance;
 
-  /// Initialize FCM: permission, Android channel, token registration, listeners.
-  /// No-op if Firebase default app is not created (e.g. iOS without GoogleService-Info.plist).
   static Future<void> initialize() async {
     if (Firebase.apps.isEmpty) {
       debugPrint('FcmService: skipping init (no Firebase app)');
       return;
     }
     try {
-      // Request permission (Android 13+ POST_NOTIFICATIONS and iOS)
       await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
 
-      // iOS: show notification banner/sound when app is in foreground (otherwise iOS hides it)
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
         alert: true,
@@ -51,21 +40,16 @@ class FcmService {
 
       await _initLocalNotifications();
 
-      // Send token to backend when user is logged in (may be null if auth not ready yet)
       await _registerTokenWithBackend();
 
-      // Retry token registration after a short delay (auth session restore; on iOS, APNs token may be delayed)
       Future.delayed(const Duration(seconds: 5), () async {
         await _registerTokenWithBackend();
       });
 
-      // When token is refreshed, send the new token to backend
       FirebaseMessaging.instance.onTokenRefresh.listen(_onTokenRefresh);
 
-      // Foreground: show a local notification so the user sees the message
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
-      // Notification tap when app was in background
       FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpenedApp);
     } catch (e) {
       debugPrint('FcmService init error: $e');
