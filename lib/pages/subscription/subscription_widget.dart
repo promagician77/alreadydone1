@@ -710,6 +710,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     }
     safeSetState(() => _model.isPaymentLoading = true);
     try {
+      final userId = await SupabaseService.getCurrentUserTableId();
       final offerings = await RevenueCatService.instance.getOfferings();
       final package = _findPackage(offerings, wantMonthly: true);
       if (package == null) {
@@ -717,8 +718,22 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         AppToast.error(context, 'Monthly plan not available. Please try later.');
         return;
       }
-      await RevenueCatService.instance.purchasePackage(package);
+      final info = await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
+      if (info != null && userId != null) {
+        try {
+          final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
+          await BackendClient.updateUserRevenueCatSubscription(
+            userId,
+            rcCustomerId: payload['rc_customer_id']!,
+            rcSubscriptionStatus: payload['rc_subscription_status']!,
+            rcSubscriptionPlan: payload['rc_subscription_plan']!,
+            subscriptionProvider: payload['subscription_provider']!,
+          );
+        } catch (e) {
+          debugPrint('Backend subscription sync failed: $e');
+        }
+      }
       AppToast.success(context, 'Upgraded to Monthly!');
       _goAfterSubscribe(context);
     } on PlatformException catch (e) {
