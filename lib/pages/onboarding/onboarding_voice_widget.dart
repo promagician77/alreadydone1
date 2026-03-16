@@ -11,7 +11,6 @@ import '/services/supabase_service.dart';
 import '/services/voice_recording_service.dart';
 import '/services/app_toast.dart';
 import 'onboarding_state.dart';
-import 'onboarding_desire_widget.dart';
 import 'onboarding_player_widget.dart';
 import 'celebration_overlay.dart';
 import 'recording_circle.dart';
@@ -298,19 +297,6 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
           SafeArea(
             child: Column(
               children: [
-                Padding(
-                  padding: EdgeInsets.only(left: isNarrow ? 4 : 8, top: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 22),
-                      color: AuthTheme.gold,
-                      onPressed: (_isRecording || _isUploading)
-                          ? null
-                          : () => context.go(OnboardingDesireWidget.routePath),
-                    ),
-                  ),
-                ),
                 _progressBar(3),
                 Expanded(
                   child: LayoutBuilder(

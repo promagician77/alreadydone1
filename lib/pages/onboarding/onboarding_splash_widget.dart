@@ -12,7 +12,6 @@ import '/services/app_toast.dart';
 import '/services/onboarding_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
-import 'onboarding_player_widget.dart';
 
 class OnboardingSplashWidget extends StatefulWidget {
   const OnboardingSplashWidget({super.key});
@@ -88,8 +87,6 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                         const SizedBox(height: 10),
                         _buildRestoreLink(),
                         const SizedBox(height: 16),
-                        _buildContinueWithFreeLink(),
-                        const SizedBox(height: 12),
                         _buildFooterLinks(),
                       ],
                     ),
@@ -639,25 +636,6 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
             fontSize: 12,
             fontWeight: FontWeight.w500,
             color: AuthTheme.goldDark,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContinueWithFreeLink() {
-    return Pressable(
-      onTap: () => context.go(OnboardingPlayerWidget.routePath),
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        child: Text(
-          'Continue with free',
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AuthTheme.inkSoft,
           ),
           textAlign: TextAlign.center,
         ),
