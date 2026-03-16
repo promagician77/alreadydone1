@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '/utils/platform_utils.dart';
@@ -10,8 +11,9 @@ class RevenueCatService {
   static final RevenueCatService instance = RevenueCatService._();
 
   static const String entitlementId = 'Already Done Pro';
-  static const String _appleApiKey = 'appl_CybjOCqpxMwYbcbzbCuGoMqUjlq';
-  static const String _googleApiKey = 'test_EQotKJldPLvrbKzGRkzgUOxTAJu';
+
+  static String? get _appleApiKey => dotenv.env['REVENUECAT_APPLE_API_KEY']?.trim();
+  static String? get _googleApiKey => dotenv.env['REVENUECAT_GOOGLE_API_KEY']?.trim();
 
   bool _configured = false;
   String? _currentUserId;
@@ -26,9 +28,13 @@ class RevenueCatService {
     }
     if (_configured) return;
     try {
+      final apiKey = isIOS ? _appleApiKey : _googleApiKey;
+      if (apiKey == null || apiKey.isEmpty) {
+        debugPrint('RevenueCat: skipped (REVENUECAT_${isIOS ? "APPLE" : "GOOGLE"}_API_KEY not set in .env)');
+        return;
+      }
       await Purchases.setLogLevel(LogLevel.debug);
 
-      final apiKey = isIOS ? _appleApiKey : _googleApiKey;
       final config = PurchasesConfiguration(apiKey);
       if (appUserId != null && appUserId.trim().isNotEmpty) {
         config.appUserID = appUserId.trim();
