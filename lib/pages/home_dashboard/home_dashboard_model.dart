@@ -12,58 +12,35 @@ import '/index.dart';
 import 'home_dashboard_widget.dart' show HomeDashboardWidget;
 
 class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
-  /// Current user name from backend profile.
   String? userName;
-
-  /// Day streak from backend profile (number).
   int dayStreak = 0;
 
-  /// Voice ID from backend profile (for api/voice/speak).
   String? voiceId;
-
-  /// Cached voice play URL per story ID (from api/voice/speak).
   Map<int, String> voicePlayUrlCache = {};
 
-  /// Desire categories from GET /api/desires. [ { id, name }, ... ]
   List<Map<String, dynamic>> desires = [];
   bool desiresLoading = true;
 
-  /// Selected desire filter. Null = "All Stories", else desire name.
   String? selectedDesireFilter;
 
-  /// Stories from GET /api/stories, ordered (e.g. by last_played / created_at).
   List<Map<String, dynamic>> stories = [];
   bool storiesLoading = true;
 
-  /// Story currently playing in the dashboard card (by id). Null when none.
   int? playingStoryId;
-  /// Whether the main card's story is currently playing.
   bool isPlaying = false;
 
-  /// Cached duration (seconds) per story ID. Populated when audio loads during playback.
   Map<int, int> durationCache = {};
 
-  /// Current playback position/duration for the playing story.
   Duration playbackPosition = Duration.zero;
   Duration playbackDuration = Duration.zero;
 
-  /// True when user has an active subscription (stripe_subscription_id present).
-  /// When true, the "Sleep Mode" premium card on home is hidden.
   bool isSubscribed = false;
 
-  /// True once subscription status has been fetched. Until then, don't show the unlock card
-  /// to avoid it flashing visible for a moment before hiding for subscribed users.
   bool subscriptionStatusLoaded = false;
 
-  /// From user profile: rc_subscription_status (e.g. 'active', 'trial', 'canceled'). When
-  /// 'active', the Unlock Sleep Mode card is hidden.
   String? rcSubscriptionStatus;
 
-  /// From user profile: rc_subscription_plan (e.g. plan name). For display or future use.
   String? rcSubscriptionPlan;
-
-  /// True once user profile (with rc_ fields) has been loaded. With [subscriptionStatusLoaded],
-  /// used to avoid showing Sleep Mode card until both are ready (no flash of wrong state).
   bool profileSubscriptionReady = false;
 
   @override

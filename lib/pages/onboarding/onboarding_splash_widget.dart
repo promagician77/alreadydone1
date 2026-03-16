@@ -485,11 +485,6 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           'Onboarding purchase cancelled: code=${e.code}, '
           'message=${e.message}, details=${e.details}',
         );
-        // Workaround for StoreKit bug (iOS 18.3.1–18.5): when the "Receipt Renewal
-        // emails" prompt appears (often on first sign-up / first time per Apple ID),
-        // StoreKit can incorrectly return userCancelled=true even though the
-        // purchase succeeds. RevenueCat only reports what StoreKit returns.
-        // Poll for entitlement; success can show up with delay (up to ~30s).
         try {
           await RevenueCatService.instance.syncPurchases();
           for (final waitSeconds in [2, 3, 5]) {
