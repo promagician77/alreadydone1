@@ -51,7 +51,7 @@ class _OnboardingVoiceSelectionWidgetState
   bool _isLoading = false;
 
   static const _maleVoices = [
-    ('Q1QcmfZPmFDVUWmzASdy', 'Chris', 'Warm & Soothing'),
+    ('Q1QcmfZPmFDVUWmzASdy', 'Matt', 'Warm & Soothing'),
     ('8yh4Wuya1OlwcUp0epGF', 'David', 'Confident & Powerful'), 
     ('tJHJUEHzOkMoPmJJ5jo2', 'Alex', 'Gentle & Peaceful'),
   ];
