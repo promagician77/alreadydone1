@@ -217,6 +217,43 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
   }
 
+  void _handleAddNewManifestation() {
+    context.go(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
+  }
+
+  Widget _buildAddNewManifestationButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Pressable(
+        onTap: _handleAddNewManifestation,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: _AppColors.gold,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.add, color: _AppColors.surface, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Add New Manifestation',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _AppColors.surface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _idleWaveController.dispose();
@@ -414,41 +451,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
   }
 
-  Future<void> _handleAddNewManifestation() async {
-    if (!mounted) return;
-    context.go(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
-  }
-
-  Widget _buildAddNewManifestationButton() {
-    return Pressable(
-      onTap: _handleAddNewManifestation,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: _AppColors.gold,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add, color: _AppColors.surface, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'Add New Manifestation',
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _AppColors.surface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final filtered = _getFilteredStories();
@@ -472,6 +474,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                 children: [
               // Hero section (full width, outside padded area)
               _buildHero(),
+              _buildAddNewManifestationButton(),
               // Scrollable content with horizontal padding
               Flexible(
                 child: SingleChildScrollView(
@@ -479,8 +482,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                       child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      _buildAddNewManifestationButton(),
-                      const SizedBox(height: 16),
                       // Story card (last played from API) — play in-page, no navigation
                       _model.storiesLoading
                           ? _buildStoryCardLoading()
