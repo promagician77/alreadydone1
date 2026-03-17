@@ -10,7 +10,6 @@ import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
-import 'onboarding_splash_widget.dart';
 import 'onboarding_state.dart';
 
 /// Formats seconds as "X min Y sec" (readable) or "0:00" (short).
@@ -130,8 +129,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
           _position = Duration.zero;
           _playCount++;
         });
-        // When the story finishes, navigate to the paywall automatically.
-        context.go(OnboardingSplashWidget.routePath);
       }
     });
     _audioPlayer.onDurationChanged.listen((d) {
@@ -162,10 +159,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     try {
       if (_isPlaying) {
         await _audioPlayer.pause();
-        if (mounted) {
-          setState(() => _isPlaying = false);
-          context.go(OnboardingSplashWidget.routePath);
-        }
+        if (mounted) setState(() => _isPlaying = false);
       } else {
         final atStart = _position == Duration.zero;
         final atEnd = _duration > Duration.zero && _position >= _duration;
@@ -208,44 +202,15 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   }
 
   Future<void> _completeOnboarding() async {
-    bool isSubscribed = false;
-    try {
-      final userId = await SupabaseService.getCurrentUserTableId();
-      if (userId != null) {
-        final profile = await BackendClient.getUserProfile(userId);
-        final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-            ?.toString().toLowerCase().trim();
-        isSubscribed = status == 'active' || status == 'trial';
-      }
-    } catch (_) {}
+    await OnboardingService.setOnboardingCompleted();
     if (!mounted) return;
-    if (isSubscribed) {
-      context.go('/');
-    } else {
-      final returnTo = Uri.encodeComponent(OnboardingPlayerWidget.routePath);
-      context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-    }
+    context.go('/');
   }
 
   Future<void> _onDeepenTap() async {
     if (_isDeepening) return;
-    bool isSubscribed = false;
-    try {
-      final userId = await SupabaseService.getCurrentUserTableId();
-      if (userId != null) {
-        final profile = await BackendClient.getUserProfile(userId);
-        final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-            ?.toString().toLowerCase().trim();
-        isSubscribed = status == 'active' || status == 'trial';
-      }
-    } catch (_) {}
     if (!mounted) return;
-    if (isSubscribed) {
-      showDeepenConfirmModal(context, onContinue: _deepenManifestation);
-    } else {
-      final returnTo = Uri.encodeComponent(OnboardingPlayerWidget.routePath);
-      context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-    }
+    showDeepenConfirmModal(context, onContinue: _deepenManifestation);
   }
 
   Future<void> _deepenManifestation() async {

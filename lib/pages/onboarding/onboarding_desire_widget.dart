@@ -154,7 +154,10 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
         await _state.persistToPrefs(OnboardingVoiceSelectionWidget.routePath);
-        if (mounted) context.go(OnboardingVoiceSelectionWidget.routePath);
+        if (mounted) {
+          final returnTo = Uri.encodeComponent(OnboardingVoiceSelectionWidget.routePath);
+          context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+        }
       }
     } catch (e) {
       if (mounted) {

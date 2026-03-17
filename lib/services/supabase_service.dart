@@ -77,8 +77,6 @@ class SupabaseService {
         if (metadata != null) ...metadata,
       },
     );
-    // Double signup: when email confirmation is enabled, Supabase returns a user
-    // but with empty identities when the email already exists.
     if (response.user != null &&
         (response.user!.identities == null ||
             response.user!.identities!.isEmpty)) {

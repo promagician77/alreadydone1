@@ -86,6 +86,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                         _buildSecondaryText(),
                         const SizedBox(height: 10),
                         _buildRestoreLink(),
+                        const SizedBox(height: 12),
+                        _buildContinueWithoutSubscribing(),
                         const SizedBox(height: 16),
                         _buildFooterLinks(),
                       ],
@@ -636,6 +638,28 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
             fontSize: 12,
             fontWeight: FontWeight.w500,
             color: AuthTheme.goldDark,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  /// When paywall is shown during onboarding (returnTo set), show a link to continue without subscribing.
+  Widget _buildContinueWithoutSubscribing() {
+    final returnTo = GoRouterState.of(context).uri.queryParameters['returnTo'];
+    if (returnTo == null || returnTo.isEmpty) return const SizedBox.shrink();
+    return Pressable(
+      onTap: () => context.go(returnTo),
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Text(
+          'Continue without subscribing',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AuthTheme.inkSoft,
           ),
           textAlign: TextAlign.center,
         ),
