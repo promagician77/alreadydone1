@@ -287,17 +287,17 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   }
 
   Widget _buildDeepenButton() {
-    final isLoading = _isDeepening;
+    final isDisabled = _isDeepening;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 0),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isLoading ? null : _onDeepenTap,
+          onTap: isDisabled ? null : _onDeepenTap,
           borderRadius: BorderRadius.circular(14),
           child: Opacity(
-            opacity: isLoading ? 0.7 : 1,
+            opacity: isDisabled ? 0.7 : 1,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
@@ -323,43 +323,23 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (isLoading) ...[
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AuthTheme.goldDark,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Deepening...',
+                  Text('✨', style: GoogleFonts.outfit(fontSize: 14)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Deepen This Manifestation',
                       style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AuthTheme.goldDark,
                       ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ] else ...[
-                    Text('✨', style: GoogleFonts.outfit(fontSize: 14)),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Deepen This Manifestation',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AuthTheme.goldDark,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('→', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AuthTheme.goldDark)),
-                  ],
+                  ),
+                  const SizedBox(width: 8),
+                  Text('→', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: AuthTheme.goldDark)),
                 ],
               ),
             ),
@@ -415,8 +395,10 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AuthTheme.warmWhite,
-      body: SafeArea(
-        child: Column(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
@@ -611,7 +593,37 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
               ),
             ),
           ],
-        ),
+            ),
+          ),
+          if (_isDeepening)
+            Positioned.fill(
+              child: Container(
+                color: AuthTheme.warmWhite.withValues(alpha: 0.85),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: AuthTheme.gold),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          'Deepening your manifestation. This can take up to 45 seconds.',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AuthTheme.ink,
+                            height: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -1880,6 +1880,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   ),
                 ),
               ),
+            if (_isDeepening)
+              Positioned.fill(
+                child: Container(
+                  color: _PlayerColors.surface.withValues(alpha: 0.85),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(color: _PlayerColors.gold),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            'Deepening your manifestation. This can take up to 45 seconds.',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _PlayerColors.ink,
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -2786,17 +2814,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Widget _buildDeepenButton() {
-    final isLoading = _isDeepening;
+    final isDisabled = _isDeepening;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isLoading ? null : _onDeepenTap,
+          onTap: isDisabled ? null : _onDeepenTap,
           borderRadius: BorderRadius.circular(14),
           child: Opacity(
-            opacity: isLoading ? 0.7 : 1,
+            opacity: isDisabled ? 0.7 : 1,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
@@ -2825,53 +2853,33 @@ class _PlayerWidgetState extends State<PlayerWidget>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (isLoading) ...[
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: _PlayerColors.goldDark,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Deepening...',
+                  Text(
+                    '✨',
+                    style: GoogleFonts.outfit(fontSize: 14),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Deepen This Manifestation',
                       style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: _PlayerColors.goldDark,
                       ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ] else ...[
-                    Text(
-                      '✨',
-                      style: GoogleFonts.outfit(fontSize: 14),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '→',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _PlayerColors.goldDark,
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Deepen This Manifestation',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _PlayerColors.goldDark,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '→',
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _PlayerColors.goldDark,
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),

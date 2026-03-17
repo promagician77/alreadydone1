@@ -102,7 +102,6 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       return;
     }
 
-    // Unsubscribed users can create only 1 story; check profile and story count before calling API.
     try {
       final profile = await BackendClient.getUserProfile(userId);
 
@@ -115,9 +114,8 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       debugPrint('Status: $status');
 
       final isSubscribed = status == 'active' || status == 'trial';
-      debugPrint('Is subscribed: $isSubscribed');
+
       if (!isSubscribed) {
-        debugPrint('Not subscribed');
         final res = await BackendClient.getStories(userId);
         final list = res['stories'];
         final storyCount = list is List ? list.length : 0;
@@ -155,8 +153,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         setState(() => _state.isGenerating = false);
         await _state.persistToPrefs(OnboardingVoiceSelectionWidget.routePath);
         if (mounted) {
-          final returnTo = Uri.encodeComponent(OnboardingVoiceSelectionWidget.routePath);
-          context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+          context.go(OnboardingVoiceSelectionWidget.routePath);
         }
       }
     } catch (e) {
