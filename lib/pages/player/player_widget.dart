@@ -908,9 +908,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   static const _sleepModeAllowedStatuses = [
-    'trialing',
+    'trial',
     'active',
-    'past_due'
   ];
 
   static const _sleepModeAllowedPlans = ['monthly', 'weekly'];
@@ -1211,14 +1210,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (userId != null) {
         try {
           final profile = await BackendClient.getUserProfile(userId);
-          final status = (profile['subscription_status'] ??
-                  profile['Subscription_Status'] ??
-                  profile['subscription_Status'])
+          final status = (profile['rc_subscription_status'] ??
+                  profile['rc_subscription_status'] ??
+                  profile['rc_subscription_status'])
               ?.toString()
               .trim();
-          final plan = (profile['subscription_plan'] ??
-                  profile['Subscription_Plan'] ??
-                  profile['subscription_Plan'])
+          final plan = (profile['rc_subscription_plan'] ??
+                  profile['rc_subscription_plan'] ??
+                  profile['rc_subscription_plan'])
               ?.toString()
               .trim();
           sleepModeAllowed = _canUseSleepMode(status, plan);
