@@ -479,6 +479,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                       child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                      _buildAddNewManifestationButton(),
+                      const SizedBox(height: 16),
                       // Story card (last played from API) — play in-page, no navigation
                       _model.storiesLoading
                           ? _buildStoryCardLoading()
@@ -520,8 +522,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildAddNewManifestationButton(),
-                      const SizedBox(height: 16),
                       _buildDesireChips(),
                       const SizedBox(height: 20),
 
