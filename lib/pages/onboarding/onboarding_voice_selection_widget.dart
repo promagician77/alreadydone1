@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
+import '/pages/subscription/subscription_widget.dart';
 import '/services/backend_client.dart';
+import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_player_widget.dart';
@@ -72,6 +74,34 @@ class _OnboardingVoiceSelectionWidgetState
       if (t.$1 == _selectedId) return t.$2;
     }
     return 'My Voice';
+  }
+
+  /// Gate voice generation behind an active/trial subscription (mobile only).
+  /// If not subscribed, sends the user to the paywall and returns false.
+  Future<bool> _ensureSubscribedForVoiceGeneration() async {
+    // On platforms where subscriptions aren't supported (e.g. web), don't dead-end users.
+    if (!RevenueCatService.instance.isSupported) return true;
+
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return false;
+
+    bool isSubscribed = false;
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+          ?.toString()
+          .toLowerCase()
+          .trim();
+      isSubscribed = status == 'active' || status == 'trial' || status == 'trialing';
+    } catch (_) {
+      isSubscribed = false;
+    }
+
+    if (isSubscribed) return true;
+
+    final returnTo = Uri.encodeComponent(OnboardingVoiceSelectionWidget.routePath);
+    context.go('${SubscriptionWidget.routePath}?returnTo=$returnTo');
+    return false;
   }
 
   @override
@@ -253,6 +283,8 @@ class _OnboardingVoiceSelectionWidgetState
 
   /// Generates audio with user's voice, updates backend (voice_id / playUrl), then navigates to player.
   Future<void> _onUseMyVoiceFromModal(BuildContext dialogContext) async {
+    if (!await _ensureSubscribedForVoiceGeneration()) return;
+
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) return;
     final story = OnboardingState.instance.generatedStory;
@@ -629,6 +661,8 @@ class _OnboardingVoiceSelectionWidgetState
               context.go(OnboardingVoiceWidget.routePath);
               return;
             }
+
+            if (!await _ensureSubscribedForVoiceGeneration()) return;
 
             setState(() => _isLoading = true);
             try {
