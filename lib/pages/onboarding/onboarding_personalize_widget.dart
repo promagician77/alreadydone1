@@ -259,7 +259,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                       }
                       await _state.persistToPrefs(OnboardingDesireWidget.routePath);
                       if (!context.mounted) return;
-                      context.go(OnboardingDesireWidget.routePath);
+                      context.push(OnboardingDesireWidget.routePath);
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(

@@ -944,7 +944,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   /// Navigate to onboarding desire page (3rd step); prefill first name and someone you love from user profile.
   Future<void> _handleAddNewManifestation() async {
     if (!mounted) return;
-    context.go(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
+    context.push(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
   }
 
   Widget _buildAddButton() {

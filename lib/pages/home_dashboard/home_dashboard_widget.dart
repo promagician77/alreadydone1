@@ -218,7 +218,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   void _handleAddNewManifestation() {
-    context.go(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
+    context.push(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
   }
 
   Widget _buildAddNewManifestationButton() {
