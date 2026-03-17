@@ -21,6 +21,7 @@ import '/services/app_toast.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
+import '/services/nav_lock_notifier.dart';
 import '/widgets/pressable.dart';
 import 'index.dart';
 
@@ -344,7 +345,7 @@ class _NavBarPageState extends State<NavBarPage> {
     int index,
     int currentIndex,
     bool sleepStyle,
-    VoidCallback onTap,
+    VoidCallback? onTap,
   ) {
     final selectedColor = sleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
     final unselectedColor = sleepStyle ? Colors.white.withValues(alpha: 0.5) : _NavColors.inkSoft;
@@ -389,25 +390,37 @@ class _NavBarPageState extends State<NavBarPage> {
     return ValueListenableBuilder<bool>(
       valueListenable: sleepModeNotifier,
       builder: (context, sleepMode, _) {
-        final useSleepStyle = isPlayerSleepMode && sleepMode;
-        final barColor = useSleepStyle ? _NavColors.sleepSurface : _NavColors.surface;
-        final selectedColor = useSleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
-        final unselectedColor = useSleepStyle ? Colors.white.withValues(alpha: 0.5) : _NavColors.inkSoft;
+        return ValueListenableBuilder<bool>(
+          valueListenable: navLockNotifier,
+          builder: (context, navLocked, __) {
+            final useSleepStyle = isPlayerSleepMode && sleepMode;
+            final barColor = useSleepStyle ? _NavColors.sleepSurface : _NavColors.surface;
+            final selectedColor = useSleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
+            final unselectedColor =
+                useSleepStyle ? Colors.white.withValues(alpha: 0.5) : _NavColors.inkSoft;
 
-        return Scaffold(
-          resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
-          body: Column(
-            children: [
-              Expanded(child: _currentPage ?? tabs[_currentPageName]!),
-              _buildNavBar(context, barColor, currentIndex, useSleepStyle),
-            ],
-          ),
-        );
+            return Scaffold(
+              resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
+              body: Column(
+                children: [
+                  Expanded(child: _currentPage ?? tabs[_currentPageName]!),
+                  _buildNavBar(context, barColor, currentIndex, useSleepStyle, navLocked),
+                ],
+              ),
+            );
           },
+        );
+      },
     );
   }
 
-  Widget _buildNavBar(BuildContext context, Color barColor, int currentIndex, bool useSleepStyle) {
+  Widget _buildNavBar(
+    BuildContext context,
+    Color barColor,
+    int currentIndex,
+    bool useSleepStyle,
+    bool navLocked,
+  ) {
     return ColoredBox(
       color: barColor,
       child: SafeArea(
@@ -431,10 +444,42 @@ class _NavBarPageState extends State<NavBarPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(context, Icons.home_rounded, 'Home', 0, currentIndex, useSleepStyle, () => _onNavTap(0)),
-                  _buildNavItem(context, Icons.play_arrow, 'Player', 1, currentIndex, useSleepStyle, () => _onNavTap(1)),
-                  _buildNavItem(context, Icons.check, 'Done', 2, currentIndex, useSleepStyle, () => _onNavTap(2)),
-                  _buildNavItem(context, Icons.density_medium, 'Profile', 3, currentIndex, useSleepStyle, () => _onNavTap(3)),
+                  _buildNavItem(
+                    context,
+                    Icons.home_rounded,
+                    'Home',
+                    0,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(0),
+                  ),
+                  _buildNavItem(
+                    context,
+                    Icons.play_arrow,
+                    'Player',
+                    1,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(1),
+                  ),
+                  _buildNavItem(
+                    context,
+                    Icons.check,
+                    'Done',
+                    2,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(2),
+                  ),
+                  _buildNavItem(
+                    context,
+                    Icons.density_medium,
+                    'Profile',
+                    3,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(3),
+                  ),
                 ],
               ),
             ),

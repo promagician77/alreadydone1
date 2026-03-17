@@ -7,6 +7,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/services/last_played_service.dart';
 import 'package:flutter/material.dart';
 import '/services/sleep_mode_notifier.dart';
+import '/services/nav_lock_notifier.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
@@ -2710,6 +2711,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
     if (!mounted) return;
     setState(() => _isDeepening = true);
+    navLockNotifier.value = true;
     String name = '';
     String location = '';
     String energyWord = '';
@@ -2725,6 +2727,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     } catch (_) {}
     if (!mounted) {
       setState(() => _isDeepening = false);
+      navLockNotifier.value = false;
       return;
     }
     try {
@@ -2754,6 +2757,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         );
       }
     } finally {
+      navLockNotifier.value = false;
       if (mounted) setState(() => _isDeepening = false);
     }
   }
