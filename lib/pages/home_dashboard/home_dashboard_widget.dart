@@ -474,7 +474,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                 children: [
               // Hero section (full width, outside padded area)
               _buildHero(),
-              _buildAddNewManifestationButton(),
               // Scrollable content with horizontal padding
               Flexible(
                 child: SingleChildScrollView(
@@ -537,6 +536,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                       ),
                       const SizedBox(height: 12),
                       _buildRecentStories(context, recentStories),
+                      const SizedBox(height: 20),
+                      _buildAddNewManifestationButton(),
                     ],
                   ),
                 ),
