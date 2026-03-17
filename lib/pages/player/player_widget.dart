@@ -2100,22 +2100,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
         ? _formatDuration(_duration.inSeconds)
         : (_durationLabel ?? '0:00');
     final isGenerating = _isGeneratingVoice;
-    final canChangeVoice = _currentStoryId != null &&
-        _playUrl != null &&
-        _playUrl!.isNotEmpty &&
-        !isGenerating;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          '$durationText · ',
+          '$durationText · $_voiceLabel',
           style: GoogleFonts.outfit(
             fontSize: 12,
             color: _PlayerColors.inkSoft,
+            fontWeight: FontWeight.w500,
           ),
         ),
-        if (isGenerating)
+        if (isGenerating) ...[
+          const SizedBox(width: 8),
           SizedBox(
             height: 20,
             width: 20,
@@ -2123,31 +2121,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
               strokeWidth: 2,
               color: _PlayerColors.gold,
             ),
-          )
-        else
-          DropdownButton<String>(
-            value: _voiceDropdownValue,
-            isExpanded: false,
-            underline: const SizedBox(),
-            icon: Icon(Icons.arrow_drop_down, color: _PlayerColors.inkSoft, size: 20),
-            style: GoogleFonts.outfit(
-              fontSize: 12,
-              color: _PlayerColors.inkSoft,
-              fontWeight: FontWeight.w500,
-            ),
-            items: [
-              DropdownMenuItem<String>(
-                value: _voiceDropdownMyVoice,
-                child: Text('My Voice', style: GoogleFonts.outfit(fontSize: 12, color: _PlayerColors.ink)),
-              ),
-              for (final t in _presetVoices)
-                DropdownMenuItem<String>(
-                  value: t.$1,
-                  child: Text("${t.$2}'s voice", style: GoogleFonts.outfit(fontSize: 12, color: _PlayerColors.ink)),
-                ),
-            ],
-            onChanged: canChangeVoice ? _onVoiceChanged : null,
           ),
+        ],
       ],
     );
   }
@@ -2798,7 +2773,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
         final profile = await BackendClient.getUserProfile(userId);
         final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
             ?.toString().toLowerCase().trim();
-        // Same as after sign-in: active or trial = subscribed for feature access.
         isSubscribed = status == 'active' || status == 'trial';
       }
     } catch (_) {}
