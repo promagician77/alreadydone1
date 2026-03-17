@@ -222,33 +222,31 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   Widget _buildAddNewManifestationButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      child: Pressable(
-        onTap: _handleAddNewManifestation,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: _AppColors.gold,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add, color: _AppColors.surface, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Add New Manifestation',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _AppColors.surface,
-                ),
+    return Pressable(
+      onTap: _handleAddNewManifestation,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: _AppColors.gold,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add, color: _AppColors.surface, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Add New Manifestation',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _AppColors.surface,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
