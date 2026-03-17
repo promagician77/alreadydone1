@@ -5,12 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
-import '/pages/subscription/subscription_widget.dart';
 import '/services/backend_client.dart';
-import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_player_widget.dart';
+import 'onboarding_splash_widget.dart';
 import 'onboarding_voice_widget.dart';
 import 'onboarding_state.dart';
 
@@ -76,14 +75,14 @@ class _OnboardingVoiceSelectionWidgetState
     return 'My Voice';
   }
 
-  /// Gate voice generation behind an active/trial subscription (mobile only).
+  /// Gate voice generation behind an active/trial subscription.
   /// If not subscribed, sends the user to the paywall and returns false.
   Future<bool> _ensureSubscribedForVoiceGeneration() async {
-    // On platforms where subscriptions aren't supported (e.g. web), don't dead-end users.
-    if (!RevenueCatService.instance.isSupported) return true;
-
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null || !mounted) return false;
+    if (userId == null || !mounted) {
+      if (mounted) context.go('/login?welcomeBack=true');
+      return false;
+    }
 
     bool isSubscribed = false;
     try {
@@ -100,7 +99,7 @@ class _OnboardingVoiceSelectionWidgetState
     if (isSubscribed) return true;
 
     final returnTo = Uri.encodeComponent(OnboardingVoiceSelectionWidget.routePath);
-    context.go('${SubscriptionWidget.routePath}?returnTo=$returnTo');
+    context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
     return false;
   }
 
