@@ -122,7 +122,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
 
   Future<void> _logout() async {
     await SupabaseService.signOut();
-    if (mounted) context.go('/login');
+    if (mounted) context.go('/login?welcomeBack=true');
   }
 
   bool _parseBool(dynamic value, bool defaultValue) {

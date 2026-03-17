@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
+import 'package:go_router/go_router.dart';
 import '/flutter_flow/nav/nav.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
 import 'login_model.dart';
@@ -27,6 +30,19 @@ class _LoginWidgetState extends State<LoginWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => LoginModel());
+    _loadWelcomeBackState();
+  }
+
+  Future<void> _loadWelcomeBackState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSignedInBefore = prefs.getBool('user_has_signed_in_once') ?? false;
+    if (mounted) setState(() => _model.userHasSignedInBefore = hasSignedInBefore);
+  }
+
+  /// True when user came from Log Out (query param) or session expired (has signed in before).
+  bool _showWelcomeBack(BuildContext context) {
+    return GoRouterState.of(context).uri.queryParameters['welcomeBack'] == 'true' ||
+        _model.userHasSignedInBefore;
   }
 
   @override
@@ -56,7 +72,13 @@ class _LoginWidgetState extends State<LoginWidget> {
                       const SizedBox(height: 28),
                       const Center(child: WaveformIcon()),
                       const SizedBox(height: 20),
-                      Text('Sign in', textAlign: TextAlign.center, style: AuthTheme.welcomeTitleStyle),
+                      Text(
+                        _showWelcomeBack(context)
+                            ? 'Welcome Back'
+                            : 'Sign in',
+                        textAlign: TextAlign.center,
+                        style: AuthTheme.welcomeTitleStyle,
+                      ),
                       const SizedBox(height: 8),
                       Text('Your voice is ready for you', textAlign: TextAlign.center, style: AuthTheme.welcomeSubStyle),
                       const SizedBox(height: 24),
@@ -179,7 +201,7 @@ class _LoginWidgetState extends State<LoginWidget> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, 'Login failed: ${e.toString()}');
+        AppToast.error(context, _loginErrorMessage(e));
       }
     } finally {
       if (mounted) {
@@ -193,7 +215,7 @@ class _LoginWidgetState extends State<LoginWidget> {
       await SupabaseService.signInWithApple();
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, 'Apple sign in error: ${e.toString()}');
+        AppToast.error(context, _socialSignInErrorMessage('Apple', e));
       }
     }
   }
@@ -203,9 +225,33 @@ class _LoginWidgetState extends State<LoginWidget> {
       await SupabaseService.signInWithGoogle();
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, 'Google sign in error: ${e.toString()}');
+        AppToast.error(context, _socialSignInErrorMessage('Google', e));
       }
     }
+  }
+
+  /// User-friendly message for email/password login errors (no raw exception text).
+  String _loginErrorMessage(dynamic e) {
+    if (e is AuthException) {
+      final code = e.statusCode?.toString() ?? '';
+      final msg = (e.message ?? '').toLowerCase();
+      if (e.code == 'invalid_credentials' || msg.contains('invalid') && msg.contains('credential')) {
+        return 'Invalid email or password.';
+      }
+      if (e.code == 'email_not_confirmed' || msg.contains('email not confirmed')) {
+        return 'Please confirm your email address.';
+      }
+    }
+    final s = e.toString().toLowerCase();
+    if (s.contains('invalid') && (s.contains('credential') || s.contains('login'))) {
+      return 'Invalid email or password.';
+    }
+    return 'Login failed. Please try again.';
+  }
+
+  /// User-friendly message for Apple/Google sign-in (no raw exception text).
+  String _socialSignInErrorMessage(String provider, dynamic e) {
+    return 'Could not sign in with $provider. Please try again.';
   }
 
   Widget _divider() {

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -277,21 +277,33 @@ class SupabaseService {
   /// Google sign-in: native account picker on mobile (no browser), OAuth redirect on web.
   /// Uses GOOGLE_WEB_CLIENT_ID (Supabase/server) and GOOGLE_ANDROID_CLIENT_ID or GOOGLE_IOS_CLIENT_ID (app).
   static Future<void> signInWithGoogle() async {
+    const _tag = '[GoogleOAuth]';
+    debugPrint('$_tag signInWithGoogle() started. kIsWeb=$kIsWeb, platform=${defaultTargetPlatform.name}');
+
     if (kIsWeb) {
+      debugPrint('$_tag Web: using signInWithOAuth redirect.');
       await signInWithOAuth(provider: OAuthProvider.google);
       return;
     }
+
+    final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    debugPrint('$_tag Native: isAndroid=$isAndroid, isIOS=$isIOS');
+
     final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+    debugPrint('$_tag GOOGLE_WEB_CLIENT_ID: ${webClientId == null || webClientId.isEmpty ? "MISSING" : "set (length ${webClientId.length})"}');
     if (webClientId == null || webClientId.isEmpty) {
       throw Exception(
         'GOOGLE_WEB_CLIENT_ID is not set in .env. '
         'Add your Google Cloud web client ID (same as in Supabase Dashboard → Auth → Google).',
       );
     }
+
     final androidClientId = dotenv.env['GOOGLE_ANDROID_CLIENT_ID']?.trim();
     final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
-    final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    debugPrint('$_tag GOOGLE_ANDROID_CLIENT_ID: ${androidClientId == null || androidClientId.isEmpty ? "MISSING" : "set (length ${androidClientId.length})"}');
+    debugPrint('$_tag GOOGLE_IOS_CLIENT_ID: ${iosClientId == null || iosClientId.isEmpty ? "MISSING" : "set (length ${iosClientId.length})"}');
+
     if (isAndroid && (androidClientId == null || androidClientId.isEmpty)) {
       throw Exception(
         'GOOGLE_ANDROID_CLIENT_ID is not set in .env. '
@@ -305,26 +317,51 @@ class SupabaseService {
         'Also add the reversed client ID as a URL scheme in ios/Runner/Info.plist.',
       );
     }
+
+    final clientIdForSignIn = isIOS && (iosClientId != null && iosClientId.isNotEmpty) ? iosClientId : null;
+    debugPrint('$_tag GoogleSignIn config: serverClientId length=${webClientId.length}, clientId (native)=${clientIdForSignIn != null ? "set" : "null"}');
     final googleSignIn = GoogleSignIn(
       serverClientId: webClientId,
-      clientId: isIOS && (iosClientId != null && iosClientId.isNotEmpty) ? iosClientId : null,
+      clientId: clientIdForSignIn,
     );
+
     try {
+      debugPrint('$_tag Calling GoogleSignIn.signIn()...');
       final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return;
+      if (googleUser == null) {
+        debugPrint('$_tag GoogleSignIn.signIn() returned null (user cancelled or error).');
+        return;
+      }
+      debugPrint('$_tag Got GoogleUser: email=${googleUser.email ?? "null"}, id=${googleUser.id ?? "null"}');
+
+      debugPrint('$_tag Requesting googleUser.authentication...');
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
-      if (idToken == null) throw Exception('Google Sign-In: no ID token');
-      if (accessToken == null) throw Exception('Google Sign-In: no access token');
+      debugPrint('$_tag authentication: idToken=${idToken != null ? "present (length ${idToken.length})" : "NULL"}, accessToken=${accessToken != null ? "present (length ${accessToken.length})" : "NULL"}');
+
+      if (idToken == null) {
+        debugPrint('$_tag FAIL: idToken is null.');
+        throw Exception('Google Sign-In: no ID token');
+      }
+      if (accessToken == null) {
+        debugPrint('$_tag FAIL: accessToken is null.');
+        throw Exception('Google Sign-In: no access token');
+      }
+
+      debugPrint('$_tag Calling Supabase client.auth.signInWithIdToken(provider: google)...');
       await client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
-    } on PlatformException catch (e) {
+      debugPrint('$_tag Supabase signInWithIdToken SUCCESS. Session: ${client.auth.currentSession != null}');
+    } on PlatformException catch (e, st) {
+      debugPrint('$_tag PlatformException: code=${e.code}, message=${e.message}, details=${e.details}');
+      debugPrint('$_tag PlatformException stackTrace: $st');
       if (e.code == 'sign_in_failed' &&
           (e.message?.contains('ApiException: 10') ?? false)) {
+        debugPrint('$_tag ApiException: 10 → SHA-1 / package name mismatch in Google Cloud Console (Android OAuth client).');
         throw Exception(
           isAndroid
               ? 'Google Sign-In setup error: add your app\'s SHA-1 and package name '
@@ -335,6 +372,10 @@ class SupabaseService {
                 'client ID URL scheme in ios/Runner/Info.plist.',
         );
       }
+      rethrow;
+    } catch (e, st) {
+      debugPrint('$_tag Exception: $e');
+      debugPrint('$_tag StackTrace: $st');
       rethrow;
     }
   }
