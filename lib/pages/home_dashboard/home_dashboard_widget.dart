@@ -14,6 +14,7 @@ import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
+import '/pages/onboarding/onboarding_desire_widget.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
 
@@ -413,6 +414,41 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
   }
 
+  Future<void> _handleAddNewManifestation() async {
+    if (!mounted) return;
+    context.go(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
+  }
+
+  Widget _buildAddNewManifestationButton() {
+    return Pressable(
+      onTap: _handleAddNewManifestation,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: _AppColors.gold,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add, color: _AppColors.surface, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Add New Manifestation',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _AppColors.surface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _getFilteredStories();
@@ -498,6 +534,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                       ),
                       const SizedBox(height: 12),
                       _buildRecentStories(context, recentStories),
+                      const SizedBox(height: 20),
+                      _buildAddNewManifestationButton(),
                     ],
                   ),
                 ),
