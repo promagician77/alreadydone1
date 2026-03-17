@@ -282,6 +282,21 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
     return truncated.substring(0, lastSpace).trim();
   }
 
+  /// Truncates [text] so the preview ends on a complete sentence when possible.
+  /// Falls back to [_truncateToCompleteWords] if no sentence boundary is found.
+  static String _truncateToCompleteSentence(String text, int maxLength) {
+    if (text.length <= maxLength) return text.trim();
+    final truncated = text.substring(0, maxLength);
+    final lastPeriod = truncated.lastIndexOf('.');
+    final lastBang = truncated.lastIndexOf('!');
+    final lastQuestion = truncated.lastIndexOf('?');
+    final lastEnd = [lastPeriod, lastBang, lastQuestion].reduce((a, b) => a > b ? a : b);
+    if (lastEnd > 0) {
+      return truncated.substring(0, lastEnd + 1).trim();
+    }
+    return _truncateToCompleteWords(text, maxLength);
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -481,8 +496,8 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
 
   Widget _buildReadingPassage(bool isNarrow) {
     final fullText = _passageText;
-    final preview = _truncateToCompleteWords(fullText, _passagePreviewMaxChars);
-    final displayText = '$preview...';
+    final preview = _truncateToCompleteSentence(fullText, _passagePreviewMaxChars);
+    final displayText = preview;
 
     return Container(
       padding: EdgeInsets.all(isNarrow ? 16 : 24),
