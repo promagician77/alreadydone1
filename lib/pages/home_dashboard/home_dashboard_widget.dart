@@ -520,6 +520,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                         ),
                       ),
                       const SizedBox(height: 12),
+                      _buildAddNewManifestationButton(),
+                      const SizedBox(height: 16),
                       _buildDesireChips(),
                       const SizedBox(height: 20),
 
@@ -534,8 +536,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                       ),
                       const SizedBox(height: 12),
                       _buildRecentStories(context, recentStories),
-                      const SizedBox(height: 20),
-                      _buildAddNewManifestationButton(),
                     ],
                   ),
                 ),
