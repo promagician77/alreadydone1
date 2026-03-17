@@ -9,7 +9,6 @@ import '/services/onboarding_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_desire_widget.dart';
-import 'onboarding_voice_selection_widget.dart';
 import 'onboarding_state.dart';
 
 /// Formats seconds as "X min Y sec" (readable) or "0:00" (short).
@@ -417,24 +416,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                           : _voiceSubtitle,
                       style: AuthTheme.welcomeSubStyle,
                       textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    Pressable(
-                      onTap: () => context.go(OnboardingVoiceSelectionWidget.routePath),
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                        child: Text(
-                          'Change Voice',
-                          style: AuthTheme.welcomeSubStyle.copyWith(
-                            color: AuthTheme.gold,
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AuthTheme.gold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 28),
                     Container(
