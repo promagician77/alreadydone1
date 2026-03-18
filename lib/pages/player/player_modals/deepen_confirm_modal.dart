@@ -500,11 +500,12 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
         ),
         const SizedBox(height: 12),
         Material(
-          color: Colors.white.withValues(alpha: 0.0),
+          color: _DeepenConfirmColors.offWhite,
+          clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
-              color: _DeepenConfirmColors.textLight.withValues(alpha: 0.35),
+              color: _DeepenConfirmColors.textLight.withValues(alpha: 0.55),
               width: 2,
             ),
           ),
