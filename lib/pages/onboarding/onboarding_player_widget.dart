@@ -405,7 +405,19 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                 child: Column(
                   children: [
                     Text(
-                      _state.generatedStory?['title']?.toString() ?? 'A Love That Was\nAlready Yours',
+                      (_state.generatedStory?['theme'] ??
+                              _state.generatedStory?['title'] ??
+                              _state.generatedStory?['desire_name'])
+                          ?.toString()
+                          .trim()
+                          .isNotEmpty ==
+                          true
+                          ? (_state.generatedStory!['theme'] ??
+                                  _state.generatedStory!['title'] ??
+                                  _state.generatedStory!['desire_name'])
+                              .toString()
+                              .trim()
+                          : 'A Love That Was\nAlready Yours',
                       style: AuthTheme.welcomeTitleStyle.copyWith(fontSize: 24),
                       textAlign: TextAlign.center,
                     ),
