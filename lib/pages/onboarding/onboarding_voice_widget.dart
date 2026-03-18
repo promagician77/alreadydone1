@@ -208,6 +208,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       final url = res['url']?.toString();
       OnboardingState.instance.voicePlayUrl = url;
       OnboardingState.instance.selectedVoiceName = name;
+      OnboardingState.instance.selectedVoiceId = voiceId;
 
       if (!mounted) return;
       setState(() => _isUploading = false);

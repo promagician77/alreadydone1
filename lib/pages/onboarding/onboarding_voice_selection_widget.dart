@@ -304,6 +304,7 @@ class _OnboardingVoiceSelectionWidgetState
       }
       OnboardingState.instance.voicePlayUrl = url;
       OnboardingState.instance.selectedVoiceName = 'My Voice';
+      OnboardingState.instance.selectedVoiceId = voiceId;
       if (mounted) context.go(OnboardingPlayerWidget.routePath);
     } catch (e) {
       if (mounted) {
@@ -658,6 +659,7 @@ class _OnboardingVoiceSelectionWidgetState
               final url = res['url']?.toString();
               OnboardingState.instance.voicePlayUrl = url;
               OnboardingState.instance.selectedVoiceName = _selectedVoiceDisplayName;
+              OnboardingState.instance.selectedVoiceId = _selectedId;
 
               if (mounted) {
                 context.go(OnboardingPlayerWidget.routePath);

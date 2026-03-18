@@ -252,6 +252,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     String energyWord = '';
     String lovedOne = '';
     String dreamLocation = '';
+    String? profileVoiceId;
     try {
       final profile = await BackendClient.getUserProfile(userId);
       name = (profile['name'] ?? '').toString().trim();
@@ -259,6 +260,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       energyWord = (profile['energyWord'] ?? '').toString().trim();
       lovedOne = (profile['lovedOne'] ?? profile['someone_you_love'] ?? '').toString().trim();
       dreamLocation = (profile['dream_place'] ?? profile['dreamLocation'] ?? '').toString().trim();
+      profileVoiceId = (profile['voice_id'] ?? profile['voice_Id'])?.toString().trim();
     } catch (_) {}
     if (!mounted) {
       setState(() => _isDeepening = false);
@@ -275,7 +277,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
         dreamLocation: dreamLocation,
       );
       if (!mounted) return;
-      final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString();
+      final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
       final storyText = (res['story'] ?? res['content'] ?? '').toString().trim();
       if (storyText.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -283,6 +285,58 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
         );
         return;
       }
+
+      // Update player page immediately (title + preview + audio) so when modal shows,
+      // the underlying page reflects the deepened story.
+      final newStoryIdRaw = res['id'] ?? res['story_id'] ?? res['storyId'];
+      final newStoryId = newStoryIdRaw is int
+          ? newStoryIdRaw
+          : int.tryParse(newStoryIdRaw?.toString() ?? '');
+      final storyIdToUse = newStoryId ?? storyId;
+
+      // Prefer the voice the user selected in onboarding; fall back to profile voice_id.
+      final voiceIdToUse = (_state.selectedVoiceId ?? '').trim().isNotEmpty
+          ? _state.selectedVoiceId!.trim()
+          : ((profileVoiceId ?? '').trim().isNotEmpty ? profileVoiceId!.trim() : null);
+
+      String? newAudioUrl;
+      if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
+        try {
+          final audioRes = await BackendClient.voiceGenerateAudio(
+            voiceId: voiceIdToUse,
+            storyId: storyIdToUse,
+          );
+          final url = audioRes['url']?.toString().trim();
+          if (url != null && url.isNotEmpty) newAudioUrl = url;
+        } catch (_) {
+          // If audio generation fails, keep existing audio; user can still read the deepened story.
+        }
+      }
+
+      if (!mounted) return;
+      final wasPlaying = _isPlaying;
+      setState(() {
+        _state.generatedStory ??= <String, dynamic>{};
+        _state.generatedStory!['id'] = storyIdToUse;
+        _state.generatedStory!['theme'] = theme;
+        _state.generatedStory!['title'] = theme;
+        _state.generatedStory!['story'] = storyText;
+        if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
+          _state.voicePlayUrl = newAudioUrl;
+        }
+      });
+
+      if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
+        try {
+          await _audioPlayer.stop();
+          await _audioPlayer.setSource(UrlSource(newAudioUrl!));
+          if (wasPlaying) await _audioPlayer.resume();
+          if (mounted) setState(() => _isPlaying = wasPlaying);
+        } catch (_) {
+          if (mounted) setState(() => _isPlaying = false);
+        }
+      }
+
       showDeepenResultModal(context, theme: theme, story: storyText);
     } catch (e) {
       if (mounted) {

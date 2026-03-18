@@ -2741,7 +2741,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         dreamLocation: dreamLocation,
       );
       if (!mounted) return;
-      final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString();
+      final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
       final story = (res['story'] ?? res['content'] ?? '').toString().trim();
       if (story.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2749,6 +2749,61 @@ class _PlayerWidgetState extends State<PlayerWidget>
         );
         return;
       }
+
+      // Update the underlying player state (title + story + audio url) before showing the result modal.
+      final newStoryIdRaw = res['id'] ?? res['story_id'] ?? res['storyId'];
+      final newStoryId = newStoryIdRaw is int
+          ? newStoryIdRaw
+          : int.tryParse(newStoryIdRaw?.toString() ?? '');
+      final storyIdToUse = newStoryId ?? storyId;
+
+      // Generate audio for the deepened story using the currently selected voice.
+      final voiceIdToUse = (_voiceId ?? '').trim().isNotEmpty
+          ? _voiceId!.trim()
+          : await _getUserVoiceId();
+
+      String? newAudioUrl;
+      if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
+        try {
+          final audioRes = await BackendClient.voiceGenerateAudio(
+            voiceId: voiceIdToUse,
+            storyId: storyIdToUse,
+          );
+          final url = audioRes['url']?.toString().trim();
+          if (url != null && url.isNotEmpty) newAudioUrl = url;
+          if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
+            _voicePlayUrlCache[_voiceCacheKey(storyIdToUse, voiceIdToUse)] =
+                newAudioUrl!;
+          }
+        } catch (_) {
+          // If generation fails, keep existing audio; user can still read the deepened story.
+        }
+      }
+
+      if (!mounted) return;
+      final wasPlaying = _isPlaying;
+      setState(() {
+        _currentStoryId = storyIdToUse;
+        _title = theme;
+        _previewContent = story;
+        _fullStoryContent = story;
+        if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
+          _playUrl = newAudioUrl;
+        }
+      });
+
+      if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
+        try {
+          await _audioPlayer.stop();
+          await _audioPlayer.setSource(UrlSource(newAudioUrl!));
+          if (wasPlaying) await _audioPlayer.resume();
+          if (mounted) setState(() => _isPlaying = wasPlaying);
+        } catch (_) {
+          if (mounted) setState(() => _isPlaying = false);
+        }
+      }
+
+      _saveLastPlayed();
       showDeepenResultModal(context, theme: theme, story: story);
     } catch (e) {
       if (mounted) {

@@ -31,6 +31,10 @@ class OnboardingState {
   /// Set when creating a clone or when choosing a preset in voice selection.
   String? selectedVoiceName;
 
+  /// Voice id used to generate the current story audio (preset voice id or user's cloned voice_id).
+  /// Set by voice selection / voice pages so onboarding_player can regenerate audio after deepening.
+  String? selectedVoiceId;
+
   static const List<String> energyWords = ['Powerful', 'Peaceful', 'Abundant', 'Grateful', 'Confident'];
   static const List<String> categories = ['Love', 'Money', 'Career', 'Health', 'Home'];
 
@@ -72,6 +76,7 @@ class OnboardingState {
     recordingDurationSec = null;
     voicePlayUrl = null;
     selectedVoiceName = null;
+    selectedVoiceId = null;
   }
 
   /// Persist current form values and the reached step path to SharedPreferences.
