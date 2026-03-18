@@ -115,6 +115,16 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     return "${name}'s voice";
   }
 
+  /// Story title from generated story (theme/title/desire_name from create step).
+  String get _storyTitle {
+    final raw = (_state.generatedStory?['theme'] ??
+            _state.generatedStory?['title'] ??
+            _state.generatedStory?['desire_name'])
+        ?.toString()
+        .trim();
+    return (raw != null && raw.isNotEmpty) ? raw : 'A Love That Was\nAlready Yours';
+  }
+
   @override
   void initState() {
     super.initState();
