@@ -500,20 +500,19 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
         ),
         const SizedBox(height: 12),
         Material(
-          color: Colors.transparent,
+          color: Colors.white.withValues(alpha: 0.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: _DeepenConfirmColors.textLight.withValues(alpha: 0.35),
+              width: 2,
+            ),
+          ),
           child: InkWell(
             onTap: _handleBack,
             borderRadius: BorderRadius.circular(16),
-            child: Container(
+            child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _DeepenConfirmColors.textLight.withValues(alpha: 0.2),
-                  width: 2,
-                ),
-              ),
               child: Center(
                 child: Text(
                   'Go Back',
