@@ -299,7 +299,24 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       final newStoryId = newStoryIdRaw is int
           ? newStoryIdRaw
           : int.tryParse(newStoryIdRaw?.toString() ?? '');
-      final storyIdToUse = newStoryId ?? storyId;
+      int storyIdToUse = newStoryId ?? storyId;
+      if (newStoryId == null) {
+        // Some backends return the deepened story without its new id.
+        // Best-effort: load latest story id from list.
+        try {
+          final storiesRes = await BackendClient.getStories(userId);
+          final list = (storiesRes['stories'] as List<dynamic>?) ?? const [];
+          int? bestId;
+          for (final s in list) {
+            final map = s is Map<String, dynamic> ? s : <String, dynamic>{};
+            final idRaw = map['id'] ?? map['Id'];
+            final sid = idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
+            if (sid == null) continue;
+            if (bestId == null || sid > bestId) bestId = sid;
+          }
+          if (bestId != null) storyIdToUse = bestId;
+        } catch (_) {}
+      }
 
       // Prefer the voice the user selected in onboarding; fall back to profile voice_id.
       final voiceIdToUse = (_state.selectedVoiceId ?? '').trim().isNotEmpty
