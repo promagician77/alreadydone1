@@ -126,7 +126,7 @@ class _DeepenConfirmDialogState extends State<_DeepenConfirmDialog>
             _DeepenConfirmColors.offWhite.withValues(alpha: 0.95),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        // Intentionally no corner radius (per design request).
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.4),
