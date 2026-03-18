@@ -225,7 +225,14 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   Future<void> _deepenManifestation() async {
     if (_isDeepening) return;
     if (!mounted) return;
-    setState(() => _isDeepening = true);
+    // Stop any in-progress playback while generating deepened story/audio.
+    final shouldAutoPlayNew = _isPlaying;
+    try { await _audioPlayer.stop(); } catch (_) {}
+    if (mounted) setState(() {
+      _isPlaying = false;
+      _position = Duration.zero;
+      _isDeepening = true;
+    });
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) {
       if (mounted) setState(() => _isDeepening = false);
@@ -314,7 +321,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       }
 
       if (!mounted) return;
-      final wasPlaying = _isPlaying;
       setState(() {
         _state.generatedStory ??= <String, dynamic>{};
         _state.generatedStory!['id'] = storyIdToUse;
@@ -328,10 +334,9 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
 
       if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
         try {
-          await _audioPlayer.stop();
           await _audioPlayer.setSource(UrlSource(newAudioUrl!));
-          if (wasPlaying) await _audioPlayer.resume();
-          if (mounted) setState(() => _isPlaying = wasPlaying);
+          if (shouldAutoPlayNew) await _audioPlayer.resume();
+          if (mounted) setState(() => _isPlaying = shouldAutoPlayNew);
         } catch (_) {
           if (mounted) setState(() => _isPlaying = false);
         }

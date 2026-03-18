@@ -2710,7 +2710,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
       return;
     }
     if (!mounted) return;
-    setState(() => _isDeepening = true);
+    // Stop any in-progress playback while generating deepened story/audio.
+    final shouldAutoPlayNew = _isPlaying;
+    try { await _audioPlayer.stop(); } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _isPlaying = false;
+        _position = Duration.zero;
+        _isDeepening = true;
+      });
+    }
     navLockNotifier.value = true;
     String name = '';
     String location = '';
@@ -2781,7 +2790,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
 
       if (!mounted) return;
-      final wasPlaying = _isPlaying;
       setState(() {
         _currentStoryId = storyIdToUse;
         _title = theme;
@@ -2794,10 +2802,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
         try {
-          await _audioPlayer.stop();
           await _audioPlayer.setSource(UrlSource(newAudioUrl!));
-          if (wasPlaying) await _audioPlayer.resume();
-          if (mounted) setState(() => _isPlaying = wasPlaying);
+          if (shouldAutoPlayNew) await _audioPlayer.resume();
+          if (mounted) setState(() => _isPlaying = shouldAutoPlayNew);
         } catch (_) {
           if (mounted) setState(() => _isPlaying = false);
         }
