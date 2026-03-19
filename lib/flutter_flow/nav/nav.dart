@@ -139,11 +139,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           // Subscribed (rc_subscription_status active/trial) stay on current route; others → onboarding
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed) return null;
+          final completed = await OnboardingService.hasCompletedOnboarding();
+          // If onboarding is completed, allow the user to stay on the current route.
+          // (Prevents / <-> /onboarding redirect loops when `first_story_generated` is true.)
+          if (completed) return null;
           // Not subscribed: if first story already generated → paywall
           if (await OnboardingService.hasGeneratedFirstStory()) {
             return OnboardingSplashWidget.routePath;
           }
-          final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) {
             // Resume mid-onboarding if a step was saved
             final savedStep = await OnboardingService.getSavedStep();
