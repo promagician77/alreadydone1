@@ -81,8 +81,6 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
   Future<void> _handleCreateStory() async {
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return;
-
     final body = _state.toStoryRequestBody(userId);
 
     final name = body['name'] as String? ?? '';
@@ -98,6 +96,13 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         if (someoneYouLove.isEmpty) missing.add('Someone You Love');
         if (description.isEmpty) missing.add('Description');
         AppToast.info(context, 'Please fill in ${missing.join(', ')}');
+      }
+      return;
+    }
+
+    if (userId == null) {
+      if (mounted) {
+        AppToast.info(context, 'Please sign in and try again.');
       }
       return;
     }
