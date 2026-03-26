@@ -88,13 +88,20 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     final description = body['desireDescription'] as String? ?? '';
     final someoneYouLove = body['lovedOne'] as String? ?? '';
 
+    if (description.trim().isEmpty) {
+      if (mounted) {
+        AppToast.info(context, "Please describe what's already yours.");
+      }
+      return;
+    }
+
     if (name.isEmpty || location.isEmpty || description.isEmpty || someoneYouLove.isEmpty) {
       if (mounted) {
         final missing = <String>[];
         if (name.isEmpty) missing.add('First Name');
         if (location.isEmpty) missing.add('Dream Place');
         if (someoneYouLove.isEmpty) missing.add('Someone You Love');
-        if (description.isEmpty) missing.add('Description');
+        // Description handled above with its own toast.
         AppToast.info(context, 'Please fill in ${missing.join(', ')}');
       }
       return;
