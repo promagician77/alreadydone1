@@ -73,6 +73,11 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       final isWeeklyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('week');
       final isMonthlyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('month') && !rcPlan.contains('week');
       final isCanceled = rcStatus == 'canceled' || rcStatus == 'cancelled';
+      RevenueCatService.logFlow(
+        'Subscription',
+        '_loadProfileSubscriptionState: rcStatus=$rcStatus rcPlan=$rcPlan '
+        'weekly=$isWeeklyPlan monthly=$isMonthlyPlan canceled=$isCanceled',
+      );
       safeSetState(() {
         _model.isSubscribed = rcStatus == 'active' || rcStatus == 'trial';
         _model.isMonthlyPlan = isMonthlyPlan;
@@ -82,7 +87,9 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         if (_model.selectedPlan == null) _model.selectedPlan = 0;
         _model.subscriptionStateLoaded = true;
       });
-    } catch (_) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('Subscription', '_loadProfileSubscriptionState FAILED: $e');
+      debugPrint('$st');
       if (mounted) safeSetState(() => _model.subscriptionStateLoaded = true);
     }
   }
@@ -714,7 +721,9 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   /// Upgrade weekly → monthly: purchase the monthly package via RevenueCat.
   Future<void> _handleChangeToMonthly() async {
     if (_model.isPaymentLoading) return;
+    RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: start');
     if (!RevenueCatService.instance.isSupported) {
+      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: not supported');
       AppToast.error(
         context,
         'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
@@ -724,17 +733,30 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
     try {
       final userId = await SupabaseService.getCurrentUserTableId();
+      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: userId=$userId');
       final offerings = await RevenueCatService.instance.getOfferings();
       final package = _findPackage(offerings, wantMonthly: true);
       if (package == null) {
+        RevenueCatService.logFlow(
+          'Subscription',
+          '_handleChangeToMonthly: monthly package NOT FOUND',
+        );
         if (!mounted) return;
         AppToast.error(context, 'Monthly plan not available. Please try later.');
         return;
       }
+      RevenueCatService.logFlow(
+        'Subscription',
+        '_handleChangeToMonthly: purchasing ${package.identifier}',
+      );
       final info = await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
       if (info != null && userId != null) {
         try {
+          RevenueCatService.logFlow(
+            'Subscription',
+            '_handleChangeToMonthly: syncing backend userId=$userId',
+          );
           final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
           await BackendClient.updateUserRevenueCatSubscription(
             userId,
@@ -743,20 +765,31 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             rcSubscriptionPlan: payload['rc_subscription_plan']!,
             subscriptionProvider: payload['subscription_provider']!,
           );
-        } catch (e) {
-          debugPrint('Backend subscription sync failed: $e');
+        } catch (e, st) {
+          RevenueCatService.logFlow(
+            'Subscription',
+            '_handleChangeToMonthly: backend sync FAILED: $e',
+          );
+          debugPrint('$st');
         }
       }
+      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: success');
       AppToast.success(context, 'Upgraded to Monthly!');
       _goAfterSubscribe(context);
     } on PlatformException catch (e) {
+      RevenueCatService.logFlow(
+        'Subscription',
+        '_handleChangeToMonthly: PlatformException code=${e.code} message=${e.message}',
+      );
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
         AppToast.info(context, 'Upgrade canceled');
       } else {
         AppToast.error(context, e.message ?? 'Upgrade failed');
       }
-    } catch (e) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: unexpected $e');
+      debugPrint('$st');
       if (!mounted) return;
       AppToast.error(
         context,
@@ -785,7 +818,12 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
     if (_model.isPaymentLoading) return;
 
+    RevenueCatService.logFlow(
+      'Subscription',
+      '_handleConfirmPayment: start isStartTrial=$isStartTrial selectedPlan=${_model.selectedPlan}',
+    );
     if (!RevenueCatService.instance.isSupported) {
+      RevenueCatService.logFlow('Subscription', '_handleConfirmPayment: not supported');
       AppToast.error(
         context,
         'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
@@ -794,12 +832,14 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     }
 
     if (_model.selectedPlan == null) {
+      RevenueCatService.logFlow('Subscription', '_handleConfirmPayment: no plan selected');
       AppToast.info(context, 'Please select a plan first');
       return;
     }
 
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null) {
+      RevenueCatService.logFlow('Subscription', '_handleConfirmPayment: userId null');
       AppToast.error(context, 'Please sign in to subscribe');
       return;
     }
@@ -809,8 +849,16 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     try {
       final offerings = await RevenueCatService.instance.getOfferings();
       final wantMonthly = _model.selectedPlan == 0;
+      RevenueCatService.logFlow(
+        'Subscription',
+        '_handleConfirmPayment: wantMonthly=$wantMonthly userId=$userId',
+      );
       final package = _findPackage(offerings, wantMonthly: wantMonthly);
       if (package == null) {
+        RevenueCatService.logFlow(
+          'Subscription',
+          '_handleConfirmPayment: package NOT FOUND for wantMonthly=$wantMonthly',
+        );
         if (!mounted) return;
         AppToast.error(
           context,
@@ -827,6 +875,10 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
 
       if (info != null) {
         try {
+          RevenueCatService.logFlow(
+            'Subscription',
+            '_handleConfirmPayment: sync backend userId=$userId',
+          );
           final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
           await BackendClient.updateUserRevenueCatSubscription(
             userId,
@@ -835,21 +887,32 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             rcSubscriptionPlan: payload['rc_subscription_plan']!,
             subscriptionProvider: payload['subscription_provider']!,
           );
-        } catch (e) {
-          debugPrint('Backend subscription sync failed: $e');
+        } catch (e, st) {
+          RevenueCatService.logFlow(
+            'Subscription',
+            '_handleConfirmPayment: backend sync FAILED: $e',
+          );
+          debugPrint('$st');
         }
       }
 
+      RevenueCatService.logFlow('Subscription', '_handleConfirmPayment: success');
       AppToast.success(context, isStartTrial ? '3-day free trial started!' : 'Subscription active!');
       _goAfterSubscribe(context);
     } on PlatformException catch (e) {
+      RevenueCatService.logFlow(
+        'Subscription',
+        '_handleConfirmPayment: PlatformException code=${e.code} message=${e.message}',
+      );
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
         AppToast.info(context, 'Payment canceled');
       } else {
         AppToast.error(context, e.message ?? 'Payment failed');
       }
-    } catch (e) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('Subscription', '_handleConfirmPayment: unexpected $e');
+      debugPrint('$st');
       if (!mounted) return;
       AppToast.error(
         context,
@@ -864,7 +927,9 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
 
   Future<void> _handleRestorePurchases() async {
     if (_model.isPaymentLoading) return;
+    RevenueCatService.logFlow('Subscription', '_handleRestorePurchases: start');
     if (!RevenueCatService.instance.isSupported) {
+      RevenueCatService.logFlow('Subscription', '_handleRestorePurchases: not supported');
       AppToast.error(
         context,
         'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
@@ -874,10 +939,15 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
     try {
       final userId = await SupabaseService.getCurrentUserTableId();
+      RevenueCatService.logFlow('Subscription', '_handleRestorePurchases: userId=$userId');
       final info = await RevenueCatService.instance.restorePurchases();
       if (!mounted) return;
       if (info != null && userId != null) {
         try {
+          RevenueCatService.logFlow(
+            'Subscription',
+            '_handleRestorePurchases: sync backend userId=$userId',
+          );
           final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
           await BackendClient.updateUserRevenueCatSubscription(
             userId,
@@ -886,13 +956,20 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             rcSubscriptionPlan: payload['rc_subscription_plan']!,
             subscriptionProvider: payload['subscription_provider']!,
           );
-        } catch (e) {
-          debugPrint('Backend subscription sync after restore failed: $e');
+        } catch (e, st) {
+          RevenueCatService.logFlow(
+            'Subscription',
+            '_handleRestorePurchases: backend sync FAILED: $e',
+          );
+          debugPrint('$st');
         }
       }
+      RevenueCatService.logFlow('Subscription', '_handleRestorePurchases: done');
       AppToast.success(context, 'Purchases restored');
       _loadProfileSubscriptionState();
-    } catch (e) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('Subscription', '_handleRestorePurchases: FAILED $e');
+      debugPrint('$st');
       if (!mounted) return;
       AppToast.error(context, 'Could not restore. Please try again.');
     } finally {

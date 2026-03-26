@@ -80,10 +80,17 @@ Future<void> _initializeAppDeferred() async {
 
   debugPrint('🔍 Deferred: RevenueCat...');
   try {
+    RevenueCatService.logFlow('Startup', 'deferred configure() (anonymous until auth)');
     await RevenueCatService.instance.configure();
+    RevenueCatService.logFlow(
+      'Startup',
+      'deferred configure finished isConfigured=${RevenueCatService.instance.isConfigured}',
+    );
     debugPrint('✅ RevenueCat initialized successfully');
-  } catch (e) {
+  } catch (e, st) {
+    RevenueCatService.logFlow('Startup', 'deferred configure FAILED: $e');
     debugPrint('RevenueCat configure error: $e');
+    debugPrint('$st');
   }
 
   debugPrint('🔍 Deferred: Backend connection check...');

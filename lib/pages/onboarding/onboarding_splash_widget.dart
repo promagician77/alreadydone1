@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -48,9 +49,17 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Future<void> _loadSubscriptionStatus() async {
     try {
+      RevenueCatService.logFlow('OnboardingPay', '_loadSubscriptionStatus');
       final status = await RevenueCatService.instance.getSubscriptionStatus();
+      RevenueCatService.logFlow(
+        'OnboardingPay',
+        '_loadSubscriptionStatus: isSubscribed=${status.isSubscribed}',
+      );
       if (mounted) safeSetState(() => _model.isSubscribed = status.isSubscribed);
-    } catch (_) {}
+    } catch (e, st) {
+      RevenueCatService.logFlow('OnboardingPay', '_loadSubscriptionStatus FAILED: $e');
+      debugPrint('$st');
+    }
   }
 
   @override
@@ -436,7 +445,12 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
     if (_model.isPaymentLoading) return;
 
+    RevenueCatService.logFlow(
+      'OnboardingPay',
+      '_handleConfirmPayment: start isStartTrial=$isStartTrial selectedPlan=${_model.selectedPlan}',
+    );
     if (!RevenueCatService.instance.isSupported) {
+      RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: not supported');
       AppToast.error(
         context,
         'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
@@ -445,12 +459,14 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     }
 
     if (_model.selectedPlan == null) {
+      RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: no plan selected');
       AppToast.info(context, 'Please select a plan first');
       return;
     }
 
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null) {
+      RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: userId null');
       AppToast.error(context, 'Please sign in to subscribe');
       return;
     }
@@ -458,12 +474,20 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
 
     try {
+      RevenueCatService.logFlow(
+        'OnboardingPay',
+        '_handleConfirmPayment: ensureReady userId=$userId',
+      );
       await RevenueCatService.instance.ensureReady(appUserId: userId.toString());
 
       final offerings = await RevenueCatService.instance.getOfferings();
       final wantMonthly = _model.selectedPlan == 0;
       final package = _findPackage(offerings, wantMonthly: wantMonthly);
       if (package == null) {
+        RevenueCatService.logFlow(
+          'OnboardingPay',
+          '_handleConfirmPayment: package NOT FOUND wantMonthly=$wantMonthly',
+        );
         if (!mounted) return;
         AppToast.error(
           context,
@@ -475,11 +499,19 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       }
       if (!mounted) return;
 
+      RevenueCatService.logFlow(
+        'OnboardingPay',
+        '_handleConfirmPayment: purchase ${package.identifier}',
+      );
       final info = await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
 
       if (info != null) {
         try {
+          RevenueCatService.logFlow(
+            'OnboardingPay',
+            '_handleConfirmPayment: sync backend userId=$userId',
+          );
           final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
           await BackendClient.updateUserRevenueCatSubscription(
             userId,
@@ -488,11 +520,16 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
             rcSubscriptionPlan: payload['rc_subscription_plan']!,
             subscriptionProvider: payload['subscription_provider']!,
           );
-        } catch (e) {
-          debugPrint('Backend subscription sync failed: $e');
+        } catch (e, st) {
+          RevenueCatService.logFlow(
+            'OnboardingPay',
+            '_handleConfirmPayment: backend sync FAILED: $e',
+          );
+          debugPrint('$st');
         }
       }
 
+      RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: success');
       AppToast.success(
         context,
         isStartTrial ? '3-day free trial started!' : 'Subscription active!',
@@ -504,13 +541,18 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) ==
           PurchasesErrorCode.purchaseCancelledError) {
-        debugPrint(
-          'Onboarding purchase cancelled: code=${e.code}, '
-          'message=${e.message}, details=${e.details}',
+        RevenueCatService.logFlow(
+          'OnboardingPay',
+          '_handleConfirmPayment: USER CANCELLED code=${e.code} message=${e.message} '
+          'details=${e.details} — running sync workaround',
         );
         try {
           await RevenueCatService.instance.syncPurchases();
           for (final waitSeconds in [2, 3, 5]) {
+            RevenueCatService.logFlow(
+              'OnboardingPay',
+              'cancel workaround: wait ${waitSeconds}s then getCustomerInfo',
+            );
             await Future<void>.delayed(Duration(seconds: waitSeconds));
             if (!mounted) return;
             final info = await RevenueCatService.instance.getCustomerInfo();
@@ -525,9 +567,17 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                     rcSubscriptionPlan: status['rc_subscription_plan']!,
                     subscriptionProvider: status['subscription_provider']!,
                   );
-                } catch (e) {
-                  debugPrint('Backend subscription sync (workaround) failed: $e');
+                } catch (e, st) {
+                  RevenueCatService.logFlow(
+                    'OnboardingPay',
+                    'cancel workaround: backend sync FAILED: $e',
+                  );
+                  debugPrint('$st');
                 }
+                RevenueCatService.logFlow(
+                  'OnboardingPay',
+                  'cancel workaround: recovered active subscription',
+                );
                 AppToast.success(
                   context,
                   isStartTrial ? '3-day free trial started!' : 'Subscription active!',
@@ -539,20 +589,33 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
               }
             }
           }
-        } catch (_) {}
+        } catch (e, st) {
+          RevenueCatService.logFlow(
+            'OnboardingPay',
+            'cancel workaround: outer catch $e',
+          );
+          debugPrint('$st');
+        }
         if (!mounted) return;
+        RevenueCatService.logFlow(
+          'OnboardingPay',
+          'cancel workaround: still no subscription after retries',
+        );
         AppToast.info(
           context,
           'Subscription not started. Tap Start Free Trial again and complete both Apple ID and the subscription step.',
         );
       } else {
-        debugPrint(
-          'Onboarding purchase error: code=${e.code}, '
-          'message=${e.message}, details=${e.details}',
+        RevenueCatService.logFlow(
+          'OnboardingPay',
+          '_handleConfirmPayment: PlatformException code=${e.code} '
+          'message=${e.message} details=${e.details}',
         );
         AppToast.error(context, e.message ?? 'Payment failed');
       }
-    } catch (e) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: unexpected $e');
+      debugPrint('$st');
       if (!mounted) return;
       AppToast.error(
         context,
@@ -567,7 +630,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Future<void> _handleRestorePurchases() async {
     if (_model.isPaymentLoading) return;
+    RevenueCatService.logFlow('OnboardingPay', '_handleRestorePurchases: start');
     if (!RevenueCatService.instance.isSupported) {
+      RevenueCatService.logFlow('OnboardingPay', '_handleRestorePurchases: not supported');
       AppToast.error(
         context,
         'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
@@ -577,10 +642,15 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
     try {
       final userId = await SupabaseService.getCurrentUserTableId();
+      RevenueCatService.logFlow('OnboardingPay', '_handleRestorePurchases: userId=$userId');
       final info = await RevenueCatService.instance.restorePurchases();
       if (!mounted) return;
       if (info != null && userId != null) {
         try {
+          RevenueCatService.logFlow(
+            'OnboardingPay',
+            '_handleRestorePurchases: sync backend userId=$userId',
+          );
           final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
           await BackendClient.updateUserRevenueCatSubscription(
             userId,
@@ -589,13 +659,20 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
             rcSubscriptionPlan: payload['rc_subscription_plan']!,
             subscriptionProvider: payload['subscription_provider']!,
           );
-        } catch (e) {
-          debugPrint('Backend subscription sync after restore failed: $e');
+        } catch (e, st) {
+          RevenueCatService.logFlow(
+            'OnboardingPay',
+            '_handleRestorePurchases: backend sync FAILED: $e',
+          );
+          debugPrint('$st');
         }
       }
+      RevenueCatService.logFlow('OnboardingPay', '_handleRestorePurchases: done');
       AppToast.success(context, 'Purchases restored');
       _loadSubscriptionStatus();
-    } catch (e) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('OnboardingPay', '_handleRestorePurchases: FAILED $e');
+      debugPrint('$st');
       if (!mounted) return;
       AppToast.error(context, 'Could not restore. Please try again.');
     } finally {

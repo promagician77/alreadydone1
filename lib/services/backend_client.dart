@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -109,6 +110,9 @@ class BackendClient {
       'rc_subscription_plan': rcSubscriptionPlan,
       'subscription_provider': subscriptionProvider,
     };
+    debugPrint(
+      '[RevenueCat][Backend] PATCH /api/users/$userId body=$body',
+    );
     final response = await client
         .patch(
           resolve('/api/users/$userId'),
@@ -119,6 +123,10 @@ class BackendClient {
           const Duration(seconds: 15),
           onTimeout: () => throw Exception('Subscription update timeout'),
         );
+    debugPrint(
+      '[RevenueCat][Backend] PATCH /api/users/$userId '
+      'status=${response.statusCode} body=${response.body}',
+    );
     if (response.statusCode >= 400) {
       throw Exception(
         'Subscription update failed: ${response.statusCode} ${response.body}',

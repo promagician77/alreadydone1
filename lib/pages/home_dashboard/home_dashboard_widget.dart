@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -97,12 +98,19 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   Future<void> _loadSubscriptionStatus() async {
     if (!mounted) return;
     try {
+      RevenueCatService.logFlow('HomeDashboard', '_loadSubscriptionStatus');
       final status = await RevenueCatService.instance.getSubscriptionStatus();
+      RevenueCatService.logFlow(
+        'HomeDashboard',
+        '_loadSubscriptionStatus: isSubscribed=${status.isSubscribed}',
+      );
       if (mounted) safeSetState(() {
         _model.isSubscribed = status.isSubscribed;
         _model.subscriptionStatusLoaded = true;
       });
-    } catch (_) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('HomeDashboard', '_loadSubscriptionStatus FAILED: $e');
+      debugPrint('$st');
       if (mounted) safeSetState(() {
         _model.isSubscribed = false;
         _model.subscriptionStatusLoaded = true;
@@ -432,7 +440,12 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   Future<void> _handleUnlockSleepMode() async {
     if (!mounted) return;
     try {
+      RevenueCatService.logFlow('HomeDashboard', '_handleUnlockSleepMode: isSubscribed check');
       final isSubscribed = await RevenueCatService.instance.isSubscribed();
+      RevenueCatService.logFlow(
+        'HomeDashboard',
+        '_handleUnlockSleepMode: result=$isSubscribed',
+      );
       if (!mounted) return;
       if (isSubscribed) {
         sleepModeNotifier.value = true;
@@ -441,7 +454,9 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         AppToast.info(context, 'Subscribe to unlock Sleep Mode');
         context.go(SubscriptionWidget.routePath);
       }
-    } catch (_) {
+    } catch (e, st) {
+      RevenueCatService.logFlow('HomeDashboard', '_handleUnlockSleepMode FAILED: $e');
+      debugPrint('$st');
       if (mounted) {
         AppToast.info(context, 'Subscribe to unlock Sleep Mode');
         context.go(SubscriptionWidget.routePath);

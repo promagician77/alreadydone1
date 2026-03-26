@@ -80,12 +80,17 @@ class AppStateNotifier extends ChangeNotifier {
         await SupabaseService.ensureUserProfileFromAuth();
         await FcmService.onUserSignedIn();
         if (RevenueCatService.instance.isSupported) {
+          RevenueCatService.logFlow(
+            'Auth',
+            'signedIn — ensureReady appUserId=${state.session!.user.id}',
+          );
           await RevenueCatService.instance.ensureReady(
             appUserId: state.session!.user.id,
           );
         }
       } else {
         if (RevenueCatService.instance.isSupported) {
+          RevenueCatService.logFlow('Auth', 'signedOut — logOut');
           await RevenueCatService.instance.logOut();
         }
       }

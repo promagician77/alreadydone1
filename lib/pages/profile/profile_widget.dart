@@ -53,7 +53,6 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     _loadProfile();
   }
 
-  /// Derive subscription and upgrade-card state from user profile rc_subscription_status / rc_subscription_plan.
   void _applySubscriptionFromProfile(Map<String, dynamic> data) {
     final rcStatus = (data['rc_subscription_status'] ?? data['rc_subscription_Status'])
         ?.toString()

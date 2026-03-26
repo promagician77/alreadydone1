@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +14,54 @@ class RevenueCatService {
 
   static const String entitlementId = 'Already Done Pro';
 
+  /// Structured logs for DevTools (filter name: `RevenueCat`) plus console `[RevenueCat]`.
+  static void _log(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    developer.log(
+      message,
+      name: 'RevenueCat',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    final suffix = error != null ? ' | $error' : '';
+    debugPrint('[RevenueCat] $message$suffix');
+  }
+
+  /// Call from UI layers (subscription screen, onboarding, auth, home) for flow tracing.
+  static void logFlow(String scope, String message) {
+    _log('[$scope] $message');
+  }
+
+  /// One-line summary for debugging purchases and entitlement state.
+  static String summarizeCustomerInfo(CustomerInfo info) {
+    final activeKeys = info.entitlements.active.keys.join(',');
+    final allKeys = info.entitlements.all.keys.join(',');
+    final e = info.entitlements.all[entitlementId];
+    final entitlementPart = e != null
+        ? '$entitlementId: active=${e.isActive} product=${e.productIdentifier} '
+            'period=${e.periodType} willRenew=${e.willRenew} '
+            'expires=${e.expirationDate}'
+        : '$entitlementId: <missing>';
+    final purchases = info.allPurchasedProductIdentifiers.join(',');
+    return 'originalAppUserId=${info.originalAppUserId} | '
+        'activeEntitlements=[$activeKeys] all=[$allKeys] | $entitlementPart | '
+        'allPurchasedProducts=[$purchases]';
+  }
+
+  static String summarizePackage(Package p) {
+    try {
+      final sp = p.storeProduct;
+      return 'packageId=${p.identifier} packageType=${p.packageType} '
+          'offeringId=${p.offeringIdentifier} storeProductId=${sp.identifier} '
+          'price=${sp.priceString} title=${sp.title}';
+    } catch (e) {
+      return 'packageId=${p.identifier} (storeProduct: $e)';
+    }
+  }
+
   static String? get _appleApiKey => dotenv.env['REVENUECAT_APPLE_API_KEY']?.trim();
   static String? get _googleApiKey => dotenv.env['REVENUECAT_GOOGLE_API_KEY']?.trim();
 
@@ -23,16 +73,25 @@ class RevenueCatService {
 
   Future<void> configure({String? appUserId}) async {
     if (!isIOS && !isAndroid) {
-      debugPrint('RevenueCat: skipped (mobile only)');
+      _log('configure: skipped (not iOS/Android)');
       return;
     }
-    if (_configured) return;
+    if (_configured) {
+      _log('configure: skipped (already configured) currentUserId=$_currentUserId');
+      return;
+    }
     try {
       final apiKey = isIOS ? _appleApiKey : _googleApiKey;
+      final keyName = isIOS ? 'REVENUECAT_APPLE_API_KEY' : 'REVENUECAT_GOOGLE_API_KEY';
       if (apiKey == null || apiKey.isEmpty) {
-        debugPrint('RevenueCat: skipped (REVENUECAT_${isIOS ? "APPLE" : "GOOGLE"}_API_KEY not set in .env)');
+        _log('configure: ABORT — $keyName missing or empty in .env');
         return;
       }
+      _log(
+        'configure: start platform=${isIOS ? "iOS" : "Android"} '
+        'appUserId=${appUserId?.trim().isNotEmpty == true ? appUserId!.trim() : "(anonymous)"} '
+        'apiKeyLength=${apiKey.length} entitlementId=$entitlementId',
+      );
       await Purchases.setLogLevel(LogLevel.debug);
 
       final config = PurchasesConfiguration(apiKey);
@@ -43,10 +102,9 @@ class RevenueCatService {
 
       _currentUserId = appUserId?.trim();
       _configured = true;
-      debugPrint('RevenueCat: configured (${isIOS ? "iOS" : "Android"}) userId=$_currentUserId');
+      _log('configure: OK isConfigured=$_configured userId=$_currentUserId');
     } catch (e, st) {
-      debugPrint('RevenueCat configure error: $e');
-      debugPrint('$st');
+      _log('configure: FAILED', error: e, stackTrace: st);
     }
   }
 
@@ -54,35 +112,42 @@ class RevenueCatService {
   /// ✅ FIX 1: Call this during app startup or login, NOT before purchase.
   /// Safe to call multiple times — only acts when needed.
   Future<void> ensureReady({required String appUserId}) async {
-    if (!isSupported) return;
+    if (!isSupported) {
+      _log('ensureReady: skipped (platform not supported)');
+      return;
+    }
 
     // Configure if not yet done
     if (!_configured) {
+      _log('ensureReady: SDK not configured yet — calling configure(appUserId)');
       await configure(appUserId: appUserId);
       return; // configure already sets the user
     }
 
     // If already configured but for a different (or no) user, log in
     final trimmed = appUserId.trim();
-    debugPrint(
-      'RevenueCat ensureReady: current=$_currentUserId, '
-      'requested=$trimmed, match=${_currentUserId == trimmed}',
+    _log(
+      'ensureReady: current=$_currentUserId requested=$trimmed '
+      'match=${_currentUserId == trimmed}',
     );
     if (_currentUserId != trimmed) {
       await logIn(trimmed);
+    } else {
+      _log('ensureReady: no logIn needed (same user)');
     }
   }
 
   /// Link RevenueCat to your user id. No-op on unsupported platforms.
   Future<void> logIn(String appUserId) async {
     if (!isSupported) return;
+    final trimmed = appUserId.trim();
+    _log('logIn: calling Purchases.logIn for appUserId=$trimmed');
     try {
-      final trimmed = appUserId.trim();
-      await Purchases.logIn(trimmed);
+      final result = await Purchases.logIn(trimmed);
       _currentUserId = trimmed;
-      debugPrint('RevenueCat: logIn success for $trimmed');
-    } catch (e) {
-      debugPrint('RevenueCat logIn error: $e');
+      _log('logIn: OK ${summarizeCustomerInfo(result.customerInfo)}');
+    } catch (e, st) {
+      _log('logIn: FAILED', error: e, stackTrace: st);
     }
   }
 
@@ -94,26 +159,35 @@ class RevenueCatService {
     if (!isSupported) return;
     _currentUserId = null;
     if (!_configured) {
-      debugPrint('RevenueCat: logOut skipped (SDK not configured)');
+      _log('logOut: skipped (SDK not configured)');
       return;
     }
+    _log('logOut: calling Purchases.logOut');
     try {
-      await Purchases.logOut();
-      debugPrint('RevenueCat: logOut success');
-    } catch (e) {
-      debugPrint('RevenueCat logOut error: $e');
+      final info = await Purchases.logOut();
+      _log('logOut: OK ${summarizeCustomerInfo(info)}');
+    } catch (e, st) {
+      _log('logOut: FAILED', error: e, stackTrace: st);
     }
   }
 
   /// Whether the user has active premium access. Returns false when unsupported.
   Future<bool> isSubscribed() async {
-    if (!isSupported) return false;
+    if (!isSupported) {
+      _log('isSubscribed: false (platform not supported)');
+      return false;
+    }
     try {
       final info = await Purchases.getCustomerInfo();
       final entitlement = info.entitlements.all[entitlementId];
-      return entitlement?.isActive == true;
-    } catch (e) {
-      debugPrint('RevenueCat isSubscribed error: $e');
+      final ok = entitlement?.isActive == true;
+      _log(
+        'isSubscribed: $ok | entitlement active=${entitlement?.isActive} '
+        'product=${entitlement?.productIdentifier} period=${entitlement?.periodType}',
+      );
+      return ok;
+    } catch (e, st) {
+      _log('isSubscribed: FAILED', error: e, stackTrace: st);
       return false;
     }
   }
@@ -121,6 +195,7 @@ class RevenueCatService {
   /// Subscription status for UI. Returns default (not subscribed) when unsupported.
   Future<RevenueCatSubscriptionStatus> getSubscriptionStatus() async {
     if (!isSupported) {
+      _log('getSubscriptionStatus: default (not supported)');
       return const RevenueCatSubscriptionStatus(
         isSubscribed: false,
         isTrialing: false,
@@ -131,6 +206,7 @@ class RevenueCatService {
     }
     try {
       final info = await Purchases.getCustomerInfo();
+      _log('getSubscriptionStatus: raw ${summarizeCustomerInfo(info)}');
       final entitlement = info.entitlements.all[entitlementId];
       final active = entitlement?.isActive == true;
 
@@ -149,10 +225,9 @@ class RevenueCatService {
 
       final isCanceled = entitlement?.unsubscribeDetectedAt != null;
 
-      debugPrint(
-        'RevenueCat status: active=$active, trialing=$isTrialing, '
-        'canceled=$isCanceled, productId=$productId, '
-        'weekly=$isWeekly, monthly=$isMonthly',
+      _log(
+        'getSubscriptionStatus: computed active=$active trialing=$isTrialing '
+        'canceled=$isCanceled productId=$productId weekly=$isWeekly monthly=$isMonthly',
       );
 
       return RevenueCatSubscriptionStatus(
@@ -162,8 +237,8 @@ class RevenueCatService {
         isWeeklyPlan: isWeekly,
         isMonthlyPlan: isMonthly,
       );
-    } catch (e) {
-      debugPrint('RevenueCat getSubscriptionStatus error: $e');
+    } catch (e, st) {
+      _log('getSubscriptionStatus: FAILED', error: e, stackTrace: st);
       return const RevenueCatSubscriptionStatus(
         isSubscribed: false,
         isTrialing: false,
@@ -176,35 +251,42 @@ class RevenueCatService {
 
   /// Fetch current offerings. Returns null when unsupported.
   Future<Offerings?> getOfferings() async {
-    if (!isSupported) return null;
+    if (!isSupported) {
+      _log('getOfferings: null (not supported)');
+      return null;
+    }
     try {
+      _log('getOfferings: requesting Purchases.getOfferings()');
       final offerings = await Purchases.getOfferings();
-      if (kDebugMode && offerings != null) {
-        final current = offerings.current;
-        if (current == null) {
-          debugPrint(
-            'RevenueCat: no current offering. '
-            'In dashboard set one offering as "Current". '
-            'Available offering ids: ${offerings.all.keys.join(", ")}',
+      if (offerings == null) {
+        _log('getOfferings: null response');
+        return null;
+      }
+      final current = offerings.current;
+      if (current == null) {
+        _log(
+          'getOfferings: NO current offering — set one as "Current" in RevenueCat. '
+          'allOfferingIds=[${offerings.all.keys.join(", ")}]',
+        );
+      } else {
+        final packages = current.availablePackages;
+        for (var i = 0; i < packages.length; i++) {
+          _log('getOfferings: package[$i] ${summarizePackage(packages[i])}');
+        }
+        _log(
+          'getOfferings: current="${current.identifier}" '
+          'packageCount=${packages.length}',
+        );
+        if (packages.isEmpty) {
+          _log(
+            'getOfferings: empty packages — add \$rc_weekly / \$rc_monthly '
+            'and ensure store products are approved and linked',
           );
-        } else {
-          final packages = current.availablePackages;
-          debugPrint(
-            'RevenueCat: current offering="${current.identifier}", '
-            'packages=${packages.map((p) => '${p.identifier}(${p.packageType})').join(", ")}',
-          );
-          if (packages.isEmpty) {
-            debugPrint(
-              'RevenueCat: no packages in current offering. '
-              'Add \$rc_weekly and \$rc_monthly products to this offering '
-              'and ensure App Store Connect in-app products are approved and synced.',
-            );
-          }
         }
       }
       return offerings;
-    } catch (e) {
-      debugPrint('RevenueCat getOfferings error: $e');
+    } catch (e, st) {
+      _log('getOfferings: FAILED', error: e, stackTrace: st);
       return null;
     }
   }
@@ -217,12 +299,10 @@ class RevenueCatService {
       final offerings = await getOfferings();
       final packages = offerings?.current?.availablePackages ?? [];
 
-      if (kDebugMode) {
-        debugPrint(
-          'RevenueCat getAvailablePlans: total packages=${packages.length}, '
-          'identifiers=${packages.map((p) => p.identifier).join(", ")}',
-        );
-      }
+      _log(
+        'getAvailablePlans: total=${packages.length} '
+        'ids=${packages.map((p) => p.identifier).join(", ")}',
+      );
 
       final weekly = packages.firstWhereOrNull(
         (p) =>
@@ -240,14 +320,14 @@ class RevenueCatService {
             p.identifier.toLowerCase().contains('month'),
       );
 
-      debugPrint(
-        'RevenueCat: weekly=${weekly?.identifier ?? "NOT FOUND"}, '
-        'monthly=${monthly?.identifier ?? "NOT FOUND"}',
+      _log(
+        'getAvailablePlans: weekly=${weekly != null ? summarizePackage(weekly!) : "NOT FOUND"} | '
+        'monthly=${monthly != null ? summarizePackage(monthly!) : "NOT FOUND"}',
       );
 
       return AvailablePlans(weekly: weekly, monthly: monthly);
-    } catch (e) {
-      debugPrint('RevenueCat getAvailablePlans error: $e');
+    } catch (e, st) {
+      _log('getAvailablePlans: FAILED', error: e, stackTrace: st);
       return const AvailablePlans(weekly: null, monthly: null);
     }
   }
@@ -255,35 +335,38 @@ class RevenueCatService {
   /// Purchase a package. Throws when unsupported or if cancelled.
   Future<CustomerInfo?> purchasePackage(Package package) async {
     if (!isSupported) {
+      _log('purchasePackage: ABORT — platform not supported');
       throw PlatformException(
         code: 'UNSUPPORTED',
         message: 'Subscriptions are available on the App Store (iOS) or Google Play (Android).',
       );
     }
+    _log('purchasePackage: START ${summarizePackage(package)}');
     try {
-      debugPrint('RevenueCat: starting purchase for ${package.identifier}');
       final result = await Purchases.purchasePackage(package);
-      debugPrint('RevenueCat: purchase success for ${package.identifier}');
+      _log('purchasePackage: SUCCESS ${summarizeCustomerInfo(result)}');
       return result;
-    } on PlatformException catch (e) {
-      if (PurchasesErrorHelper.getErrorCode(e) ==
-          PurchasesErrorCode.purchaseCancelledError) {
-        debugPrint(
-          'RevenueCat: purchase cancelled. '
-          'code=${e.code}, message=${e.message}, details=${e.details}',
+    } on PlatformException catch (e, st) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      if (code == PurchasesErrorCode.purchaseCancelledError) {
+        _log(
+          'purchasePackage: USER CANCELLED code=${e.code} message=${e.message} '
+          'details=${e.details}',
         );
         // Note: StoreKit can return userCancelled=true even when the subscription
         // sheet never appeared (e.g. after Apple ID sign-in). Callers may sync and
         // recheck entitlement when this happens (see RevenueCat/purchases-ios#4903).
         rethrow;
       }
-      debugPrint(
-        'RevenueCat purchasePackage error: code=${e.code}, '
-        'message=${e.message}, details=${e.details}',
+      _log(
+        'purchasePackage: PlatformException code=$code raw=${e.code} '
+        'message=${e.message} details=${e.details}',
+        error: e,
+        stackTrace: st,
       );
       rethrow;
-    } catch (e) {
-      debugPrint('RevenueCat purchasePackage error: $e');
+    } catch (e, st) {
+      _log('purchasePackage: FAILED', error: e, stackTrace: st);
       rethrow;
     }
   }
@@ -291,25 +374,34 @@ class RevenueCatService {
   /// Sync purchases to RevenueCat backend from device cache. Does not trigger
   /// Apple ID prompt (unlike restorePurchases). Use in cancel-workaround flows.
   Future<void> syncPurchases() async {
-    if (!isSupported) return;
+    if (!isSupported) {
+      _log('syncPurchases: skipped (not supported)');
+      return;
+    }
     try {
+      _log('syncPurchases: calling Purchases.syncPurchases()');
       await Purchases.syncPurchases();
-      debugPrint('RevenueCat: syncPurchases done');
-    } catch (e) {
-      debugPrint('RevenueCat syncPurchases error: $e');
+      final info = await Purchases.getCustomerInfo();
+      _log('syncPurchases: done ${summarizeCustomerInfo(info)}');
+    } catch (e, st) {
+      _log('syncPurchases: FAILED', error: e, stackTrace: st);
     }
   }
 
   /// Restore previous purchases. Can trigger Apple ID sign-in on iOS.
   /// Prefer syncPurchases() when you only need to recheck entitlement after a cancel.
   Future<CustomerInfo?> restorePurchases() async {
-    if (!isSupported) return null;
+    if (!isSupported) {
+      _log('restorePurchases: null (not supported)');
+      return null;
+    }
     try {
+      _log('restorePurchases: calling Purchases.restorePurchases()');
       final info = await Purchases.restorePurchases();
-      debugPrint('RevenueCat: restore success');
+      _log('restorePurchases: OK ${summarizeCustomerInfo(info)}');
       return info;
-    } catch (e) {
-      debugPrint('RevenueCat restorePurchases error: $e');
+    } catch (e, st) {
+      _log('restorePurchases: FAILED', error: e, stackTrace: st);
       rethrow;
     }
   }
@@ -318,9 +410,11 @@ class RevenueCatService {
   Future<CustomerInfo?> getCustomerInfo() async {
     if (!isSupported) return null;
     try {
-      return await Purchases.getCustomerInfo();
-    } catch (e) {
-      debugPrint('RevenueCat getCustomerInfo error: $e');
+      final info = await Purchases.getCustomerInfo();
+      _log('getCustomerInfo: ${summarizeCustomerInfo(info)}');
+      return info;
+    } catch (e, st) {
+      _log('getCustomerInfo: FAILED', error: e, stackTrace: st);
       return null;
     }
   }
@@ -347,12 +441,17 @@ class RevenueCatService {
         productId.contains(r'$rc_monthly');
     final String plan = isWeekly ? 'weekly' : (isMonthly ? 'monthly' : 'unknown');
 
-    return {
+    final payload = {
       'rc_customer_id': info.originalAppUserId,
       'rc_subscription_status': status,
       'rc_subscription_plan': plan,
       'subscription_provider': 'revenue_cat',
     };
+    _log(
+      'getSubscriptionPayloadForBackend: status=$status plan=$plan '
+      'productId=$productId canceledFlag=$canceled payload=$payload',
+    );
+    return payload;
   }
 }
 
