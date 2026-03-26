@@ -20,6 +20,9 @@ import '/services/supabase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '/services/onboarding_service.dart';
+import '/services/server_toast.dart';
+import '/pages/legal/legal_privacy_widget.dart';
+import '/pages/legal/legal_terms_widget.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -168,31 +171,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       // Show routing errors explicitly instead of silently sending users home.
       errorBuilder: (context, state) {
         debugPrint('GoRouter error: ${state.error} at ${state.uri}');
+        // Avoid an error screen in production UX.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ServerToast.show();
+          final ctx = appNavigatorKey.currentContext;
+          if (ctx != null) GoRouter.of(ctx).go('/');
+        });
         return Scaffold(
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Something went wrong while opening this page.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${state.error ?? 'Unknown routing error'}\n\nPath: ${state.uri}',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => context.go('/'),
-                    child: const Text('Go to Home'),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          body: const SizedBox.shrink(),
         );
       },
       routes: [
@@ -312,6 +298,16 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: SubscriptionWidget.routeName,
           path: SubscriptionWidget.routePath,
           builder: (context, params) => SubscriptionWidget(),
+        ),
+        FFRoute(
+          name: LegalTermsWidget.routeName,
+          path: LegalTermsWidget.routePath,
+          builder: (context, params) => const LegalTermsWidget(),
+        ),
+        FFRoute(
+          name: LegalPrivacyWidget.routeName,
+          path: LegalPrivacyWidget.routePath,
+          builder: (context, params) => const LegalPrivacyWidget(),
         ),
         // Root path last so prefix matching doesn't catch /onboarding/complete etc.
         FFRoute(

@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
+import '/services/server_toast.dart';
+
 class BackendClient {
   BackendClient._();
 
@@ -35,6 +37,11 @@ class BackendClient {
     } catch (_) {
       return false;
     }
+  }
+
+  static Never _throwServerNap([Object? e]) {
+    ServerToast.show();
+    throw Exception(ServerToast.message);
   }
 
   /// PATCH api/users/{user_id} - update user profile.

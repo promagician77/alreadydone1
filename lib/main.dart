@@ -18,6 +18,7 @@ import 'flutter_flow/nav/nav.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '/env_loader.dart';
 import '/services/app_toast.dart';
+import '/services/server_toast.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
@@ -118,9 +119,9 @@ void main() async {
   }, (error, stack) {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');
-
-    Zone.root.run(() {
-      runApp(_ErrorApp(message: error.toString(), stack: stack.toString()));
+    // Keep the app running; show a friendly toast instead of an error screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ServerToast.show();
     });
   });
 }

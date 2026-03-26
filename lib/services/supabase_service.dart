@@ -9,6 +9,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '/pages/onboarding/onboarding_state.dart';
+
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
 const String oauthRedirectUrl = 'alreadydone://alreadydone.app/auth/callback';
@@ -160,6 +162,22 @@ class SupabaseService {
     } catch (_) {}
   }
 
+  static String? _extractFirstName(String? fullNameOrName) {
+    final s = (fullNameOrName ?? '').trim();
+    if (s.isEmpty) return null;
+    final parts = s.split(RegExp(r'\s+')).where((p) => p.trim().isNotEmpty).toList();
+    if (parts.isEmpty) return null;
+    return parts.first.trim();
+  }
+
+  static void _prefillOnboardingFirstName({String? firstName, String? fullName}) {
+    final state = OnboardingState.instance;
+    if (state.firstNameController.text.trim().isNotEmpty) return;
+    final candidate = _extractFirstName(firstName) ?? _extractFirstName(fullName);
+    if (candidate == null || candidate.isEmpty) return;
+    state.firstNameController.text = candidate;
+  }
+
   static Future<AuthResponse> signIn({
     required String email,
     required String password,
@@ -254,6 +272,13 @@ class SupabaseService {
           );
         }
       }
+
+      // Prefill onboarding first name from Apple credential / user metadata.
+      _prefillOnboardingFirstName(
+        firstName: credential.givenName,
+        fullName: (client.auth.currentUser?.userMetadata?['full_name'] as String?) ??
+            (client.auth.currentUser?.userMetadata?['name'] as String?),
+      );
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) return;
       throw Exception(e.message);
@@ -356,6 +381,13 @@ class SupabaseService {
         accessToken: accessToken,
       );
       debugPrint('$_tag Supabase signInWithIdToken SUCCESS. Session: ${client.auth.currentSession != null}');
+
+      // Prefill onboarding first name from Google display name / user metadata.
+      _prefillOnboardingFirstName(
+        fullName: googleUser.displayName ??
+            (client.auth.currentUser?.userMetadata?['full_name'] as String?) ??
+            (client.auth.currentUser?.userMetadata?['name'] as String?),
+      );
     } on PlatformException catch (e, st) {
       debugPrint('$_tag PlatformException: code=${e.code}, message=${e.message}, details=${e.details}');
       debugPrint('$_tag PlatformException stackTrace: $st');

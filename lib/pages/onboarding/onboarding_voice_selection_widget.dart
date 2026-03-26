@@ -98,6 +98,7 @@ class _OnboardingVoiceSelectionWidgetState
 
     if (isSubscribed) return true;
 
+    if (!mounted) return false;
     final returnTo = Uri.encodeComponent(OnboardingVoiceSelectionWidget.routePath);
     context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
     return false;

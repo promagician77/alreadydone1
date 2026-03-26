@@ -675,7 +675,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
-                          'Deepening your manifestation. This can take up to 45 seconds.',
+                          'Deepening your manifestation. This can take up to 60 ~ 90 seconds.',
                           style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,

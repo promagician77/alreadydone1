@@ -11,6 +11,7 @@ import '/services/app_toast.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
 import '/widgets/animated_waveform_icon.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'subscription_model.dart';
 export 'subscription_model.dart';
 
@@ -30,6 +31,18 @@ class SubscriptionWidget extends StatefulWidget {
 
 class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   late SubscriptionModel _model;
+
+  static final Uri _privacyPolicyUrl =
+      Uri.parse('https://www.alreadydone.app/policies/privacy-policy');
+  static final Uri _termsOfServiceUrl =
+      Uri.parse('https://www.alreadydone.app/policies/terms-of-service');
+
+  Future<void> _openExternalLink(Uri url) async {
+    final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      AppToast.info(context, 'Could not open link.');
+    }
+  }
 
   @override
   void initState() {
@@ -912,14 +925,46 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildLegalText() {
-    return Text(
-      "Free for 3 days, then \$9.99/week or \$29.99/month. Cancel anytime in settings. By continuing, you agree to our Terms and Privacy Policy.",
-      style: GoogleFonts.outfit(
-        fontSize: 10,
-        color: AuthTheme.inkSoft,
-        height: 1.5,
-      ),
+    final baseStyle = GoogleFonts.outfit(
+      fontSize: 10,
+      color: AuthTheme.inkSoft,
+      height: 1.5,
+    );
+    final linkStyle = baseStyle.copyWith(
+      color: AuthTheme.goldDark,
+      decoration: TextDecoration.underline,
+    );
+    return RichText(
       textAlign: TextAlign.center,
+      text: TextSpan(
+        style: baseStyle,
+        children: [
+          const TextSpan(
+            text:
+                'Free for 3 days, then \$9.99/week or \$29.99/month. Cancel anytime in settings. By continuing, you agree to our ',
+          ),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: Pressable(
+              onTap: () => _openExternalLink(_termsOfServiceUrl),
+              borderRadius: BorderRadius.circular(4),
+              child: Text('Terms', style: linkStyle),
+            ),
+          ),
+          const TextSpan(text: ' and '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: Pressable(
+              onTap: () => _openExternalLink(_privacyPolicyUrl),
+              borderRadius: BorderRadius.circular(4),
+              child: Text('Privacy Policy', style: linkStyle),
+            ),
+          ),
+          const TextSpan(text: '.'),
+        ],
+      ),
     );
   }
 

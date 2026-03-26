@@ -12,6 +12,7 @@ import '/services/app_toast.dart';
 import '/services/onboarding_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OnboardingSplashWidget extends StatefulWidget {
   const OnboardingSplashWidget({super.key});
@@ -25,6 +26,18 @@ class OnboardingSplashWidget extends StatefulWidget {
 
 class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   late SubscriptionModel _model;
+
+  static final Uri _privacyPolicyUrl =
+      Uri.parse('https://www.alreadydone.app/policies/privacy-policy');
+  static final Uri _termsOfServiceUrl =
+      Uri.parse('https://www.alreadydone.app/policies/terms-of-service');
+
+  Future<void> _openExternalLink(Uri url) async {
+    final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      AppToast.info(context, 'Could not open link.');
+    }
+  }
 
   @override
   void initState() {
@@ -673,7 +686,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       children: [
         Pressable(
           onTap: () {
-            // TODO: Open Terms of Service
+            _openExternalLink(_termsOfServiceUrl);
           },
           borderRadius: BorderRadius.circular(4),
           child: Padding(
@@ -691,7 +704,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         const SizedBox(width: 16),
         Pressable(
           onTap: () {
-            // TODO: Open Privacy Policy
+            _openExternalLink(_privacyPolicyUrl);
           },
           borderRadius: BorderRadius.circular(4),
           child: Padding(
