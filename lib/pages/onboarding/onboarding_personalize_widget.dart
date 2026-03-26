@@ -4,6 +4,8 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/widgets/pressable.dart';
 import '/services/app_toast.dart';
+import '/services/backend_client.dart';
+import '/services/supabase_service.dart';
 import 'onboarding_state.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_origin_splash_widget.dart';
@@ -258,6 +260,23 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                         return;
                       }
                       await _state.persistToPrefs(OnboardingDesireWidget.routePath);
+                      final userId = await SupabaseService.getCurrentUserTableId();
+                      if (userId != null) {
+                        try {
+                          await BackendClient.updateUserProfile(
+                            userId,
+                            location: place,
+                            someoneYouLove: loved,
+                          );
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          AppToast.error(
+                            context,
+                            'Could not save to your profile: '
+                            '${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}',
+                          );
+                        }
+                      }
                       if (!context.mounted) return;
                       context.push(OnboardingDesireWidget.routePath);
                     },
