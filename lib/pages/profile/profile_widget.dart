@@ -274,18 +274,9 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             : (user?.userMetadata?['full_name']?.toString() ??
                 user?.email?.split('@').first ??
                 'User');
-    final dreamLocation =
-        _model.profileData?['dream_place']?.toString() ??
-        _model.profileData?['Dream_Place']?.toString() ??
-        '—';
-    final energyWord =
-        _model.profileData?['energy_word']?.toString() ??
-        _model.profileData?['Energy_Word']?.toString() ??
-        'Powerful';
-    final someoneYouLove =
-        _model.profileData?['lovedOne']?.toString() ??
-        _model.profileData?['someoneYouLove']?.toString() ??
-        '—';
+    final dreamLocation = _model.profileData?['location']?.toString() ?? '—';
+    final energyWord = _model.profileData?['energy_word']?.toString() ?? 'Powerful';
+    final someoneYouLove = _model.profileData?['lovedOne']?.toString() ?? '—';
     final email = _model.profileData?['email']?.toString() ?? user?.email ?? '—';
 
     return GestureDetector(
