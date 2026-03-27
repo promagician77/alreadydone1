@@ -275,7 +275,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                 user?.email?.split('@').first ??
                 'User');
     final dreamLocation = _model.profileData?['location']?.toString() ?? '—';
-    final energyWord = _model.profileData?['energy_word']?.toString() ?? 'Powerful';
+    final energyWord = _model.profileData?['energyWord']?.toString() ?? 'Powerful';
     final someoneYouLove = _model.profileData?['lovedOne']?.toString() ?? '—';
     final email = _model.profileData?['email']?.toString() ?? user?.email ?? '—';
 
