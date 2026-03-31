@@ -429,7 +429,8 @@ class RevenueCatService {
 
     String status = 'canceled';
     if (isActive) {
-      status = isTrialing ? 'trialing' : 'active';
+      // Normalize trial state to "trial" (avoid "trialing" in backend).
+      status = isTrialing ? 'trial' : 'active';
     }
 
     final productId = (entitlement?.productIdentifier ?? '').toLowerCase();

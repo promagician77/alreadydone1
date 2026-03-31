@@ -91,7 +91,8 @@ class _OnboardingVoiceSelectionWidgetState
           ?.toString()
           .toLowerCase()
           .trim();
-      isSubscribed = status == 'active' || status == 'trial' || status == 'trialing';
+      // Treat "trial" as subscribed; legacy "trialing" is no longer used.
+      isSubscribed = status == 'active' || status == 'trial';
     } catch (_) {
       isSubscribed = false;
     }
