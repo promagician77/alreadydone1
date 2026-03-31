@@ -437,10 +437,22 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                             ],
                             const SizedBox(height: 24),
                             _buildSettingsSection('SUPPORT', items: [
-                              ('Help & FAQ', '→', null),
-                              ('Contact Us', '→', null),
-                              ('Terms of Service', '→', null),
-                              ('Privacy Policy', '→', null),
+                              // 'Help & FAQ' temporarily hidden.
+                              (
+                                'Contact Us',
+                                '→',
+                                () => launchURL('https://www.alreadydone.app/policies/contact-information'),
+                              ),
+                              (
+                                'Terms of Service',
+                                '→',
+                                () => launchURL('https://www.alreadydone.app/policies/terms-of-service'),
+                              ),
+                              (
+                                'Privacy Policy',
+                                '→',
+                                () => launchURL('https://www.alreadydone.app/policies/privacy-policy'),
+                              ),
                             ]),
                             _buildLogoutSection(),
                           ],

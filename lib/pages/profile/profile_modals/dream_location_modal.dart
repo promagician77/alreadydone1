@@ -227,6 +227,7 @@ class _DreamLocationSheetState extends State<DreamLocationSheet> {
                         try {
                           await BackendClient.updateUserProfile(
                             widget.userId,
+                            location: location,
                             dreamPlace: location,
                           );
                           if (!mounted) return;
