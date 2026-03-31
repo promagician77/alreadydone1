@@ -33,7 +33,7 @@ class SupabaseService {
     await Supabase.initialize(
       url: url,
       anonKey: anonKey,
-      debug: false, 
+      debug: false,
     );
   }
 
@@ -57,8 +57,6 @@ class SupabaseService {
     return null;
   }
 
-  /// Thrown when signUp is called with an email that is already registered.
-  /// UI can catch this and show "Please sign in" instead of a generic error.
   static bool isEmailAlreadyRegisteredError(Object e) {
     return e is EmailAlreadyRegisteredException ||
         (e.toString().contains('already registered') ||
@@ -108,9 +106,6 @@ class SupabaseService {
     );
   }
 
-  /// Request email change. Supabase sends a magic link to the new email.
-  /// User taps the link to confirm; it deep-links back to the app.
-  /// [emailRedirectTo] should include userId, e.g. alreadydone://.../auth/callback?userId=123
   static Future<void> updateUserEmail(
     String newEmail, {
     String? emailRedirectTo,
@@ -121,7 +116,6 @@ class SupabaseService {
     );
   }
 
-  /// Verify OTP for email change. Call after updateUserEmail.
   static Future<AuthResponse> verifyEmailChangeOtp({
     required String email,
     required String token,
@@ -143,23 +137,80 @@ class SupabaseService {
     });
   }
 
-  static Future<void> ensureUserProfileFromAuth() async {
+  /// Ensures a row in the Users table exists for the current auth user.
+  ///
+  /// [overrideName] lets callers (e.g. Apple / Google sign-in) pass the real
+  /// display name *before* Supabase user-metadata is updated, avoiding the
+  /// race condition where metadata is still empty and the email-prefix fallback
+  /// ("bluesky429311") gets written instead.
+  ///
+  /// For existing rows the name is only overwritten when the stored value is
+  /// blank or looks like an email-prefix (no spaces, all lowercase/digits) —
+  /// this keeps returning Apple users from having their name reset to null
+  /// (Apple only sends givenName on the very first login).
+  static Future<void> ensureUserProfileFromAuth({String? overrideName}) async {
     final user = currentUser;
     if (user == null) return;
     final email = user.email?.trim();
     if (email == null || email.isEmpty) return;
-    final name = (user.userMetadata?['full_name'] as String?)?.trim() ??
-        (user.userMetadata?['name'] as String?)?.trim() ??
-        user.email?.split('@').first ??
-        '';
+
+    // Build the best name we have right now.
+    // Priority: overrideName → full_name metadata → name metadata → email prefix (last resort)
+    final String resolvedName = _pickBestName(
+      override: overrideName,
+      fullNameMeta: user.userMetadata?['full_name'] as String?,
+      nameMeta: user.userMetadata?['name'] as String?,
+      emailPrefix: user.email?.split('@').first,
+    );
+
     try {
-      final existing = await client.from('Users').select('id').eq('email', email).maybeSingle();
+      final existing = await client
+          .from('Users')
+          .select('id, name')
+          .eq('email', email)
+          .maybeSingle();
+
       if (existing != null && existing is Map) {
-        await client.from('Users').update({'name': name}).eq('email', email);
+        // Only overwrite if the stored name is blank or an email-prefix placeholder.
+        final storedName = (existing['name'] as String?)?.trim() ?? '';
+        if (_isPlaceholderName(storedName)) {
+          await client
+              .from('Users')
+              .update({'name': resolvedName})
+              .eq('email', email);
+        }
       } else {
-        await client.from('Users').insert({'name': name, 'email': email});
+        await client.from('Users').insert({
+          'name': resolvedName,
+          'email': email,
+        });
       }
     } catch (_) {}
+  }
+
+  /// Returns true when [name] looks like an auto-generated placeholder
+  /// (empty, or an email-prefix: no spaces, only letters/digits/dots/underscores/hyphens).
+  static bool _isPlaceholderName(String name) {
+    if (name.isEmpty) return true;
+    // A real display name almost always contains a space or mixed-case letters.
+    // An email prefix never contains spaces and is typically all-lowercase + digits.
+    final emailPrefixPattern = RegExp(r'^[a-zA-Z0-9._\-]+$');
+    return emailPrefixPattern.hasMatch(name) && !name.contains(' ');
+  }
+
+  /// Picks the best available name from the provided candidates.
+  static String _pickBestName({
+    String? override,
+    String? fullNameMeta,
+    String? nameMeta,
+    String? emailPrefix,
+  }) {
+    final candidates = [override, fullNameMeta, nameMeta, emailPrefix];
+    for (final c in candidates) {
+      final trimmed = c?.trim() ?? '';
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '';
   }
 
   static String? _extractFirstName(String? fullNameOrName) {
@@ -195,12 +246,10 @@ class SupabaseService {
   static Future<void> resetPasswordForEmail(String email) async {
     await client.auth.resetPasswordForEmail(
       email,
-      redirectTo: null, 
+      redirectTo: null,
     );
   }
 
-  /// Change password: verifies current password, then updates to new one.
-  /// Throws if not signed in, current password wrong, or update fails.
   static Future<void> updatePassword({
     required String currentPassword,
     required String newPassword,
@@ -227,7 +276,11 @@ class SupabaseService {
     );
   }
 
-  /// Apple sign-in: native Sign in with Apple on iOS (Face ID / Touch ID), OAuth redirect on web/Android.
+  /// Apple sign-in: native Sign in with Apple on iOS, OAuth redirect on web/Android.
+  ///
+  /// FIX: The real display name (from Apple credential) is now passed directly
+  /// into [ensureUserProfileFromAuth] *before* the metadata update completes,
+  /// preventing the race condition that wrote the email-prefix as the username.
   static Future<void> signInWithApple() async {
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     if (!isIOS) {
@@ -252,31 +305,46 @@ class SupabaseService {
       if (idToken == null || idToken.isEmpty) {
         throw Exception('Apple Sign-In: no identity token');
       }
+
+      // Step 1 — authenticate with Supabase.
       await client.auth.signInWithIdToken(
         provider: OAuthProvider.apple,
         idToken: idToken,
         nonce: rawNonce,
       );
-      final user = client.auth.currentUser;
-      if (user != null &&
-          credential.givenName != null &&
-          (credential.givenName!.isNotEmpty || credential.familyName != null)) {
-        final fullName = [credential.givenName, credential.familyName]
+
+      // Step 2 — build the full name from the Apple credential.
+      // Apple only returns givenName / familyName on the FIRST sign-in.
+      // On subsequent logins both will be null — ensureUserProfileFromAuth
+      // will then skip overwriting an already-valid stored name.
+      String? fullName;
+      if ((credential.givenName?.isNotEmpty ?? false) ||
+          (credential.familyName?.isNotEmpty ?? false)) {
+        fullName = [credential.givenName, credential.familyName]
             .whereType<String>()
             .where((s) => s.isNotEmpty)
             .join(' ')
             .trim();
-        if (fullName.isNotEmpty) {
-          await client.auth.updateUser(
-            UserAttributes(data: {'full_name': fullName}),
-          );
-        }
+        if (fullName.isEmpty) fullName = null;
       }
 
-      // Prefill onboarding first name from Apple credential / user metadata.
+      // Step 3 — update Supabase auth metadata (best-effort, non-blocking for DB write).
+      if (fullName != null) {
+        await client.auth.updateUser(
+          UserAttributes(data: {'full_name': fullName}),
+        );
+      }
+
+      // Step 4 — upsert the Users table row with the real name, not the email prefix.
+      // We pass fullName as overrideName so the DB write uses it directly,
+      // independent of whether the metadata update above has propagated yet.
+      await ensureUserProfileFromAuth(overrideName: fullName);
+
+      // Step 5 — prefill onboarding first name.
       _prefillOnboardingFirstName(
         firstName: credential.givenName,
-        fullName: (client.auth.currentUser?.userMetadata?['full_name'] as String?) ??
+        fullName: fullName ??
+            (client.auth.currentUser?.userMetadata?['full_name'] as String?) ??
             (client.auth.currentUser?.userMetadata?['name'] as String?),
       );
     } on SignInWithAppleAuthorizationException catch (e) {
@@ -299,8 +367,10 @@ class SupabaseService {
     return digest.bytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
   }
 
-  /// Google sign-in: native account picker on mobile (no browser), OAuth redirect on web.
-  /// Uses GOOGLE_WEB_CLIENT_ID (Supabase/server) and GOOGLE_ANDROID_CLIENT_ID or GOOGLE_IOS_CLIENT_ID (app).
+  /// Google sign-in: native account picker on mobile, OAuth redirect on web.
+  ///
+  /// FIX: Same pattern as Apple — display name passed directly into
+  /// [ensureUserProfileFromAuth] via overrideName.
   static Future<void> signInWithGoogle() async {
     const _tag = '[GoogleOAuth]';
     debugPrint('$_tag signInWithGoogle() started. kIsWeb=$kIsWeb, platform=${defaultTargetPlatform.name}');
@@ -382,6 +452,13 @@ class SupabaseService {
       );
       debugPrint('$_tag Supabase signInWithIdToken SUCCESS. Session: ${client.auth.currentSession != null}');
 
+      // Upsert Users table with the real Google display name as override,
+      // avoiding any race condition with metadata propagation.
+      final displayName = googleUser.displayName?.trim();
+      await ensureUserProfileFromAuth(
+        overrideName: (displayName != null && displayName.isNotEmpty) ? displayName : null,
+      );
+
       // Prefill onboarding first name from Google display name / user metadata.
       _prefillOnboardingFirstName(
         fullName: googleUser.displayName ??
@@ -415,8 +492,6 @@ class SupabaseService {
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
   /// Handle auth callback from magic link (e.g. email change confirmation).
-  /// Parses refresh_token from URL and sets session.
-  /// Returns the new email if successful, else null.
   static Future<String?> handleAuthCallbackUrl(String url) async {
     final uri = Uri.parse(url);
     if (!uri.toString().contains('auth/callback')) return null;
