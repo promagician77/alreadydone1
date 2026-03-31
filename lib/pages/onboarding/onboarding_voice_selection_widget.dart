@@ -258,6 +258,10 @@ class _OnboardingVoiceSelectionWidgetState
   /// If the user has a cloned voice (`voice_id`), generate audio with it.
   /// Otherwise, go to the recording page to create the cloned voice first.
   Future<void> _handleContinueMyVoice() async {
+    // First, ensure the user has an active/trial subscription.
+    // If not, they are redirected to the subscription paywall (same as other voices).
+    if (!await _ensureSubscribedForVoiceGeneration()) return;
+
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) return;
 
@@ -268,11 +272,10 @@ class _OnboardingVoiceSelectionWidgetState
     } catch (_) {}
 
     if (voiceId == null || voiceId.isEmpty) {
+      // Subscribed but no cloned voice yet – go to the recording flow.
       if (mounted) context.go(OnboardingVoiceWidget.routePath);
       return;
     }
-
-    if (!await _ensureSubscribedForVoiceGeneration()) return;
 
     setState(() => _isLoading = true);
     final story = OnboardingState.instance.generatedStory;

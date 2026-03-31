@@ -85,73 +85,89 @@ class _VerifyPasswordSheetState extends State<_VerifyPasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
     return Material(
       color: Colors.transparent,
-      child: Container(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 40),
-        decoration: const BoxDecoration(
-          color: ModalColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x261C1917),
-              blurRadius: 20,
-              offset: Offset(0, -4),
-            ),
-          ],
-        ),
-        child: AbsorbPointer(
-          absorbing: _verifying,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              buildSheetHeader(
-              title: 'Verify Identity',
-              subtitle: 'Enter your current password to ${widget.purpose}',
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Current Password',
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: ModalColors.inkMid,
+      child: AnimatedPadding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.zero,
+            child: Container(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, media.padding.bottom + 40),
+              decoration: const BoxDecoration(
+                color: ModalColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x261C1917),
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              enabled: !_verifying,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: ModalColors.warmWhite,
-                hintText: '••••••••',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: ModalColors.stone, width: 1.5),
+              child: AbsorbPointer(
+                absorbing: _verifying,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildSheetHeader(
+                      title: 'Verify Identity',
+                      subtitle:
+                          'Enter your current password to ${widget.purpose}',
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Current Password',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ModalColors.inkMid,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      enabled: !_verifying,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: ModalColors.warmWhite,
+                        hintText: '••••••••',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: ModalColors.stone, width: 1.5),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: ModalColors.stone, width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                      ),
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: ModalColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    buildActionButtons(
+                      onCancel: () => Navigator.of(context).pop(),
+                      onSave: _handleVerify,
+                      saveLabel: 'Continue',
+                      saving: _verifying,
+                    ),
+                  ],
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: ModalColors.stone, width: 1.5),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: ModalColors.ink,
               ),
             ),
-            const SizedBox(height: 20),
-            buildActionButtons(
-              onCancel: () => Navigator.of(context).pop(),
-              onSave: _handleVerify,
-              saveLabel: 'Continue',
-              saving: _verifying,
-            ),
-            ],
           ),
         ),
       ),

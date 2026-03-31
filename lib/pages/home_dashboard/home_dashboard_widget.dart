@@ -179,9 +179,16 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       final name = (profile['name'] as String? ?? '').toString().trim();
       final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
       final rawStreak = profile['day_streak'];
-      final dayStreak = rawStreak is int
-          ? rawStreak
-          : (int.tryParse(rawStreak?.toString() ?? '0') ?? 0);
+      int dayStreak;
+      if (rawStreak is int) {
+        dayStreak = rawStreak;
+      } else if (rawStreak is num) {
+        // Handle double/decimal values like 1.0 from backend.
+        dayStreak = rawStreak.round();
+      } else {
+        final s = rawStreak?.toString().trim() ?? '0';
+        dayStreak = int.tryParse(s) ?? int.tryParse(double.tryParse(s)?.round().toString() ?? '0') ?? 0;
+      }
       final rcStatus = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
           ?.toString()
           .trim()

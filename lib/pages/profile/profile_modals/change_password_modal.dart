@@ -122,112 +122,124 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 40),
-      decoration: const BoxDecoration(
-        color: ModalColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x261C1917),
-            blurRadius: 20,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        child: AbsorbPointer(
-          absorbing: _saving,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              buildSheetHeader(
-              title: 'Change Password',
-              subtitle: 'Enter your new password',
-            ),
-            const SizedBox(height: 20),
-            if (!_hasVerifiedPassword) ...[
-              Text(
-                'Current Password',
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: ModalColors.inkMid,
+      child: AnimatedPadding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.zero,
+            child: Container(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, media.padding.bottom + 40),
+              decoration: const BoxDecoration(
+                color: ModalColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x261C1917),
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: AbsorbPointer(
+                absorbing: _saving,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildSheetHeader(
+                      title: 'Change Password',
+                      subtitle: 'Enter your new password',
+                    ),
+                    const SizedBox(height: 20),
+                    if (!_hasVerifiedPassword) ...[
+                      Text(
+                        'Current Password',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: ModalColors.inkMid,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _currentController,
+                        obscureText: true,
+                        enabled: !_saving,
+                        decoration: _inputDecoration(),
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: ModalColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    Text(
+                      'New Password',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ModalColors.inkMid,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _newController,
+                      obscureText: true,
+                      enabled: !_saving,
+                      decoration: _inputDecoration(gold: true),
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: ModalColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Confirm New Password',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ModalColors.inkMid,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _confirmController,
+                      obscureText: true,
+                      enabled: !_saving,
+                      decoration: _inputDecoration(gold: true),
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: ModalColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Must be at least 8 characters with a mix of letters and numbers',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        color: ModalColors.inkSoft,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    buildActionButtons(
+                      onCancel: () => Navigator.of(context).pop(),
+                      onSave: _handleUpdate,
+                      saveLabel: 'Update Password',
+                      saving: _saving,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _currentController,
-                obscureText: true,
-                enabled: !_saving,
-                decoration: _inputDecoration(),
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: ModalColors.ink,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              'New Password',
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: ModalColors.inkMid,
-              ),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _newController,
-              obscureText: true,
-              enabled: !_saving,
-              decoration: _inputDecoration(gold: true),
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: ModalColors.ink,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Confirm New Password',
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: ModalColors.inkMid,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _confirmController,
-              obscureText: true,
-              enabled: !_saving,
-              decoration: _inputDecoration(gold: true),
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: ModalColors.ink,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Must be at least 8 characters with a mix of letters and numbers',
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                color: ModalColors.inkSoft,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 20),
-            buildActionButtons(
-              onCancel: () => Navigator.of(context).pop(),
-              onSave: _handleUpdate,
-            saveLabel: 'Update Password',
-            saving: _saving,
-          ),
-            ],
           ),
         ),
       ),
