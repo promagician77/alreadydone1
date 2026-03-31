@@ -85,85 +85,101 @@ class _VerifyEmailOtpSheetState extends State<_VerifyEmailOtpSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
     return Material(
       color: Colors.transparent,
-      child: Container(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 40),
-        decoration: const BoxDecoration(
-          color: ModalColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x261C1917),
-              blurRadius: 20,
-              offset: Offset(0, -4),
-            ),
-          ],
-        ),
-        child: AbsorbPointer(
-          absorbing: _verifying,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              buildSheetHeader(
-              title: 'Verify Your Email',
-              subtitle: 'Enter the 8-digit code sent to ${widget.newEmail}',
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Verification Code',
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: ModalColors.inkMid,
+      child: AnimatedPadding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.zero,
+            child: Container(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, media.padding.bottom + 40),
+              decoration: const BoxDecoration(
+                color: ModalColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x261C1917),
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _otpController,
-              enabled: !_verifying,
-              maxLength: 8,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: ModalColors.warmWhite,
-                hintText: '00000000',
-                counterText: '',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: ModalColors.gold, width: 2),
+              child: AbsorbPointer(
+                absorbing: _verifying,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildSheetHeader(
+                      title: 'Verify Your Email',
+                      subtitle:
+                          'Enter the 8-digit code sent to ${widget.newEmail}',
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Verification Code',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ModalColors.inkMid,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _otpController,
+                      enabled: !_verifying,
+                      maxLength: 8,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: ModalColors.warmWhite,
+                        hintText: '00000000',
+                        counterText: '',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: ModalColors.gold, width: 2),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: ModalColors.gold, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                      ),
+                      style: GoogleFonts.outfit(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: ModalColors.ink,
+                        letterSpacing: 4,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Check your inbox at ${widget.newEmail} for the code',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        color: ModalColors.inkSoft,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    buildActionButtons(
+                      onCancel: () => Navigator.of(context).pop(),
+                      onSave: _handleVerify,
+                      saveLabel: 'Verify',
+                      saving: _verifying,
+                    ),
+                  ],
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: ModalColors.gold, width: 2),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-              style: GoogleFonts.outfit(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: ModalColors.ink,
-                letterSpacing: 4,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Check your inbox at ${widget.newEmail} for the code',
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                color: ModalColors.inkSoft,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 20),
-            buildActionButtons(
-              onCancel: () => Navigator.of(context).pop(),
-              onSave: _handleVerify,
-              saveLabel: 'Verify',
-              saving: _verifying,
-            ),
-            ],
           ),
         ),
       ),

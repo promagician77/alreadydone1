@@ -5,6 +5,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/pages/player/player_modals/player_modals.dart';
 import '/services/backend_client.dart';
+import '/services/app_toast.dart';
 import '/services/onboarding_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
@@ -158,9 +159,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     final url = _playUrl;
     if (url == null || url.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No audio available')),
-        );
+        AppToast.info(context, 'No audio available');
       }
       return;
     }
@@ -188,9 +187,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Playback failed: $e')),
-        );
+        AppToast.error(context, 'Playback failed: $e');
         setState(() => _isPlaying = false);
       }
     }
@@ -235,7 +232,10 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     });
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) {
-      if (mounted) setState(() => _isDeepening = false);
+      if (mounted) {
+        setState(() => _isDeepening = false);
+        AppToast.error(context, 'Could not deepen story: user not found.');
+      }
       return;
     }
     final story = _state.generatedStory;
@@ -244,9 +244,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     if (storyId == null) {
       if (mounted) {
         setState(() => _isDeepening = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No story selected to deepen.')),
-        );
+        AppToast.info(context, 'No story selected to deepen.');
       }
       return;
     }
@@ -287,9 +285,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
       final storyText = (res['story'] ?? res['content'] ?? '').toString().trim();
       if (storyText.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Deepen response had no story content.')),
-        );
+        AppToast.error(context, 'Deepen response had no story content.');
         return;
       }
 
@@ -362,8 +358,9 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       showDeepenResultModal(context, theme: theme, story: storyText);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}')),
+        AppToast.error(
+          context,
+          'Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}',
         );
       }
     } finally {
@@ -631,12 +628,9 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                             ? _completeOnboarding
                             : () {
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Please play the story at least $_minPlayCount time${_minPlayCount == 1 ? '' : 's'} before continuing.',
-                                      ),
-                                    ),
+                                  AppToast.info(
+                                    context,
+                                    'Please play the story at least $_minPlayCount time${_minPlayCount == 1 ? '' : 's'} before continuing.',
                                   );
                                 }
                               },

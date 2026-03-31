@@ -161,7 +161,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
         isBedtimeReminder: updates['is_BedTime_Reminder'] as bool?,
         name: updates['name'] as String?,
         dreamPlace: updates['dream_place'] as String?,
-        energyWord: updates['energy_word'] as String?,
+        energyWord: updates['energyWord'] as String?,
         someoneYouLove: updates['lovedOne'] as String?,
       );
       if (mounted) _loadProfile();
@@ -274,7 +274,11 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             : (user?.userMetadata?['full_name']?.toString() ??
                 user?.email?.split('@').first ??
                 'User');
-    final dreamLocation = _model.profileData?['location']?.toString() ?? '—';
+    final dreamLocation = _model.profileData?['dream_place']?.toString() ??
+        _model.profileData?['dreamPlace']?.toString() ??
+        _model.profileData?['dream_location']?.toString() ??
+        _model.profileData?['location']?.toString() ??
+        '—';
     final energyWord = _model.profileData?['energyWord']?.toString() ?? 'Powerful';
     final someoneYouLove = _model.profileData?['lovedOne']?.toString() ?? '—';
     final email = _model.profileData?['email']?.toString() ?? user?.email ?? '—';

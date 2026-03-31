@@ -74,32 +74,41 @@ class _DreamLocationSheetState extends State<DreamLocationSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
     return Material(
       color: Colors.transparent,
-      child: Container(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 40),
-        decoration: const BoxDecoration(
-          color: ModalColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x261C1917),
-              blurRadius: 20,
-              offset: Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          child: AbsorbPointer(
-            absorbing: _saving,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                buildSheetHeader(
-                title: 'Dream Location',
-                subtitle: 'Where does your dream life take place?',
+      child: AnimatedPadding(
+        padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.zero,
+            child: Container(
+              padding:
+                  EdgeInsets.fromLTRB(20, 20, 20, media.padding.bottom + 40),
+              decoration: const BoxDecoration(
+                color: ModalColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x261C1917),
+                    blurRadius: 20,
+                    offset: Offset(0, -4),
+                  ),
+                ],
               ),
+              child: AbsorbPointer(
+                absorbing: _saving,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildSheetHeader(
+                      title: 'Dream Location',
+                      subtitle: 'Where does your dream life take place?',
+                    ),
             const SizedBox(height: 20),
             TextField(
               controller: _controller,
@@ -197,7 +206,7 @@ class _DreamLocationSheetState extends State<DreamLocationSheet> {
                       try {
                         await BackendClient.updateUserProfile(
                           widget.userId,
-                          location: location,
+                          dreamPlace: location,
                         );
                         if (!mounted) return;
                         widget.onSave?.call(location);
@@ -215,6 +224,9 @@ class _DreamLocationSheetState extends State<DreamLocationSheet> {
               saving: _saving,
             ),
               ],
+            ),
+          ),
+        ),
             ),
           ),
         ),
