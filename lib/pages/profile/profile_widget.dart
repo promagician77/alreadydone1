@@ -43,6 +43,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
   late ProfileModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isClosingAccount = false;
 
   @override
   void initState() {
@@ -122,6 +123,68 @@ class _ProfileWidgetState extends State<ProfileWidget> {
   Future<void> _logout() async {
     await SupabaseService.signOut();
     if (mounted) context.go('/login?welcomeBack=true');
+  }
+
+  Future<void> _closeAccount() async {
+    if (_isClosingAccount) return;
+    final authUser = SupabaseService.currentUser;
+    final session = SupabaseService.client.auth.currentSession;
+    final accessToken = session?.accessToken ?? '';
+    if (authUser == null || accessToken.isEmpty) {
+      if (mounted) AppToast.error(context, 'You must be signed in');
+      return;
+    }
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+
+    setState(() => _isClosingAccount = true);
+    try {
+      await BackendClient.closeAccount(
+        userId: userId,
+        authUserId: authUser.id,
+        supabaseAccessToken: accessToken,
+      );
+      if (!mounted) return;
+      // Clear local session and return to login.
+      await SupabaseService.signOut();
+      if (!mounted) return;
+      AppToast.success(context, 'Account closed');
+      context.go('/login?welcomeBack=true');
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(
+        context,
+        'Failed to close account: ${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}',
+      );
+    } finally {
+      if (mounted) setState(() => _isClosingAccount = false);
+    }
+  }
+
+  Future<void> _confirmCloseAccount() async {
+    if (!mounted) return;
+    final shouldClose = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Close account?'),
+        content: const Text(
+          'This will permanently delete your account, stories, and voice data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Close account'),
+          ),
+        ],
+      ),
+    );
+    if (shouldClose == true) {
+      await _closeAccount();
+    }
   }
 
   bool _parseBool(dynamic value, bool defaultValue) {
@@ -872,20 +935,39 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               border: Border(top: BorderSide(color: _ProfileColors.stone)),
             ),
             padding: const EdgeInsets.only(top: 24),
-            child: TextButton(
-              onPressed: _logout,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                foregroundColor: _ProfileColors.logoutRed,
-              ),
-              child: Text(
-                'Log Out',
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _ProfileColors.logoutRed,
+            child: Column(
+              children: [
+                TextButton(
+                  onPressed: _isClosingAccount ? null : _confirmCloseAccount,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: _ProfileColors.logoutRed,
+                  ),
+                  child: Text(
+                    'Close My Account',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _ProfileColors.logoutRed,
+                    ),
+                  ),
                 ),
-              ),
+                TextButton(
+                  onPressed: _logout,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    foregroundColor: _ProfileColors.logoutRed,
+                  ),
+                  child: Text(
+                    'Log Out',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _ProfileColors.logoutRed,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),

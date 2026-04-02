@@ -151,6 +151,36 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {};
   }
 
+  /// POST api/users/{user_id}/close-account - permanently delete user data + auth user.
+  /// Requires Supabase access token in Authorization header.
+  static Future<Map<String, dynamic>> closeAccount({
+    required int userId,
+    required String authUserId,
+    required String supabaseAccessToken,
+  }) async {
+    final body = <String, dynamic>{
+      'auth_user_id': authUserId,
+    };
+    final response = await client
+        .post(
+          resolve('/api/users/$userId/close-account'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $supabaseAccessToken',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () => throw Exception('Close account timeout'),
+        );
+    if (response.statusCode >= 400) {
+      throw Exception('Close account failed: ${response.statusCode} ${response.body}');
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : {'ok': true};
+  }
+
   /// GET api/stories?user_id=<int> - list stories for user.
   /// Returns { "stories": [ { id, theme, story, desire_id, user_id, last_played, play_length?, playUrl, storage, desire_name, ... } ] }
   static Future<Map<String, dynamic>> getStories(int userId) async {
