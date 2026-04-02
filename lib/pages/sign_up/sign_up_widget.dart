@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
@@ -23,14 +24,33 @@ class _SignUpWidgetState extends State<SignUpWidget> {
   late SignUpModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  static const String _termsOfServiceUrl =
+      'https://www.alreadydone.app/policies/terms-of-service';
+  static const String _privacyPolicyUrl =
+      'https://www.alreadydone.app/policies/privacy-policy';
+
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => SignUpModel());
+
+    _termsTap = TapGestureRecognizer()
+      ..onTap = () {
+        launchURL(_termsOfServiceUrl);
+      };
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () {
+        launchURL(_privacyPolicyUrl);
+      };
   }
 
   @override
   void dispose() {
+    _termsTap.dispose();
+    _privacyTap.dispose();
     _model.dispose();
     super.dispose();
   }
@@ -184,9 +204,23 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                 style: AuthTheme.checkboxLabelStyle,
                 children: [
                   const TextSpan(text: 'I agree to the '),
-                  TextSpan(text: 'Terms of Service', style: AuthTheme.checkboxLabelStyle.copyWith(color: AuthTheme.gold, decoration: TextDecoration.underline)),
+                  TextSpan(
+                    text: 'Terms of Service',
+                    style: AuthTheme.checkboxLabelStyle.copyWith(
+                      color: AuthTheme.gold,
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: _termsTap,
+                  ),
                   const TextSpan(text: ' and '),
-                  TextSpan(text: 'Privacy Policy', style: AuthTheme.checkboxLabelStyle.copyWith(color: AuthTheme.gold, decoration: TextDecoration.underline)),
+                  TextSpan(
+                    text: 'Privacy Policy',
+                    style: AuthTheme.checkboxLabelStyle.copyWith(
+                      color: AuthTheme.gold,
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: _privacyTap,
+                  ),
                 ],
               ),
             ),
