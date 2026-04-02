@@ -346,36 +346,39 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     final someoneYouLove = _model.profileData?['lovedOne']?.toString() ?? '—';
     final email = _model.profileData?['email']?.toString() ?? user?.email ?? '—';
 
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
-      },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: _ProfileColors.surface,
-        body: SafeArea(
-          top: true,
-          child: _model.profileLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _model.profileError != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          _model.profileError!,
-                          style: GoogleFonts.outfit(fontSize: 13, color: _ProfileColors.inkSoft),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.only(bottom: 80),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GestureDetector(
+          onTap: () {
+            FocusScope.of(context).unfocus();
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+          child: Scaffold(
+            key: scaffoldKey,
+            backgroundColor: _ProfileColors.surface,
+            body: SafeArea(
+              top: true,
+              child: _model.profileLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _model.profileError != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              _model.profileError!,
+                              style: GoogleFonts.outfit(fontSize: 13, color: _ProfileColors.inkSoft),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 80),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                             _buildHeader(displayName, dreamLocation, energyWord),
                             const SizedBox(height: 24),
                             _buildStats(),
@@ -522,6 +525,38 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                         ),
                       ),
                     ),
+        ),
+      ),
+        ),
+        if (_isClosingAccount) _buildCloseAccountLoadingOverlay(),
+      ],
+    );
+  }
+
+  Widget _buildCloseAccountLoadingOverlay() {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.45),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  color: _ProfileColors.gold,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Closing your account…',
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
