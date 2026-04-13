@@ -14,6 +14,7 @@ import '/services/onboarding_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '/widgets/pressable.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'onboarding_desire_widget.dart';
 
 class OnboardingSplashWidget extends StatefulWidget {
   const OnboardingSplashWidget({super.key});
@@ -740,7 +741,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     final returnTo = GoRouterState.of(context).uri.queryParameters['returnTo'];
     if (returnTo == null || returnTo.isEmpty) return const SizedBox.shrink();
     return Pressable(
-      onTap: () => context.go(returnTo),
+      onTap: () => context.go(OnboardingDesireWidget.routePath),
       borderRadius: BorderRadius.circular(4),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
