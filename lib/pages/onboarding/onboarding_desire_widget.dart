@@ -5,6 +5,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
+import '/services/ai_consent_service.dart';
 import '/widgets/pressable.dart';
 import '/flutter_flow/nav/nav.dart';
 import 'onboarding_state.dart';
@@ -80,6 +81,17 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   }
 
   Future<void> _handleCreateStory() async {
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'You need to agree to AI data sharing to create a manifestation.',
+        );
+      }
+      return;
+    }
+
     final userId = await SupabaseService.getCurrentUserTableId();
     final body = _state.toStoryRequestBody(userId);
 

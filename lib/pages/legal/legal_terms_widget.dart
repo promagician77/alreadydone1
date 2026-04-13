@@ -79,6 +79,25 @@ class LegalTermsWidget extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
+                'AI feature consent and data use\n',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AuthTheme.ink,
+                ),
+              ),
+              Text(
+                'Already Done uses third-party AI vendors, including ElevenLabs and Anthropic, to generate manifestation content and voice experiences. '
+                'Before personal data is sent for these AI features, the app asks for your permission. '
+                'If you do not agree, those AI-powered features are not available.\n',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  height: 1.6,
+                  color: AuthTheme.inkSoft,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
                 'Before submitting, ensure your App Store Connect metadata also includes a functional link to the Terms of Use (EULA).\n',
                 style: GoogleFonts.outfit(
                   fontSize: 12,

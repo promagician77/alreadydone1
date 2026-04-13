@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
+import '/services/ai_consent_service.dart';
 import '/services/supabase_service.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_player_widget.dart';
@@ -259,6 +260,18 @@ class _OnboardingVoiceSelectionWidgetState
   /// If the user has a cloned voice (`voice_id`), generate audio with it.
   /// Otherwise, go to the recording page to create the cloned voice first.
   Future<void> _handleContinueMyVoice() async {
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please agree to AI data sharing to continue.'),
+          ),
+        );
+      }
+      return;
+    }
+
     // First, ensure the user has an active/trial subscription.
     // If not, they are redirected to the subscription paywall (same as other voices).
     if (!await _ensureSubscribedForVoiceGeneration()) return;
@@ -542,6 +555,18 @@ class _OnboardingVoiceSelectionWidgetState
     required String voiceId,
     required String voiceName,
   }) async {
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please agree to AI data sharing to preview voices.'),
+          ),
+        );
+      }
+      return;
+    }
+
     if (!mounted) return;
     showDialog<void>(
       context: context,
@@ -634,6 +659,18 @@ class _OnboardingVoiceSelectionWidgetState
           onTap: _isLoading ? null : () async {
             if (_isMyVoiceSelected) {
               await _handleContinueMyVoice();
+              return;
+            }
+
+            final hasConsent = await AIConsentService.ensureConsent(context);
+            if (!hasConsent) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please agree to AI data sharing to continue.'),
+                  ),
+                );
+              }
               return;
             }
 

@@ -11,6 +11,7 @@ import '/index.dart';
 import '/pages/subscription/subscription_widget.dart';
 import '/widgets/pressable.dart';
 import '/services/app_toast.dart';
+import '/services/ai_consent_service.dart';
 import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
@@ -232,7 +233,18 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
   }
 
-  void _handleAddNewManifestation() {
+  Future<void> _handleAddNewManifestation() async {
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'You need to agree to AI data sharing to add a manifestation.',
+        );
+      }
+      return;
+    }
+
     context.push(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
   }
 

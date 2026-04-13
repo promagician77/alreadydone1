@@ -6,6 +6,7 @@ import '/index.dart';
 import '/services/supabase_service.dart';
 import '/services/backend_client.dart';
 import '/services/app_toast.dart';
+import '/services/ai_consent_service.dart';
 import '/pages/onboarding/onboarding_state.dart';
 import '/widgets/pressable.dart';
 import 'desires_model.dart';
@@ -943,6 +944,17 @@ class _DesiresWidgetState extends State<DesiresWidget> {
 
   /// Navigate to onboarding desire page (3rd step); prefill first name and someone you love from user profile.
   Future<void> _handleAddNewManifestation() async {
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'You need to agree to AI data sharing to add a manifestation.',
+        );
+      }
+      return;
+    }
+
     if (!mounted) return;
     context.push(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
   }

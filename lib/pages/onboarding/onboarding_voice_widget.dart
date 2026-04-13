@@ -10,6 +10,7 @@ import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/voice_recording_service.dart';
 import '/services/app_toast.dart';
+import '/services/ai_consent_service.dart';
 import 'onboarding_state.dart';
 import 'onboarding_player_widget.dart';
 import 'celebration_overlay.dart';
@@ -154,6 +155,17 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
   }
 
   Future<void> _uploadAndContinue() async {
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'You need to agree to AI data sharing to create your voice clone.',
+        );
+      }
+      return;
+    }
+
     final file = _recordedFile;
     if (file == null || !await file.exists()) {
       AppToast.error(context, 'No recording to upload.');
