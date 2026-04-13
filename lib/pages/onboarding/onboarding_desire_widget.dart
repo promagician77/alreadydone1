@@ -282,7 +282,22 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                       }),
                     ),
                     const SizedBox(height: 20),
-                    Text('Describe What\'s Already Yours', style: AuthTheme.labelStyle),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        Text('Describe What\'s Already Yours', style: AuthTheme.labelStyle),
+                        Text(
+                          '(Write Your Desired Manifestation Here)',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AuthTheme.inkSoft,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -294,6 +309,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                       child: TextField(
                         controller: _state.desireDescriptionController,
                         maxLines: 5,
+                        textCapitalization: TextCapitalization.sentences,
                         style: AuthTheme.bodyStyle.copyWith(fontSize: 14),
                         decoration: InputDecoration(
                           hintText: "Write it like it already happened. Be specific. Be emotional.\n\nExample: The deeply loving relationship where I felt completely seen, valued, and cherished every single day",
