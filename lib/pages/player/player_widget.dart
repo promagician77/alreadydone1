@@ -10,6 +10,7 @@ import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
+import '/services/ai_consent_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import '/index.dart';
@@ -2698,6 +2699,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _deepenManifestation() async {
     if (_isDeepening) return;
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please agree to AI data sharing to deepen your manifestation.'),
+          ),
+        );
+      }
+      return;
+    }
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) return;
     final storyId = _currentStoryId;

@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
+import '/services/ai_consent_service.dart';
+import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_origin_splash_model.dart';
 import 'onboarding_personalize_widget.dart';
@@ -153,7 +155,19 @@ class _OnboardingOriginSplashWidgetState
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 240),
         child: Pressable(
-          onTap: () => context.go(OnboardingPersonalizeWidget.routePath),
+          onTap: () async {
+            final hasConsent = await AIConsentService.ensureConsent(context);
+            if (!hasConsent) {
+              if (mounted) {
+                AppToast.info(
+                  context,
+                  'You need to agree to AI data sharing to start onboarding.',
+                );
+              }
+              return;
+            }
+            if (mounted) context.go(OnboardingPersonalizeWidget.routePath);
+          },
           borderRadius: BorderRadius.circular(12),
           child: Container(
             width: double.infinity,

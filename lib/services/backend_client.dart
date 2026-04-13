@@ -415,8 +415,6 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {'playUrl': null};
   }
 
-  /// GET api/voice/preview?voice_id=<id> - get voice preview audio (bytes).
-  /// Returns (audio_bytes, content_type). Backend returns Response(content=audio_bytes, media_type=content_type).
   static Future<({Uint8List bytes, String? contentType})> voicePreview(
     String voiceId,
   ) async {
@@ -435,8 +433,6 @@ class BackendClient {
     return (bytes: response.bodyBytes, contentType: contentType);
   }
 
-  /// GET api/subscription/status?user_id=<int>
-  /// Returns { stripe_customer_id, stripe_subscription_id, intent_id, subscription_status, subscription_plan }.
   static Future<Map<String, dynamic>> getSubscriptionStatus(int userId) async {
     final uri = resolve('/api/subscription/status')
         .replace(queryParameters: {'user_id': userId.toString()});

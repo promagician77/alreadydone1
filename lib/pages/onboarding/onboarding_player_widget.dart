@@ -5,6 +5,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/pages/player/player_modals/player_modals.dart';
 import '/services/backend_client.dart';
+import '/services/ai_consent_service.dart';
 import '/services/app_toast.dart';
 import '/services/onboarding_service.dart';
 import '/services/supabase_service.dart';
@@ -221,6 +222,16 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
 
   Future<void> _deepenManifestation() async {
     if (_isDeepening) return;
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'You need to agree to AI data sharing to deepen your manifestation.',
+        );
+      }
+      return;
+    }
     if (!mounted) return;
     // Stop any in-progress playback while generating deepened story/audio.
     final shouldAutoPlayNew = _isPlaying;
