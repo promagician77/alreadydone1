@@ -8,7 +8,8 @@ import '/services/supabase_service.dart';
 class AIConsentService {
   AIConsentService._();
 
-  static const String _consentVersion = 'v1';
+  /// Bump when in-app disclosure text changes materially (users may see prompt again).
+  static const String _consentVersion = 'v2';
   static const String _consentKeyPrefix = 'ai_data_consent_';
 
   static String _storageKeyForCurrentUser() {
@@ -75,6 +76,7 @@ class _AIConsentDialog extends StatelessWidget {
         'To create your manifestations, we send your data to trusted third-party AI vendors (including ElevenLabs and Anthropic). '
         'This may include your profile inputs (such as name, location, and manifestation text) and voice recordings/audio when you use voice features. '
         'We only use this data to generate features inside the Already Done app. We never sell your data.\n\n'
+        'We work with these vendors under agreements that require them to provide the same or equal protection of your personal data as we describe in our Privacy Policy.\n\n'
         'Tap "Agree" to proceed.',
         style: GoogleFonts.outfit(
           fontSize: 13,
