@@ -354,6 +354,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       return;
     }
     final playUrl = await _getPlayUrlForStory(story);
+
+    debugPrint('playUrl: $playUrl');
     if (playUrl == null || playUrl.isEmpty) {
       if (mounted) {
         AppToast.info(context, 'No audio available for this story');
@@ -376,7 +378,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
 
     try {
-      // Use voice_id from the selected story first; only fall back to profile if story has none.
       String voiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim() ?? '';
       if (voiceId.isEmpty) {
         final profile = await BackendClient.getUserProfile(userId);

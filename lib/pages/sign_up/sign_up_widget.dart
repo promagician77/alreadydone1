@@ -67,6 +67,17 @@ class _SignUpWidgetState extends State<SignUpWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.max,
             children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 8, top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+                    color: AuthTheme.gold,
+                    onPressed: () => context.go('/login'),
+                  ),
+                ),
+              ),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
