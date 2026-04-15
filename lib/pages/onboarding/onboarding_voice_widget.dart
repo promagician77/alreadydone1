@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,10 +11,8 @@ import '/services/supabase_service.dart';
 import '/services/voice_recording_service.dart';
 import '/services/app_toast.dart';
 import '/services/ai_consent_service.dart';
-import '/widgets/pressable.dart';
 import 'onboarding_state.dart';
 import 'onboarding_player_widget.dart';
-import 'onboarding_voice_selection_widget.dart';
 import 'celebration_overlay.dart';
 import 'recording_circle.dart';
 
@@ -47,57 +44,6 @@ String _formatDuration(int seconds) {
   final m = seconds ~/ 60;
   final s = seconds % 60;
   return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-}
-
-const int _listenWaveBars = 56;
-
-/// Waveform bars for listen modal (matches onboarding player spacing).
-Widget _buildListenWaveform(int visibleCount, int totalBars) {
-  const heights = [8.0, 20.0, 32.0, 16.0, 36.0, 12.0, 28.0, 24.0, 14.0, 30.0];
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: List.generate(totalBars, (i) {
-      final isPlayed = i < visibleCount;
-      final h = heights[i % heights.length];
-      return Expanded(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 0.5),
-          child: Container(
-            width: double.infinity,
-            height: h.clamp(6.0, 36.0),
-            decoration: BoxDecoration(
-              color: isPlayed ? AuthTheme.gold : AuthTheme.stone,
-              borderRadius: BorderRadius.circular(1),
-            ),
-          ),
-        ),
-      );
-    }),
-  );
-}
-
-Widget _listenPlayerControl({
-  required IconData icon,
-  required double size,
-  VoidCallback? onTap,
-}) {
-  final child = Container(
-    width: size,
-    height: size,
-    decoration: const BoxDecoration(
-      color: AuthTheme.offWhite,
-      shape: BoxShape.circle,
-    ),
-    child: Icon(icon, size: 14, color: AuthTheme.ink),
-  );
-  if (onTap != null) {
-    return Pressable(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(size / 2),
-      child: child,
-    );
-  }
-  return child;
 }
 
 /// Success banner colors (from design).
@@ -333,48 +279,6 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
     });
   }
 
-  /// Story title for listen modal (aligned with [OnboardingPlayerWidget]).
-  String get _modalStoryTitle {
-    final raw = (_state.generatedStory?['theme'] ??
-            _state.generatedStory?['title'] ??
-            _state.generatedStory?['desire_name'])
-        ?.toString()
-        .trim();
-    return (raw != null && raw.isNotEmpty) ? raw : 'A Love That Was\nAlready Yours';
-  }
-
-  String _modalListenSubtitle(bool hasGeneratedUrl) {
-    if (hasGeneratedUrl) {
-      final name = (_state.selectedVoiceName ?? '').trim();
-      if (name.isEmpty || name == 'My Voice') return 'In your voice';
-      return "${name}'s voice";
-    }
-    final first = _state.firstNameController.text.trim();
-    if (first.isNotEmpty) return '$first · your recording';
-    return 'Your recording';
-  }
-
-  void _openListenModal() {
-    final url = _state.voicePlayUrl?.trim();
-    final hasUrl = url != null && url.isNotEmpty;
-    final file = _recordedFile;
-    if (!hasUrl && (file == null || !file.existsSync())) {
-      AppToast.error(context, 'No audio to play.');
-      return;
-    }
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _VoiceListenSheet(
-        title: _modalStoryTitle,
-        subtitle: _modalListenSubtitle(hasUrl),
-        localFile: hasUrl ? null : file,
-        remoteUrl: hasUrl ? url : null,
-      ),
-    );
-  }
-
   String get _passageText {
     final story = _state.generatedStory?['story']?.toString()?.trim() ?? '';
     return story.isEmpty ? _defaultPassage : story;
@@ -421,25 +325,6 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
           SafeArea(
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 8, top: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 22),
-                      color: AuthTheme.gold,
-                      onPressed: _isUploading
-                          ? null
-                          : () {
-                              if (context.canPop()) {
-                                context.pop();
-                              } else {
-                                context.go(OnboardingVoiceSelectionWidget.routePath);
-                              }
-                            },
-                    ),
-                  ),
-                ),
                 _progressBar(3),
                 Expanded(
                   child: LayoutBuilder(
@@ -728,7 +613,9 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: _isUploading ? null : _openListenModal,
+            onPressed: () {
+              // TODO: play recording when playback is implemented
+            },
             icon: const Text('🎧', style: TextStyle(fontSize: 16)),
             label: const Text('Listen'),
             style: OutlinedButton.styleFrom(
@@ -855,258 +742,6 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VoiceListenSheet extends StatefulWidget {
-  const _VoiceListenSheet({
-    required this.title,
-    required this.subtitle,
-    this.localFile,
-    this.remoteUrl,
-  });
-
-  final String title;
-  final String subtitle;
-  final File? localFile;
-  final String? remoteUrl;
-
-  @override
-  State<_VoiceListenSheet> createState() => _VoiceListenSheetState();
-}
-
-class _VoiceListenSheetState extends State<_VoiceListenSheet> {
-  static const _skipSeconds = 10;
-
-  final AudioPlayer _player = AudioPlayer();
-  bool _isPlaying = false;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-
-  int get _visibleWaveBars {
-    final dur = _duration.inMilliseconds;
-    if (dur <= 0) return 0;
-    final pos = _position.inMilliseconds;
-    final ratio = (pos / dur).clamp(0.0, 1.0);
-    return (ratio * _listenWaveBars).round().clamp(0, _listenWaveBars);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _player.onPlayerComplete.listen((_) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-          _position = Duration.zero;
-        });
-      }
-    });
-    _player.onDurationChanged.listen((d) {
-      if (mounted) setState(() => _duration = d);
-    });
-    _player.onPositionChanged.listen((p) {
-      if (mounted) setState(() => _position = p);
-    });
-    _loadSource();
-  }
-
-  Future<void> _loadSource() async {
-    try {
-      if (widget.remoteUrl != null && widget.remoteUrl!.isNotEmpty) {
-        await _player.setSource(UrlSource(widget.remoteUrl!));
-      } else if (widget.localFile != null && await widget.localFile!.exists()) {
-        await _player.setSource(DeviceFileSource(widget.localFile!.path));
-      }
-    } catch (_) {
-      if (mounted) {
-        AppToast.error(context, 'Could not load audio.');
-        Navigator.of(context).pop();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  Future<void> _togglePlayPause() async {
-    try {
-      if (_isPlaying) {
-        await _player.pause();
-        if (mounted) setState(() => _isPlaying = false);
-      } else {
-        final atStart = _position <= const Duration(milliseconds: 150);
-        final atEnd = _duration > Duration.zero &&
-            _position >= _duration - const Duration(milliseconds: 300);
-        if (atStart || atEnd) {
-          if (widget.remoteUrl != null && widget.remoteUrl!.isNotEmpty) {
-            await _player.play(
-              UrlSource(widget.remoteUrl!),
-              mode: PlayerMode.mediaPlayer,
-            );
-          } else if (widget.localFile != null) {
-            await _player.play(DeviceFileSource(widget.localFile!.path));
-          }
-          if (mounted) setState(() => _isPlaying = true);
-        } else {
-          await _player.resume();
-          if (mounted) setState(() => _isPlaying = true);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, 'Playback failed: $e');
-        setState(() => _isPlaying = false);
-      }
-    }
-  }
-
-  Future<void> _skipBackward() async {
-    final newPos = _position.inSeconds - _skipSeconds;
-    final target = Duration(seconds: newPos.clamp(0, _duration.inSeconds));
-    await _player.seek(target);
-  }
-
-  Future<void> _skipForward() async {
-    final newPos = _position.inSeconds + _skipSeconds;
-    final target = Duration(seconds: newPos.clamp(0, _duration.inSeconds));
-    await _player.seek(target);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        bottom: bottom + 16,
-        top: 12,
-      ),
-      child: Material(
-        color: AuthTheme.warmWhite,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AuthTheme.stone,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                widget.title,
-                style: AuthTheme.welcomeTitleStyle.copyWith(fontSize: 22),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                widget.subtitle,
-                style: AuthTheme.welcomeSubStyle.copyWith(fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AuthTheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AuthTheme.stone),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      height: 36,
-                      child: _buildListenWaveform(_visibleWaveBars, _listenWaveBars),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _formatDuration(_position.inSeconds),
-                          style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
-                        ),
-                        Text(
-                          _formatDuration(_duration.inSeconds),
-                          style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _listenPlayerControl(
-                          icon: Icons.skip_previous,
-                          size: 36,
-                          onTap: _duration.inSeconds > 0 ? _skipBackward : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Pressable(
-                          onTap: _togglePlayPause,
-                          borderRadius: BorderRadius.circular(28),
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: AuthTheme.gold,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AuthTheme.ink.withValues(alpha: 0.08),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              _isPlaying ? Icons.pause : Icons.play_arrow,
-                              size: 28,
-                              color: AuthTheme.surface,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        _listenPlayerControl(
-                          icon: Icons.skip_next,
-                          size: 36,
-                          onTap: _duration.inSeconds > 0 ? _skipForward : null,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Close',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w600,
-                    color: AuthTheme.inkSoft,
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),
