@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -25,6 +26,24 @@ class EmailAlreadyRegisteredException implements Exception {
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
+
+  /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
+  /// auth state listener) cannot both observe "no row" and insert duplicates.
+  static Future<void> _ensureUserProfileChain = Future<void>.value();
+
+  static Future<void> _runEnsureUserProfileSerialized(
+    Future<void> Function() work,
+  ) async {
+    final previous = _ensureUserProfileChain;
+    final completer = Completer<void>();
+    _ensureUserProfileChain = completer.future;
+    try {
+      await previous;
+      await work();
+    } finally {
+      if (!completer.isCompleted) completer.complete();
+    }
+  }
 
   static Future<void> initialize({
     required String url,
@@ -137,55 +156,51 @@ class SupabaseService {
     });
   }
 
-  /// Ensures a row in the Users table exists for the current auth user.
-  ///
-  /// [overrideName] lets callers (e.g. Apple / Google sign-in) pass the real
-  /// display name *before* Supabase user-metadata is updated, avoiding the
-  /// race condition where metadata is still empty and the email-prefix fallback
-  /// ("bluesky429311") gets written instead.
-  ///
-  /// For existing rows the name is only overwritten when the stored value is
-  /// blank or looks like an email-prefix (no spaces, all lowercase/digits) —
-  /// this keeps returning Apple users from having their name reset to null
-  /// (Apple only sends givenName on the very first login).
   static Future<void> ensureUserProfileFromAuth({String? overrideName}) async {
-    final user = currentUser;
-    if (user == null) return;
-    final email = user.email?.trim();
-    if (email == null || email.isEmpty) return;
+    await _runEnsureUserProfileSerialized(() async {
+      final user = currentUser;
+      if (user == null) return;
+      final email = user.email?.trim();
+      if (email == null || email.isEmpty) return;
 
-    // Build the best name we have right now.
-    // Priority: overrideName → full_name metadata → name metadata → email prefix (last resort)
-    final String resolvedName = _pickBestName(
-      override: overrideName,
-      fullNameMeta: user.userMetadata?['full_name'] as String?,
-      nameMeta: user.userMetadata?['name'] as String?,
-      emailPrefix: user.email?.split('@').first,
-    );
+      // Build the best name we have right now.
+      // Priority: overrideName → full_name metadata → name metadata → email prefix (last resort)
+      final String resolvedName = _pickBestName(
+        override: overrideName,
+        fullNameMeta: user.userMetadata?['full_name'] as String?,
+        nameMeta: user.userMetadata?['name'] as String?,
+        emailPrefix: user.email?.split('@').first,
+      );
 
-    try {
-      final existing = await client
-          .from('Users')
-          .select('id, name')
-          .eq('email', email)
-          .maybeSingle();
+      try {
+        // Avoid maybeSingle() — duplicate legacy rows would throw; limit(1) is safe.
+        final result = await client
+            .from('Users')
+            .select('id, name')
+            .eq('email', email)
+            .limit(1);
+        final rows = List<dynamic>.from(result as List<dynamic>);
+        final Map<String, dynamic>? existing = rows.isEmpty
+            ? null
+            : Map<String, dynamic>.from(rows.first as Map);
 
-      if (existing != null && existing is Map) {
-        // Only overwrite if the stored name is blank or an email-prefix placeholder.
-        final storedName = (existing['name'] as String?)?.trim() ?? '';
-        if (_isPlaceholderName(storedName)) {
-          await client
-              .from('Users')
-              .update({'name': resolvedName})
-              .eq('email', email);
+        if (existing != null) {
+          // Only overwrite if the stored name is blank or an email-prefix placeholder.
+          final storedName = (existing['name'] as String?)?.trim() ?? '';
+          if (_isPlaceholderName(storedName)) {
+            await client
+                .from('Users')
+                .update({'name': resolvedName})
+                .eq('email', email);
+          }
+        } else {
+          await client.from('Users').insert({
+            'name': resolvedName,
+            'email': email,
+          });
         }
-      } else {
-        await client.from('Users').insert({
-          'name': resolvedName,
-          'email': email,
-        });
-      }
-    } catch (_) {}
+      } catch (_) {}
+    });
   }
 
   /// Returns true when [name] looks like an auto-generated placeholder
@@ -367,10 +382,6 @@ class SupabaseService {
     return digest.bytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join();
   }
 
-  /// Google sign-in: native account picker on mobile, OAuth redirect on web.
-  ///
-  /// FIX: Same pattern as Apple — display name passed directly into
-  /// [ensureUserProfileFromAuth] via overrideName.
   static Future<void> signInWithGoogle() async {
     const _tag = '[GoogleOAuth]';
     debugPrint('$_tag signInWithGoogle() started. kIsWeb=$kIsWeb, platform=${defaultTargetPlatform.name}');

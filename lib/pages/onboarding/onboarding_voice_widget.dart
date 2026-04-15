@@ -15,6 +15,7 @@ import '/services/ai_consent_service.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_state.dart';
 import 'onboarding_player_widget.dart';
+import 'onboarding_voice_selection_widget.dart';
 import 'celebration_overlay.dart';
 import 'recording_circle.dart';
 
@@ -420,6 +421,25 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
           SafeArea(
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+                      color: AuthTheme.gold,
+                      onPressed: _isUploading
+                          ? null
+                          : () {
+                              if (context.canPop()) {
+                                context.pop();
+                              } else {
+                                context.go(OnboardingVoiceSelectionWidget.routePath);
+                              }
+                            },
+                    ),
+                  ),
+                ),
                 _progressBar(3),
                 Expanded(
                   child: LayoutBuilder(
