@@ -68,8 +68,24 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) safeSetState(() {
         _model.isPlaying = false;
+        _model.isBuffering = false;
         _model.playingStoryId = null;
         _model.playbackPosition = Duration.zero;
+      });
+    });
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      safeSetState(() {
+        if (state == PlayerState.playing) {
+          _model.isPlaying = true;
+          _model.isBuffering = false;
+        } else if (state == PlayerState.paused) {
+          _model.isPlaying = false;
+          _model.isBuffering = false;
+        } else if (state == PlayerState.stopped) {
+          _model.isPlaying = false;
+          _model.isBuffering = false;
+        }
       });
     });
     _audioPlayer.onDurationChanged.listen((d) {
@@ -295,25 +311,37 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
     // Prefer voice/speak URL (user's cloned voice); check cache first
     final cached = _model.voicePlayUrlCache[storyId];
-    if (cached != null && cached.isNotEmpty) return cached;
+    if (cached != null && cached.isNotEmpty) {
+      debugPrint('[HomeDashboard] playUrl cache hit storyId=$storyId');
+      return cached;
+    }
 
     final voiceId = _model.voiceId;
     if (voiceId != null && voiceId.isNotEmpty) {
       try {
+        final t0 = DateTime.now();
         final res = await BackendClient.getStoryPlayUrl(storyId);
         final url = res['playUrl']?.toString();
         if (url != null && url.isNotEmpty) {
+          debugPrint(
+            '[HomeDashboard] GET /api/voice/speak/$storyId ${DateTime.now().difference(t0).inMilliseconds}ms',
+          );
           safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
           return url;
         }
       } catch (_) {
         try {
+          final t0 = DateTime.now();
+          debugPrint('[HomeDashboard] playUrl missing; generating audio storyId=$storyId');
           final res = await BackendClient.voiceGenerateAudio(
             voiceId: voiceId,
             storyId: storyId,
           );
           final url = res['url']?.toString();
           if (url != null && url.isNotEmpty) {
+            debugPrint(
+              '[HomeDashboard] POST /api/voice/generate_audio ${DateTime.now().difference(t0).inMilliseconds}ms',
+            );
             safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
             return url;
           }
@@ -353,21 +381,32 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       if (mounted) safeSetState(() { _model.isPlaying = true; });
       return;
     }
+    if (mounted) {
+      safeSetState(() {
+        _model.playingStoryId = storyId;
+        _model.isBuffering = true;
+        _model.isPlaying = false;
+      });
+    }
     final playUrl = await _getPlayUrlForStory(story);
 
     debugPrint('playUrl: $playUrl');
     if (playUrl == null || playUrl.isEmpty) {
       if (mounted) {
+        safeSetState(() => _model.isBuffering = false);
         AppToast.info(context, 'No audio available for this story');
       }
       return;
     }
-    if (mounted) safeSetState(() => _model.playingStoryId = storyId);
+    final t0 = DateTime.now();
     debugPrint('playing story: $storyId');
     debugPrint('playUrl - 1: $playUrl');
     debugPrint('mode: PlayerMode.mediaPlayer');
     await _audioPlayer.play(UrlSource(playUrl), mode: PlayerMode.mediaPlayer);
-    if (mounted) safeSetState(() => _model.isPlaying = true);
+    debugPrint(
+      '[HomeDashboard] audioPlayer.play returned in ${DateTime.now().difference(t0).inMilliseconds}ms storyId=$storyId',
+    );
+    // Keep buffering=true until PlayerState.playing arrives.
   }
 
   Future<void> _navigateToPlayerWithVoice(Map<String, dynamic> story) async {
@@ -795,13 +834,17 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      (_model.isBuffering && isPlayingStory)
+                          ? Icons.hourglass_top
+                          : (isPlaying ? Icons.pause : Icons.play_arrow),
                       color: _AppColors.surface,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      isPlaying ? 'Pause' : 'Play Story · $durationLabel',
+                      (_model.isBuffering && isPlayingStory)
+                          ? 'Loading audio…'
+                          : (isPlaying ? 'Pause' : 'Play Story · $durationLabel'),
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
