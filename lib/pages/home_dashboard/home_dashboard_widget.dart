@@ -363,6 +363,9 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       return;
     }
     if (mounted) safeSetState(() => _model.playingStoryId = storyId);
+    debugPrint('playing story: $storyId');
+    debugPrint('playUrl - 1: $playUrl');
+    debugPrint('mode: PlayerMode.mediaPlayer');
     await _audioPlayer.play(UrlSource(playUrl), mode: PlayerMode.mediaPlayer);
     if (mounted) safeSetState(() => _model.isPlaying = true);
   }
