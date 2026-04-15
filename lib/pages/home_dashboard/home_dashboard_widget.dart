@@ -56,6 +56,30 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final AudioPlayer _audioPlayer = AudioPlayer();
   late final AnimationController _idleWaveController;
+  int _playNonce = 0;
+
+  /// Some native players/CDNs cache audio aggressively by URL.
+  /// Add a cache-busting query param only for non-signed URLs.
+  String _cacheBustUrlIfSafe(String url) {
+    final u = url.trim();
+    if (u.isEmpty) return u;
+    final lower = u.toLowerCase();
+    // Avoid mutating signed URLs (e.g. S3/GCS presigned) which include signature query params.
+    if (lower.contains('x-amz-signature') ||
+        lower.contains('x-amz-credential') ||
+        lower.contains('x-amz-algorithm') ||
+        lower.contains('x-amz-date') ||
+        lower.contains('x-amz-security-token') ||
+        lower.contains('signature=') ||
+        lower.contains('token=')) {
+      return u;
+    }
+    final uri = Uri.tryParse(u);
+    if (uri == null) return u;
+    final qp = <String, String>{...uri.queryParameters};
+    qp['_cb'] = DateTime.now().millisecondsSinceEpoch.toString();
+    return uri.replace(queryParameters: qp).toString();
+  }
 
   @override
   void initState() {
@@ -68,24 +92,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) safeSetState(() {
         _model.isPlaying = false;
-        _model.isBuffering = false;
         _model.playingStoryId = null;
         _model.playbackPosition = Duration.zero;
-      });
-    });
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (!mounted) return;
-      safeSetState(() {
-        if (state == PlayerState.playing) {
-          _model.isPlaying = true;
-          _model.isBuffering = false;
-        } else if (state == PlayerState.paused) {
-          _model.isPlaying = false;
-          _model.isBuffering = false;
-        } else if (state == PlayerState.stopped) {
-          _model.isPlaying = false;
-          _model.isBuffering = false;
-        }
       });
     });
     _audioPlayer.onDurationChanged.listen((d) {
@@ -311,37 +319,25 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
     // Prefer voice/speak URL (user's cloned voice); check cache first
     final cached = _model.voicePlayUrlCache[storyId];
-    if (cached != null && cached.isNotEmpty) {
-      debugPrint('[HomeDashboard] playUrl cache hit storyId=$storyId');
-      return cached;
-    }
+    if (cached != null && cached.isNotEmpty) return cached;
 
     final voiceId = _model.voiceId;
     if (voiceId != null && voiceId.isNotEmpty) {
       try {
-        final t0 = DateTime.now();
         final res = await BackendClient.getStoryPlayUrl(storyId);
         final url = res['playUrl']?.toString();
         if (url != null && url.isNotEmpty) {
-          debugPrint(
-            '[HomeDashboard] GET /api/voice/speak/$storyId ${DateTime.now().difference(t0).inMilliseconds}ms',
-          );
           safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
           return url;
         }
       } catch (_) {
         try {
-          final t0 = DateTime.now();
-          debugPrint('[HomeDashboard] playUrl missing; generating audio storyId=$storyId');
           final res = await BackendClient.voiceGenerateAudio(
             voiceId: voiceId,
             storyId: storyId,
           );
           final url = res['url']?.toString();
           if (url != null && url.isNotEmpty) {
-            debugPrint(
-              '[HomeDashboard] POST /api/voice/generate_audio ${DateTime.now().difference(t0).inMilliseconds}ms',
-            );
             safeSetState(() => _model.voicePlayUrlCache[storyId] = url);
             return url;
           }
@@ -381,32 +377,37 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       if (mounted) safeSetState(() { _model.isPlaying = true; });
       return;
     }
-    if (mounted) {
-      safeSetState(() {
-        _model.playingStoryId = storyId;
-        _model.isBuffering = true;
-        _model.isPlaying = false;
-      });
-    }
     final playUrl = await _getPlayUrlForStory(story);
 
     debugPrint('playUrl: $playUrl');
     if (playUrl == null || playUrl.isEmpty) {
       if (mounted) {
-        safeSetState(() => _model.isBuffering = false);
         AppToast.info(context, 'No audio available for this story');
       }
       return;
     }
-    final t0 = DateTime.now();
+    // Ensure we don't get stale/cached audio from a previous source.
+    // (Some devices will otherwise reuse a buffered/previous track for the same URL.)
+    final nonce = ++_playNonce;
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.release();
+    } catch (_) {
+      // best-effort
+    }
+    if (!mounted || nonce != _playNonce) return;
+    safeSetState(() {
+      _model.playingStoryId = storyId;
+      _model.isPlaying = false;
+      _model.playbackPosition = Duration.zero;
+      _model.playbackDuration = Duration.zero;
+    });
     debugPrint('playing story: $storyId');
     debugPrint('playUrl - 1: $playUrl');
     debugPrint('mode: PlayerMode.mediaPlayer');
-    await _audioPlayer.play(UrlSource(playUrl), mode: PlayerMode.mediaPlayer);
-    debugPrint(
-      '[HomeDashboard] audioPlayer.play returned in ${DateTime.now().difference(t0).inMilliseconds}ms storyId=$storyId',
-    );
-    // Keep buffering=true until PlayerState.playing arrives.
+    final urlToPlay = _cacheBustUrlIfSafe(playUrl);
+    await _audioPlayer.play(UrlSource(urlToPlay), mode: PlayerMode.mediaPlayer);
+    if (mounted) safeSetState(() => _model.isPlaying = true);
   }
 
   Future<void> _navigateToPlayerWithVoice(Map<String, dynamic> story) async {
@@ -834,17 +835,13 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      (_model.isBuffering && isPlayingStory)
-                          ? Icons.hourglass_top
-                          : (isPlaying ? Icons.pause : Icons.play_arrow),
+                      isPlaying ? Icons.pause : Icons.play_arrow,
                       color: _AppColors.surface,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      (_model.isBuffering && isPlayingStory)
-                          ? 'Loading audio…'
-                          : (isPlaying ? 'Pause' : 'Play Story · $durationLabel'),
+                      isPlaying ? 'Pause' : 'Play Story · $durationLabel',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

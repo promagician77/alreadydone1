@@ -28,7 +28,6 @@ class HomeDashboardModel extends FlutterFlowModel<HomeDashboardWidget> {
 
   int? playingStoryId;
   bool isPlaying = false;
-  bool isBuffering = false;
 
   Map<int, int> durationCache = {};
 
