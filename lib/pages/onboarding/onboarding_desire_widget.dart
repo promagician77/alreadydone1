@@ -8,7 +8,6 @@ import '/services/app_toast.dart';
 import '/services/ai_consent_service.dart';
 import '/widgets/pressable.dart';
 import '/flutter_flow/nav/nav.dart';
-import '/pages/subscription/subscription_widget.dart';
 import 'onboarding_state.dart';
 import 'onboarding_personalize_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
@@ -156,7 +155,9 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
             context,
             'You can create one story per day without a subscription. Subscribe to create more.',
           );
-          context.go(SubscriptionWidget.routePath);
+          final returnTo =
+              Uri.encodeComponent(OnboardingDesireWidget.routePath);
+          context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
           return;
         }
       }
@@ -199,7 +200,9 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
             context,
             'You can create one story per day without a subscription. Subscribe to create more.',
           );
-          context.go(SubscriptionWidget.routePath);
+          final returnTo =
+              Uri.encodeComponent(OnboardingDesireWidget.routePath);
+          context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
         } else {
           AppToast.error(context, 'Failed to generate story. Please try again.');
         }
