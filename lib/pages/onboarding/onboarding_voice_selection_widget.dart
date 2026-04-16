@@ -755,6 +755,10 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
   bool _isPlaying = false;
   bool _isLoading = true;
   String? _error;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+  bool _isScrubbing = false;
+  double _scrubValueSeconds = 0;
 
   String? get _mimeType {
     final c = widget.contentType;
@@ -776,8 +780,21 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
         });
       }
     });
+    _player.onDurationChanged.listen((d) {
+      if (!mounted) return;
+      setState(() => _duration = d);
+    });
+    _player.onPositionChanged.listen((p) {
+      if (!mounted) return;
+      if (_isScrubbing) return;
+      setState(() => _position = p);
+    });
     _player.onPlayerComplete.listen((_) {
-      if (mounted) setState(() => _isPlaying = false);
+      if (!mounted) return;
+      setState(() {
+        _isPlaying = false;
+        _position = _duration;
+      });
     });
     _play();
   }
@@ -809,6 +826,19 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
     }
   }
 
+  Future<void> _seekToSeconds(double seconds) async {
+    if (_error != null) return;
+    final clamped = seconds.clamp(0, _duration.inMilliseconds / 1000.0);
+    await _player.seek(Duration(milliseconds: (clamped * 1000).round()));
+  }
+
+  String _fmt(Duration d) {
+    final totalSeconds = d.inSeconds;
+    final m = (totalSeconds ~/ 60).toString().padLeft(1, '0');
+    final s = (totalSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
   @override
   void dispose() {
     _player.dispose();
@@ -817,66 +847,289 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        'Preview: ${widget.voiceName}',
-        style: GoogleFonts.outfit(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: AuthTheme.ink,
-        ),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                _error!,
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  color: Colors.red.shade700,
+    final theme = Theme.of(context);
+    final effectivePosition = _isScrubbing
+        ? Duration(milliseconds: (_scrubValueSeconds * 1000).round())
+        : _position;
+    final durationSeconds = (_duration.inMilliseconds / 1000.0);
+    final sliderMax = durationSeconds.isFinite && durationSeconds > 0 ? durationSeconds : 1.0;
+    final sliderValueSeconds = durationSeconds > 0
+        ? (effectivePosition.inMilliseconds / 1000.0).clamp(0.0, sliderMax)
+        : 0.0;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.96, end: 1),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Material(
+            color: AuthTheme.warmWhite,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [AuthTheme.goldPale, AuthTheme.warmWhite],
+                            ),
+                            border: Border.all(color: AuthTheme.goldLight, width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              widget.voiceName.isNotEmpty
+                                  ? widget.voiceName.characters.first.toUpperCase()
+                                  : 'V',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AuthTheme.ink,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.voiceName,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: AuthTheme.ink,
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _error != null
+                                          ? Colors.red.shade600
+                                          : (_isPlaying ? AuthTheme.gold : AuthTheme.inkSoft),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _error != null
+                                        ? 'Preview unavailable'
+                                        : _isLoading
+                                            ? 'Loading preview…'
+                                            : _isPlaying
+                                                ? 'Playing'
+                                                : 'Paused',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AuthTheme.inkSoft,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Close',
+                          onPressed: widget.onClose,
+                          icon: const Icon(Icons.close_rounded),
+                          color: AuthTheme.inkMid,
+                          splashRadius: 20,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    if (_error != null)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.18)),
+                        ),
+                        child: Text(
+                          _error!,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.red.shade700,
+                            height: 1.35,
+                          ),
+                        ),
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SliderTheme(
+                            data: theme.sliderTheme.copyWith(
+                              trackHeight: 4,
+                              activeTrackColor: AuthTheme.gold,
+                              inactiveTrackColor: AuthTheme.stone,
+                              thumbColor: AuthTheme.gold,
+                              overlayColor: AuthTheme.gold.withValues(alpha: 0.12),
+                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                              overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+                            ),
+                            child: Slider(
+                              min: 0,
+                              max: sliderMax,
+                              value: sliderValueSeconds,
+                              onChangeStart: (_) {
+                                setState(() {
+                                  _isScrubbing = true;
+                                  _scrubValueSeconds = sliderValueSeconds;
+                                });
+                              },
+                              onChanged: _duration.inMilliseconds <= 0
+                                  ? null
+                                  : (v) => setState(() => _scrubValueSeconds = v),
+                              onChangeEnd: (v) async {
+                                setState(() => _isScrubbing = false);
+                                await _seekToSeconds(v);
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _fmt(effectivePosition),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AuthTheme.inkSoft,
+                                  ),
+                                ),
+                                Text(
+                                  _fmt(_duration),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AuthTheme.inkSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: SizedBox(
+                              width: 64,
+                              height: 64,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  if (_isLoading)
+                                    const SizedBox(
+                                      width: 64,
+                                      height: 64,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 3,
+                                        color: AuthTheme.gold,
+                                      ),
+                                    )
+                                  else
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AuthTheme.gold,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AuthTheme.ink.withValues(alpha: 0.10),
+                                            blurRadius: 14,
+                                            offset: const Offset(0, 6),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  IconButton(
+                                    onPressed: _togglePlayPause,
+                                    iconSize: 34,
+                                    color: Colors.white,
+                                    tooltip: _isPlaying ? 'Pause' : 'Play',
+                                    icon: Icon(
+                                      _isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Tap play to hear how your manifestations will sound.',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: AuthTheme.inkSoft,
+                              height: 1.35,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: widget.onClose,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AuthTheme.inkMid,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(color: AuthTheme.stoneMid.withValues(alpha: 0.7)),
+                              ),
+                            ),
+                            child: Text(
+                              'Close',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AuthTheme.gold,
-                    ),
-                  ),
-                ),
-              IconButton.filled(
-                onPressed: _error != null ? null : _togglePlayPause,
-                icon: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                style: IconButton.styleFrom(
-                  backgroundColor: AuthTheme.gold,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: widget.onClose,
-          child: Text(
-            'Close',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: AuthTheme.gold),
           ),
         ),
-      ],
+      ),
     );
   }
 }
