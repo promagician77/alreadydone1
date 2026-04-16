@@ -148,6 +148,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   void initState() {
     super.initState();
     _state = OnboardingState.instance;
+    _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     // Mark that the user has generated their first story so relaunch routing works.
     OnboardingService.setFirstStoryGenerated();
     _audioPlayer.onPlayerComplete.listen((_) {

@@ -85,6 +85,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   void initState() {
     super.initState();
     _model = createModel(context, () => HomeDashboardModel());
+    _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     _idleWaveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
