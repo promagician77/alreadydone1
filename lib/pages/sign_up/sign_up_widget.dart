@@ -10,6 +10,14 @@ import '/widgets/pressable.dart';
 import 'sign_up_model.dart';
 export 'sign_up_model.dart';
 
+/// Uppercases the first letter of the full string and the first letter after each whitespace.
+String _capitalizeNameWordStarts(String text) {
+  if (text.isEmpty) return text;
+  return text.replaceAllMapped(RegExp(r'(^|[\s])(\S)'), (m) {
+    return '${m.group(1)}${m.group(2)!.toUpperCase()}';
+  });
+}
+
 class SignUpWidget extends StatefulWidget {
   const SignUpWidget({super.key});
 
@@ -118,6 +126,8 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                         focusNode: _model.nameFocusNode,
                         hint: 'Jordan Smith',
                         keyboardType: TextInputType.name,
+                        textCapitalization: TextCapitalization.words,
+                        onChanged: _onFullNameChanged,
                       ),
                       const SizedBox(height: 16),
                       _label('Email Address'),
@@ -165,18 +175,34 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
   Widget _label(String text) => Text(text, style: AuthTheme.labelStyle);
 
+  void _onFullNameChanged(String value) {
+    final next = _capitalizeNameWordStarts(value);
+    if (next == value) return;
+    final c = _model.nameTextController;
+    final offset = c.selection.baseOffset.clamp(0, next.length);
+    c.value = c.value.copyWith(
+      text: next,
+      selection: TextSelection.collapsed(offset: offset),
+      composing: TextRange.empty,
+    );
+  }
+
   Widget _input({
     required TextEditingController controller,
     required FocusNode focusNode,
     required String hint,
     TextInputType? keyboardType,
     bool obscureText = false,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    ValueChanged<String>? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       focusNode: focusNode,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      onChanged: onChanged,
       style: AuthTheme.bodyStyle,
       decoration: InputDecoration(
         hintText: hint,
