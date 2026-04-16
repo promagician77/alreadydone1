@@ -757,6 +757,7 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
   String? _error;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  bool _isCompleted = false;
   bool _isScrubbing = false;
   double _scrubValueSeconds = 0;
 
@@ -774,6 +775,7 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
       if (mounted) {
         setState(() {
           _isPlaying = state == PlayerState.playing;
+          if (state == PlayerState.playing) _isCompleted = false;
           if (state == PlayerState.playing || state == PlayerState.completed) {
             _isLoading = false;
           }
@@ -793,6 +795,7 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
       if (!mounted) return;
       setState(() {
         _isPlaying = false;
+        _isCompleted = true;
         _position = _duration;
       });
     });
@@ -822,16 +825,23 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
     if (_isPlaying) {
       await _player.pause();
     } else {
-      // If the preview already finished, restart from the beginning.
-      final durMs = _duration.inMilliseconds;
-      if (durMs > 0) {
-        final posMs = _position.inMilliseconds;
-        if (posMs >= durMs - 250) {
-          await _player.seek(Duration.zero);
-          if (mounted) setState(() => _position = Duration.zero);
+      final nearEnd = _duration.inMilliseconds > 0 &&
+          (_position.inMilliseconds >= (_duration.inMilliseconds - 250));
+      if (_isCompleted || nearEnd) {
+        // Common-player behavior: replay from start after completion.
+        setState(() => _isLoading = true);
+        try {
+          await _player.stop();
+          await _player.play(
+            BytesSource(widget.audioBytes, mimeType: _mimeType),
+            mode: PlayerMode.mediaPlayer,
+          );
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
         }
+      } else {
+        await _player.resume();
       }
-      await _player.resume();
     }
   }
 
