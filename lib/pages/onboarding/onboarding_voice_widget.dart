@@ -982,131 +982,129 @@ class _VoiceListenSheetState extends State<_VoiceListenSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        bottom: bottom + 16,
-        top: 12,
-      ),
-      child: Material(
-        color: AuthTheme.warmWhite,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AuthTheme.stone,
-                    borderRadius: BorderRadius.circular(2),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Material(
+          color: AuthTheme.warmWhite,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AuthTheme.stone,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                widget.title,
-                style: AuthTheme.welcomeTitleStyle.copyWith(fontSize: 22),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                widget.subtitle,
-                style: AuthTheme.welcomeSubStyle.copyWith(fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AuthTheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AuthTheme.stone),
+                const SizedBox(height: 16),
+                Text(
+                  widget.title,
+                  style: AuthTheme.welcomeTitleStyle.copyWith(fontSize: 22),
+                  textAlign: TextAlign.center,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      height: 36,
-                      child: _buildListenWaveform(_visibleWaveBars, _listenWaveBars),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _formatDuration(_position.inSeconds),
-                          style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
-                        ),
-                        Text(
-                          _formatDuration(_duration.inSeconds),
-                          style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _listenPlayerControl(
-                          icon: Icons.skip_previous,
-                          size: 36,
-                          onTap: _duration.inSeconds > 0 ? _skipBackward : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Pressable(
-                          onTap: _togglePlayPause,
-                          borderRadius: BorderRadius.circular(28),
-                          child: Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: AuthTheme.gold,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AuthTheme.ink.withValues(alpha: 0.08),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              _isPlaying ? Icons.pause : Icons.play_arrow,
-                              size: 28,
-                              color: AuthTheme.surface,
+                const SizedBox(height: 6),
+                Text(
+                  widget.subtitle,
+                  style: AuthTheme.welcomeSubStyle.copyWith(fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AuthTheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AuthTheme.stone),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 36,
+                        child: _buildListenWaveform(_visibleWaveBars, _listenWaveBars),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatDuration(_position.inSeconds),
+                            style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
+                          ),
+                          Text(
+                            _formatDuration(_duration.inSeconds),
+                            style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _listenPlayerControl(
+                            icon: Icons.skip_previous,
+                            size: 36,
+                            onTap: _duration.inSeconds > 0 ? _skipBackward : null,
+                          ),
+                          const SizedBox(width: 16),
+                          Pressable(
+                            onTap: _togglePlayPause,
+                            borderRadius: BorderRadius.circular(28),
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: AuthTheme.gold,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AuthTheme.ink.withValues(alpha: 0.08),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                _isPlaying ? Icons.pause : Icons.play_arrow,
+                                size: 28,
+                                color: AuthTheme.surface,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        _listenPlayerControl(
-                          icon: Icons.skip_next,
-                          size: 36,
-                          onTap: _duration.inSeconds > 0 ? _skipForward : null,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Close',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w600,
-                    color: AuthTheme.inkSoft,
+                          const SizedBox(width: 16),
+                          _listenPlayerControl(
+                            icon: Icons.skip_next,
+                            size: 36,
+                            onTap: _duration.inSeconds > 0 ? _skipForward : null,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Close',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w600,
+                      color: AuthTheme.inkSoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
