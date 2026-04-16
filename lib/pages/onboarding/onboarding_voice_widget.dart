@@ -984,6 +984,7 @@ class _VoiceListenSheetState extends State<_VoiceListenSheet> {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
+      bottom: false,
       child: Padding(
         padding: const EdgeInsets.only(top: 10),
         child: Material(
