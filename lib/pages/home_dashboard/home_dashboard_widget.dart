@@ -29,6 +29,7 @@ class _AppColors {
   static const stone = Color(0xFFE8E2DA);
   static const gold = Color(0xFFB8861E);
   static const goldLight = Color(0xFFD4A574);
+  static const goldDark = Color(0xFF8B6914);
   static const goldPale = Color(0xFFFBF4E6);
   static const blush = Color(0xFFD98B80);
   static const blushLight = Color(0xFFFDF0EE);
@@ -725,12 +726,33 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                   width: double.infinity,
                   height: h.clamp(6.0, 34.0),
                   decoration: BoxDecoration(
+                    gradient: isPlayed
+                        ? const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              _AppColors.goldLight,
+                              _AppColors.gold,
+                              _AppColors.goldDark,
+                            ],
+                            stops: [0.0, 0.55, 1.0],
+                          )
+                        : null,
                     color: isPlayed
-                        ? _AppColors.gold
+                        ? null
                         : (isAnimated && visibleCount == 0
-                            ? _AppColors.gold.withValues(alpha: 0.5)
+                            ? _AppColors.stone.withValues(alpha: 0.9)
                             : _AppColors.stone),
-                    borderRadius: BorderRadius.circular(1),
+                    borderRadius: BorderRadius.circular(3),
+                    boxShadow: isPlayed
+                        ? [
+                            BoxShadow(
+                              color: _AppColors.gold.withValues(alpha: 0.22),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
               ),

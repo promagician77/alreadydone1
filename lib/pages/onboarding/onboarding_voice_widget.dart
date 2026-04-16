@@ -66,8 +66,25 @@ Widget _buildListenWaveform(int visibleCount, int totalBars) {
             width: double.infinity,
             height: h.clamp(6.0, 36.0),
             decoration: BoxDecoration(
-              color: isPlayed ? AuthTheme.gold : AuthTheme.stone,
-              borderRadius: BorderRadius.circular(1),
+              gradient: isPlayed
+                  ? const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AuthTheme.goldLight, AuthTheme.gold, AuthTheme.goldDark],
+                      stops: [0.0, 0.55, 1.0],
+                    )
+                  : null,
+              color: isPlayed ? null : AuthTheme.stone,
+              borderRadius: BorderRadius.circular(3),
+              boxShadow: isPlayed
+                  ? [
+                      BoxShadow(
+                        color: AuthTheme.gold.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
           ),
         ),
