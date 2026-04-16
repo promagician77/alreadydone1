@@ -20,7 +20,6 @@ import '/pages/onboarding/onboarding_desire_widget.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
 
-/// Design tokens from HTML (pixel-perfect match)
 class _AppColors {
   static const warmWhite = Color(0xFFF9F7F4);
   static const surface = Color(0xFFFEFDFB);
@@ -386,8 +385,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       }
       return;
     }
-    // Ensure we don't get stale/cached audio from a previous source.
-    // (Some devices will otherwise reuse a buffered/previous track for the same URL.)
     final nonce = ++_playNonce;
     try {
       await _audioPlayer.stop();

@@ -66,9 +66,16 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       final profile = await BackendClient.getUserProfile(userId);
       if (!mounted) return;
       final name = (profile['name'] as String? ?? '').toString().trim();
-      final loc = (profile['location'] ?? profile['country_city'] ?? profile['dream_place'] ?? '').toString().trim();
-      final loved = (profile['lovedOne'] ?? profile['someone_love'] ?? profile['someone_you_love'] ?? '').toString().trim();
-      final energyWord = (profile['energy_word'] ?? profile['energyWord'] ?? '').toString();
+      final loc = (profile['location'] ?? '').toString().trim();
+      final loved = (profile['lovedOne'] ?? '').toString().trim();
+      final energyWord = (profile['energyWord'] ?? '').toString();
+
+      debugPrint('Profile: $profile');
+      debugPrint('Name: $name');
+      debugPrint('Location: $loc');
+      debugPrint('Loved: $loved');
+      debugPrint('Energy Word: $energyWord');
+
       if (name.isNotEmpty) _state.firstNameController.text = name;
       if (loc.isNotEmpty) _state.dreamLocationController.text = loc;
       if (loved.isNotEmpty) _state.lovedOneController.text = loved;
