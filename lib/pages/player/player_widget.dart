@@ -1912,6 +1912,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
                             textAlign: TextAlign.center,
                           ),
                         ),
+                        const SizedBox(height: 14),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: Text(
+                            "Please keep the app open and don't lock your screen.",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _PlayerColors.ink,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1938,6 +1952,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
                               height: 1.4,
                             ),
                             textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: Text(
+                            "Please keep the app open and don't lock your screen.",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _PlayerColors.ink,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       ],
