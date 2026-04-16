@@ -822,6 +822,15 @@ class _VoicePreviewModalState extends State<_VoicePreviewModal> {
     if (_isPlaying) {
       await _player.pause();
     } else {
+      // If the preview already finished, restart from the beginning.
+      final durMs = _duration.inMilliseconds;
+      if (durMs > 0) {
+        final posMs = _position.inMilliseconds;
+        if (posMs >= durMs - 250) {
+          await _player.seek(Duration.zero);
+          if (mounted) setState(() => _position = Duration.zero);
+        }
+      }
       await _player.resume();
     }
   }
