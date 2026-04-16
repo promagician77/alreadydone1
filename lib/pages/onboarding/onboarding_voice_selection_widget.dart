@@ -193,6 +193,20 @@ class _OnboardingVoiceSelectionWidgetState
                           textAlign: TextAlign.center,
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: Text(
+                          "Please keep the app open and don't lock your screen.",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AuthTheme.ink,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
