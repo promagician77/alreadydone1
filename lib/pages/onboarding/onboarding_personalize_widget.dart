@@ -44,6 +44,16 @@ List<List<T>> _chunked<T>(List<T> list, int size) {
   return result;
 }
 
+String _capitalizeFirst(String text) {
+  final t = text.trimLeft();
+  if (t.isEmpty) return text;
+  final first = t.characters.first.toUpperCase();
+  final rest = t.characters.skip(1).toString();
+  // Preserve original left padding/spaces the user typed.
+  final leading = text.substring(0, text.length - t.length);
+  return '$leading$first$rest';
+}
+
 Widget _formInput(TextEditingController controller, String hint) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -54,6 +64,18 @@ Widget _formInput(TextEditingController controller, String hint) {
     ),
     child: TextField(
       controller: controller,
+      textCapitalization: TextCapitalization.words,
+      onChanged: (value) {
+        final next = _capitalizeFirst(value);
+        if (next == value) return;
+        final oldSelection = controller.selection;
+        final offset = oldSelection.baseOffset.clamp(0, next.length);
+        controller.value = controller.value.copyWith(
+          text: next,
+          selection: TextSelection.collapsed(offset: offset),
+          composing: TextRange.empty,
+        );
+      },
       style: AuthTheme.bodyStyle.copyWith(fontSize: 15),
       decoration: InputDecoration(
         hintText: hint,
