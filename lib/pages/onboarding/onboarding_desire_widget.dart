@@ -228,7 +228,8 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 22),
                   color: AuthTheme.gold,
-                  onPressed: () => context.pop(),
+                  onPressed: () =>
+                      context.go(OnboardingPersonalizeWidget.routePath),
                 ),
               ),
             ),
