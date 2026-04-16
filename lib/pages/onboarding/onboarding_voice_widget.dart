@@ -515,13 +515,37 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
                       const CircularProgressIndicator(color: AuthTheme.gold),
                       const SizedBox(height: 16),
                       Text(
-                        'Creating your voice clone... \n This can take 30-45 seconds.',
+                        'Creating your voice clone...',
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This can take 30–45 seconds.',
                         textAlign: TextAlign.center,
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: Text(
+                          "Please keep the app open and don't lock your screen.",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                            height: 1.35,
+                          ),
+                        ),
                       ),
                     ],
                   ),

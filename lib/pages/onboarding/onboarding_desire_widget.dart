@@ -406,6 +406,20 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                           color: Colors.white,
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: Text(
+                          "Please keep the app open and don't lock your screen.",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
