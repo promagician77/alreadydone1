@@ -13,7 +13,7 @@ class BackendClient {
 
   static String _baseUrl = _defaultBaseUrl;
 
-  static const String _defaultBaseUrl = 'http://10.0.2.2:5000';
+  static const String _defaultBaseUrl = 'http://10.0.2.2:8000';
 
   static void initialize({String? baseUrl}) {
     _baseUrl = (baseUrl ?? _defaultBaseUrl).replaceAll(RegExp(r'/$'), '');
