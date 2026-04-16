@@ -81,6 +81,42 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     return uri.replace(queryParameters: qp).toString();
   }
 
+  int? _parseDurationSeconds(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    if (raw is num) return raw.round();
+    final text = raw.toString().trim();
+    if (text.isEmpty) return null;
+    final clock = RegExp(r'^(\d+):(\d{2})$').firstMatch(text);
+    if (clock != null) {
+      final minutes = int.tryParse(clock.group(1)!);
+      final seconds = int.tryParse(clock.group(2)!);
+      if (minutes != null && seconds != null) {
+        return minutes * 60 + seconds;
+      }
+    }
+    return num.tryParse(text)?.round();
+  }
+
+  int? _storyDurationSeconds(Map<String, dynamic>? story) {
+    if (story == null) return null;
+    return _parseDurationSeconds(
+      story['play_length'] ?? story['playLength'] ?? story['duration'],
+    );
+  }
+
+  int? _storyDurationSecondsById(int? storyId) {
+    if (storyId == null) return null;
+    final story = _model.stories.where((s) {
+      final id = s['id'] is int ? s['id'] as int : int.tryParse(s['id']?.toString() ?? '');
+      return id == storyId;
+    }).cast<Map<String, dynamic>?>().firstWhere(
+          (_) => true,
+          orElse: () => null,
+        );
+    return _storyDurationSeconds(story);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -99,10 +135,24 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     });
     _audioPlayer.onDurationChanged.listen((d) {
       final sid = _model.playingStoryId;
+      debugPrint('duration changed: $d');
+      debugPrint('duration in seconds: ${d.inSeconds}'); 
+      debugPrint('sid: $sid');
+      debugPrint('mounted: $mounted');
+      debugPrint('durationCache: ${_model.durationCache}');
+      debugPrint('playbackDuration: ${_model.playbackDuration}');
+      debugPrint('playbackPosition: ${_model.playbackPosition}');
+      debugPrint('isPlaying: ${_model.isPlaying}');
+      debugPrint('playingStoryId: ${_model.playingStoryId}');
+      debugPrint('durationCache: ${_model.durationCache}');
       if (sid != null && mounted) {
+        final expectedSeconds = _storyDurationSecondsById(sid) ?? 0;
+        final resolvedSeconds = d.inSeconds > expectedSeconds
+            ? d.inSeconds
+            : expectedSeconds;
         safeSetState(() {
-          _model.durationCache[sid] = d.inSeconds;
-          _model.playbackDuration = d;
+          _model.durationCache[sid] = resolvedSeconds;
+          _model.playbackDuration = Duration(seconds: resolvedSeconds);
         });
       }
     });
@@ -395,11 +445,12 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       // best-effort
     }
     if (!mounted || nonce != _playNonce) return;
+    final expectedSeconds = _storyDurationSeconds(story) ?? 0;
     safeSetState(() {
       _model.playingStoryId = storyId;
       _model.isPlaying = false;
       _model.playbackPosition = Duration.zero;
-      _model.playbackDuration = Duration.zero;
+      _model.playbackDuration = Duration(seconds: expectedSeconds);
     });
     debugPrint('playing story: $storyId');
     debugPrint('playUrl - 1: $playUrl');
@@ -466,21 +517,18 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
   String _durationFromStory(Map<String, dynamic> story) {
     final storyId = story['id'] is int ? story['id'] as int : int.tryParse(story['id']?.toString() ?? '');
+    debugPrint('storyId: $storyId');
     final cached = storyId != null ? _model.durationCache[storyId] : null;
-    final d = cached ?? story['play_length'] ?? story['playLength'] ?? story['duration'];
+    final storySeconds = _storyDurationSeconds(story);
+    final d = cached != null && storySeconds != null
+        ? (cached > storySeconds ? cached : storySeconds)
+        : (cached ?? storySeconds);
     if (d == null) return '--:--';
-    int secs;
-    if (d is int) {
-      secs = d;
-    } else if (d is num) {
-      secs = d.round();
-    } else {
-      final parsed = num.tryParse(d.toString());
-      if (parsed == null) return '--:--';
-      secs = parsed.round();
-    }
+    debugPrint('d: $d');
+    final secs = d is int ? d : (d is num ? d.round() : (_parseDurationSeconds(d) ?? 0));
     final m = secs ~/ 60;
     final s = secs % 60;
+    debugPrint('${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}');
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 

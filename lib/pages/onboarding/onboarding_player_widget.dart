@@ -109,8 +109,36 @@ class OnboardingPlayerWidget extends StatefulWidget {
 }
 
 class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
+  int? _parseDurationSeconds(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    if (raw is num) return raw.round();
+    final text = raw.toString().trim();
+    if (text.isEmpty) return null;
+    final clock = RegExp(r'^(\d+):(\d{2})$').firstMatch(text);
+    if (clock != null) {
+      final minutes = int.tryParse(clock.group(1)!);
+      final seconds = int.tryParse(clock.group(2)!);
+      if (minutes != null && seconds != null) {
+        return minutes * 60 + seconds;
+      }
+    }
+    return num.tryParse(text)?.round();
+  }
+
+  Duration get _expectedDuration {
+    final seconds = _parseDurationSeconds(
+      _state.generatedStory?['play_length'] ?? _state.generatedStory?['duration'],
+    );
+    if (seconds == null || seconds <= 0) return Duration.zero;
+    return Duration(seconds: seconds);
+  }
+
+  Duration get _effectiveDuration =>
+      _expectedDuration > _duration ? _expectedDuration : _duration;
+
   int get _visibleWaveBars {
-    final dur = _duration.inMilliseconds;
+    final dur = _effectiveDuration.inMilliseconds;
     if (dur <= 0) return 0;
     final pos = _position.inMilliseconds;
     final ratio = (pos / dur).clamp(0.0, 1.0);
@@ -161,7 +189,11 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       }
     });
     _audioPlayer.onDurationChanged.listen((d) {
-      if (mounted) setState(() => _duration = d);
+      if (mounted) {
+        setState(() {
+          _duration = d > _expectedDuration ? d : _expectedDuration;
+        });
+      }
     });
     _audioPlayer.onPositionChanged.listen((p) {
       if (mounted) setState(() => _position = p);
@@ -189,7 +221,9 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
         if (mounted) setState(() => _isPlaying = false);
       } else {
         final atStart = _position == Duration.zero;
-        final atEnd = _duration > Duration.zero && _position >= _duration;
+        final effectiveDuration = _effectiveDuration;
+        final atEnd =
+            effectiveDuration > Duration.zero && _position >= effectiveDuration;
         if (atStart || atEnd) {
           await _audioPlayer.play(
             UrlSource(url),
@@ -216,13 +250,17 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
 
   Future<void> _skipBackward() async {
     final newPos = _position.inSeconds - _skipSeconds;
-    final target = Duration(seconds: newPos.clamp(0, _duration.inSeconds));
+    final target = Duration(
+      seconds: newPos.clamp(0, _effectiveDuration.inSeconds),
+    );
     await _audioPlayer.seek(target);
   }
 
   Future<void> _skipForward() async {
     final newPos = _position.inSeconds + _skipSeconds;
-    final target = Duration(seconds: newPos.clamp(0, _duration.inSeconds));
+    final target = Duration(
+      seconds: newPos.clamp(0, _effectiveDuration.inSeconds),
+    );
     await _audioPlayer.seek(target);
   }
 
@@ -349,6 +387,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
           : ((profileVoiceId ?? '').trim().isNotEmpty ? profileVoiceId!.trim() : null);
 
       String? newAudioUrl;
+      dynamic newPlayLength;
       if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
         try {
           final audioRes = await BackendClient.voiceGenerateAudio(
@@ -357,6 +396,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
           );
           final url = audioRes['url']?.toString().trim();
           if (url != null && url.isNotEmpty) newAudioUrl = url;
+          newPlayLength = audioRes['play_length'];
         } catch (_) {
           // If audio generation fails, keep existing audio; user can still read the deepened story.
         }
@@ -369,6 +409,9 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
         _state.generatedStory!['theme'] = theme;
         _state.generatedStory!['title'] = theme;
         _state.generatedStory!['story'] = storyText;
+        if (newPlayLength != null) {
+          _state.generatedStory!['play_length'] = newPlayLength;
+        }
         if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
           _state.voicePlayUrl = newAudioUrl;
         }
@@ -523,8 +566,8 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _duration.inSeconds > 0
-                          ? '${_formatDurationReadable(_duration.inSeconds)} · ${_voiceSubtitle}'
+                      _effectiveDuration.inSeconds > 0
+                          ? '${_formatDurationReadable(_effectiveDuration.inSeconds)} · ${_voiceSubtitle}'
                           : _voiceSubtitle,
                       style: AuthTheme.welcomeSubStyle,
                       textAlign: TextAlign.center,
@@ -563,7 +606,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                                 style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
                               ),
                               Text(
-                                _formatDuration(_duration.inSeconds),
+                                _formatDuration(_effectiveDuration.inSeconds),
                                 style: GoogleFonts.outfit(fontSize: 11, color: AuthTheme.inkSoft),
                               ),
                             ],
@@ -575,7 +618,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                               _playerControl(
                                 icon: Icons.skip_previous,
                                 size: 36,
-                                onTap: _duration.inSeconds > 0 ? _skipBackward : null,
+                                onTap: _effectiveDuration.inSeconds > 0 ? _skipBackward : null,
                               ),
                               const SizedBox(width: 16),
                               Pressable(
@@ -608,7 +651,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                               _playerControl(
                                 icon: Icons.skip_next,
                                 size: 36,
-                                onTap: _duration.inSeconds > 0 ? _skipForward : null,
+                                onTap: _effectiveDuration.inSeconds > 0 ? _skipForward : null,
                               ),
                             ],
                           ),

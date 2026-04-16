@@ -242,7 +242,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     });
     _durationChangedSub = _audioPlayer.onDurationChanged.listen((d) {
-      if (!_disposed && mounted) setState(() => _duration = d);
+      if (!_disposed && mounted) {
+        setState(() {
+          _duration = d > _expectedDuration ? d : _expectedDuration;
+        });
+      }
     });
     _positionChangedSub = _audioPlayer.onPositionChanged.listen((p) {
       if (!_disposed && mounted) setState(() => _position = p);
@@ -957,6 +961,32 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
+  int? _parseDurationSeconds(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    if (raw is num) return raw.round();
+    final text = raw.toString().trim();
+    if (text.isEmpty) return null;
+    final clock = RegExp(r'^(\d+):(\d{2})$').firstMatch(text);
+    if (clock != null) {
+      final minutes = int.tryParse(clock.group(1)!);
+      final seconds = int.tryParse(clock.group(2)!);
+      if (minutes != null && seconds != null) {
+        return minutes * 60 + seconds;
+      }
+    }
+    return num.tryParse(text)?.round();
+  }
+
+  Duration get _expectedDuration {
+    final seconds = _parseDurationSeconds(_durationLabel);
+    if (seconds == null || seconds <= 0) return Duration.zero;
+    return Duration(seconds: seconds);
+  }
+
+  Duration get _effectiveDuration =>
+      _expectedDuration > _duration ? _expectedDuration : _duration;
+
   Future<void> _togglePlayPause() async {
     final url = _playUrl;
     if (url == null || url.isEmpty) {
@@ -973,8 +1003,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
         if (mounted) setState(() => _isPlaying = false);
       } else {
         await _applyMixContext();
-
-        if (_position == Duration.zero && _duration == Duration.zero) {
+        final effectiveDuration = _effectiveDuration;
+        if (_position == Duration.zero ||
+            (effectiveDuration > Duration.zero &&
+                _position >= effectiveDuration)) {
           await _audioPlayer.play(
               UrlSource(url), mode: PlayerMode.mediaPlayer);
         } else {
@@ -1009,13 +1041,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _skipBackward() async {
     final newPos = _position.inSeconds - _skipSeconds;
-    final target = Duration(seconds: newPos.clamp(0, _duration.inSeconds));
+    final target = Duration(
+      seconds: newPos.clamp(0, _effectiveDuration.inSeconds),
+    );
     await _audioPlayer.seek(target);
   }
 
   Future<void> _skipForward() async {
     final newPos = _position.inSeconds + _skipSeconds;
-    final target = Duration(seconds: newPos.clamp(0, _duration.inSeconds));
+    final target = Duration(
+      seconds: newPos.clamp(0, _effectiveDuration.inSeconds),
+    );
     await _audioPlayer.seek(target);
   }
 
@@ -2052,8 +2088,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 const SizedBox(height: 8),
                 if (_sleepModeActive)
                   Text(
-                    _duration.inSeconds > 0
-                        ? '${_formatDuration(_duration.inSeconds)} · $_voiceLabel'
+                    _effectiveDuration.inSeconds > 0
+                        ? '${_formatDuration(_effectiveDuration.inSeconds)} · $_voiceLabel'
                         : (_durationLabel ??
                             _subtitle ??
                             '$_voiceLabel · Generated today'),
@@ -2097,8 +2133,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Widget _buildDurationAndVoiceRow() {
-    final durationText = _duration.inSeconds > 0
-        ? _formatDuration(_duration.inSeconds)
+    final durationText = _effectiveDuration.inSeconds > 0
+        ? _formatDuration(_effectiveDuration.inSeconds)
         : (_durationLabel ?? '0:00');
     final isGenerating = _isGeneratingVoice;
 
@@ -2221,7 +2257,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   int get _visibleWaveBars {
-    final dur = _duration.inMilliseconds;
+    final dur = _effectiveDuration.inMilliseconds;
     if (dur <= 0) return 0;
     final pos = _position.inMilliseconds;
     final ratio = (pos / dur).clamp(0.0, 1.0);
@@ -2242,8 +2278,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final barCount = _sleepModeActive ? 9 : _totalWaveBars;
     final heights = _sleepModeActive ? _sleepBarHeights : _barHeights;
     final visible = _sleepModeActive
-        ? (_duration.inMilliseconds > 0
-            ? ((_position.inMilliseconds / _duration.inMilliseconds) *
+        ? (_effectiveDuration.inMilliseconds > 0
+            ? ((_position.inMilliseconds / _effectiveDuration.inMilliseconds) *
                     barCount)
                 .round()
                 .clamp(0, barCount)
@@ -2425,7 +2461,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   /// Progress section: time row above 4px bar
   Widget _buildProgressSection() {
-    final durMs = _duration.inMilliseconds;
+    final durMs = _effectiveDuration.inMilliseconds;
     final posMs = _position.inMilliseconds;
     final progress = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0) : 0.0;
     final textColor = _sleepModeActive
@@ -2457,7 +2493,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   ),
                 ),
                 Text(
-                  _formatDuration(_duration.inSeconds),
+                  _formatDuration(_effectiveDuration.inSeconds),
                   style: GoogleFonts.outfit(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,

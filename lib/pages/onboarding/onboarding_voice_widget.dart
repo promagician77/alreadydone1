@@ -290,6 +290,10 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       );
       final url = res['url']?.toString();
       OnboardingState.instance.voicePlayUrl = url;
+      if (res['play_length'] != null) {
+        OnboardingState.instance.generatedStory ??= <String, dynamic>{};
+        OnboardingState.instance.generatedStory!['play_length'] = res['play_length'];
+      }
       OnboardingState.instance.selectedVoiceName = name;
       OnboardingState.instance.selectedVoiceId = voiceId;
 
