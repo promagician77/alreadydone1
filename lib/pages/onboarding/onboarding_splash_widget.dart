@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/constants/legal_urls.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/pages/subscription/subscription_model.dart';
@@ -28,11 +29,6 @@ class OnboardingSplashWidget extends StatefulWidget {
 
 class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   late SubscriptionModel _model;
-
-  static final Uri _privacyPolicyUrl =
-      Uri.parse('https://www.alreadydone.app/policies/privacy-policy');
-  static final Uri _termsOfServiceUrl =
-      Uri.parse('https://www.alreadydone.app/policies/terms-of-service');
 
   Future<void> _openExternalLink(Uri url) async {
     final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -764,7 +760,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       children: [
         Pressable(
           onTap: () {
-            _openExternalLink(_termsOfServiceUrl);
+            _openExternalLink(kTermsOfServiceUri);
           },
           borderRadius: BorderRadius.circular(4),
           child: Padding(
@@ -782,7 +778,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         const SizedBox(width: 16),
         Pressable(
           onTap: () {
-            _openExternalLink(_privacyPolicyUrl);
+            _openExternalLink(kPrivacyPolicyUri);
           },
           borderRadius: BorderRadius.circular(4),
           child: Padding(

@@ -1,6 +1,6 @@
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
-import '/pages/auth/auth_theme.dart';
+import '/constants/legal_urls.dart';
 import '/pages/onboarding/onboarding_voice_widget.dart';
 import '/pages/subscription/subscription_widget.dart';
 import 'package:flutter/material.dart';
@@ -507,17 +507,17 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                               (
                                 'Contact Us',
                                 '→',
-                                () => launchURL('https://www.alreadydone.app/policies/contact-information'),
+                                () => launchURL(kContactInformationUri.toString()),
                               ),
                               (
                                 'Terms of Service',
                                 '→',
-                                () => launchURL('https://www.alreadydone.app/policies/terms-of-service'),
+                                () => launchURL(kTermsOfServiceUri.toString()),
                               ),
                               (
                                 'Privacy Policy',
                                 '→',
-                                () => launchURL('https://www.alreadydone.app/policies/privacy-policy'),
+                                () => launchURL(kPrivacyPolicyUri.toString()),
                               ),
                             ]),
                             _buildLogoutSection(),

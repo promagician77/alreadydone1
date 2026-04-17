@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '/constants/legal_urls.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/app_toast.dart';
 
@@ -15,13 +16,10 @@ class LegalTermsWidget extends StatelessWidget {
     'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
   );
 
-  Future<void> _openAppleEula(BuildContext context) async {
-    final ok = await launchUrl(
-      _appleStandardEula,
-      mode: LaunchMode.externalApplication,
-    );
+  Future<void> _openUri(BuildContext context, Uri uri) async {
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      AppToast.info(context, 'Could not open Terms of Use link.');
+      AppToast.info(context, 'Could not open link.');
     }
   }
 
@@ -34,7 +32,7 @@ class LegalTermsWidget extends StatelessWidget {
         elevation: 0,
         foregroundColor: AuthTheme.gold,
         title: Text(
-          'Terms of Use',
+          'Terms of Service',
           style: GoogleFonts.outfit(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -50,24 +48,55 @@ class LegalTermsWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Terms of Use (EULA)\n',
+                'Terms of Service',
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AuthTheme.ink,
                 ),
               ),
+              const SizedBox(height: 12),
               Text(
-                'This app uses the Apple Standard EULA for iOS subscriptions.\n',
+                'Read our full Terms of Service on our website.',
                 style: GoogleFonts.outfit(
                   fontSize: 13,
                   height: 1.6,
                   color: AuthTheme.inkMid,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               InkWell(
-                onTap: () => _openAppleEula(context),
+                onTap: () => _openUri(context, kTermsOfServiceUri),
+                child: Text(
+                  kTermsOfServiceUri.toString(),
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AuthTheme.goldDark,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Apple subscriptions',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AuthTheme.ink,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'If you subscribed on iOS, Apple’s standard terms may also apply.',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  height: 1.6,
+                  color: AuthTheme.inkMid,
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () => _openUri(context, _appleStandardEula),
                 child: Text(
                   _appleStandardEula.toString(),
                   style: GoogleFonts.outfit(
@@ -77,15 +106,6 @@ class LegalTermsWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
-              Text(
-                'Before submitting, ensure your App Store Connect metadata also includes a functional link to the Terms of Use (EULA).\n',
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  height: 1.6,
-                  color: AuthTheme.inkSoft,
-                ),
-              ),
             ],
           ),
         ),
@@ -93,4 +113,3 @@ class LegalTermsWidget extends StatelessWidget {
     );
   }
 }
-

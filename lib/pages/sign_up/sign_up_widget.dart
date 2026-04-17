@@ -7,6 +7,7 @@ import '/services/supabase_service.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
+import '/constants/legal_urls.dart';
 import 'sign_up_model.dart';
 export 'sign_up_model.dart';
 
@@ -32,11 +33,6 @@ class _SignUpWidgetState extends State<SignUpWidget> {
   late SignUpModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const String _termsOfServiceUrl =
-      'https://www.alreadydone.app/policies/terms-of-service';
-  static const String _privacyPolicyUrl =
-      'https://www.alreadydone.app/policies/privacy-policy';
-
   late final TapGestureRecognizer _termsTap;
   late final TapGestureRecognizer _privacyTap;
 
@@ -47,11 +43,11 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
     _termsTap = TapGestureRecognizer()
       ..onTap = () {
-        launchURL(_termsOfServiceUrl);
+        launchURL(kTermsOfServiceUri.toString());
       };
     _privacyTap = TapGestureRecognizer()
       ..onTap = () {
-        launchURL(_privacyPolicyUrl);
+        launchURL(kPrivacyPolicyUri.toString());
       };
   }
 
