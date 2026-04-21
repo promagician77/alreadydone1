@@ -63,6 +63,13 @@ class OnboardingState {
     return body;
   }
 
+  /// Clears only desire-page fields (category + manifestation text).
+  /// Personalize / first-splash fields (name, place, loved one, energy) stay intact.
+  void clearDesireOnly() {
+    desireDescriptionController.clear();
+    selectedCategory = 0;
+  }
+
   void clear() {
     firstNameController.clear();
     dreamLocationController.clear();

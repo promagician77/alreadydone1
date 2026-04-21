@@ -53,13 +53,13 @@ class _OnboardingVoiceSelectionWidgetState
 
   static const _maleVoices = [
     ('Q1QcmfZPmFDVUWmzASdy', 'Matt', 'Warm & Soothing'),
-    ('8yh4Wuya1OlwcUp0epGF', 'David', 'Confident & Powerful'), 
+    ('NXqsj0QYxuanzBw3KwjB', 'David', 'Confident & Powerful'), 
     ('tJHJUEHzOkMoPmJJ5jo2', 'Alex', 'Gentle & Peaceful'),
   ];
 
   static const _femaleVoices = [
     ('KGZeK6FsnWQdrkDHnDNA', 'Sarah', 'Warm & Nurturing'),
-    ('NXqsj0QYxuanzBw3KwjB', 'Maya', 'Energetic & Inspiring'),
+    ('8yh4Wuya1OlwcUp0epGF', 'Maya', 'Energetic & Inspiring'),
     ('VlQRLHkc5IdFj7o0atT1', 'Luna', 'Calm & Serene'),
   ];
 

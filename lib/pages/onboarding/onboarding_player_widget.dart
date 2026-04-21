@@ -265,6 +265,16 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   }
 
   Future<void> _completeOnboarding() async {
+    // Stop voice playback before leaving so audio does not continue on the next screen.
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _isPlaying = false;
+        _position = Duration.zero;
+      });
+    }
     await OnboardingService.setOnboardingCompleted();
     if (!mounted) return;
     context.go('/');

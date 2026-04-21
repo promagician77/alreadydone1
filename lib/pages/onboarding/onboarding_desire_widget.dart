@@ -134,35 +134,20 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     }
 
     try {
-      final profile = await BackendClient.getUserProfile(userId);
-
-      debugPrint('Profile: $profile');
-      final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-          ?.toString()
-          .toLowerCase()
-          .trim();
-        
-      debugPrint('Status: $status');
-
-      final isSubscribed = status == 'active' || status == 'trial';
-
-      if (!isSubscribed) {
-        final res = await BackendClient.getStories(userId);
-        final list = res['stories'];
-        final storyCount = list is List ? list.length : 0;
-        if (storyCount >= 1 && mounted) {
-          AppToast.info(
-            context,
-            'You can create one story per day without a subscription. Subscribe to create more.',
-          );
-          final returnTo =
-              Uri.encodeComponent(OnboardingDesireWidget.routePath);
-          context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-          return;
-        }
+      final res = await BackendClient.getStories(userId);
+      final list = res['stories'];
+      final storyCount = list is List ? list.length : 0;
+      if (storyCount >= 1 && mounted) {
+        AppToast.info(
+          context,
+          'You can create one story per day. Try again tomorrow.',
+        );
+        final returnTo = Uri.encodeComponent(OnboardingDesireWidget.routePath);
+        context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+        return;
       }
     } catch (_) {
-      // If profile/stories fetch fails, let the backend enforce the limit (may get 403).
+      // If stories fetch fails, let the backend enforce the limit (may get 403).
     }
 
     try {
@@ -184,6 +169,23 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       if (mounted) {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
+
+        var subscribed = false;
+        try {
+          final profile = await BackendClient.getUserProfile(userId);
+          final status = (profile['rc_subscription_status'] ??
+                  profile['rc_subscription_Status'])
+              ?.toString()
+              .toLowerCase()
+              .trim();
+          subscribed = status == 'active' || status == 'trial';
+        } catch (_) {}
+
+        if (subscribed) {
+          _state.clearDesireOnly();
+          setState(() {});
+        }
+
         await _state.persistToPrefs(OnboardingVoiceSelectionWidget.routePath);
         if (mounted) {
           context.go(OnboardingVoiceSelectionWidget.routePath);
@@ -195,10 +197,12 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         final msg = e.toString();
         debugPrint('Error: $msg');
         if (msg.contains('403') &&
-            (msg.contains('Non-subscribers') || msg.contains('1 story per day'))) {
+            (msg.contains('Non-subscribers') ||
+                msg.contains('1 story per day') ||
+                msg.contains('story per day'))) {
           AppToast.info(
             context,
-            'You can create one story per day without a subscription. Subscribe to create more.',
+            'You can create one story per day. Try again tomorrow.',
           );
           final returnTo =
               Uri.encodeComponent(OnboardingDesireWidget.routePath);
