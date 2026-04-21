@@ -11,6 +11,7 @@ import '/services/nav_lock_notifier.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
 import '/services/ai_consent_service.dart';
+import '/services/app_toast.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import '/index.dart';
@@ -2925,8 +2926,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _checkSubscriptionThenDeepen() async {
     bool isSubscribed = false;
+    int? userId;
     try {
-      final userId = await SupabaseService.getCurrentUserTableId();
+      userId = await SupabaseService.getCurrentUserTableId();
       if (userId != null) {
         final profile = await BackendClient.getUserProfile(userId);
         final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
@@ -2939,6 +2941,25 @@ class _PlayerWidgetState extends State<PlayerWidget>
       context.go(SubscriptionWidget.routePath);
       return;
     }
+
+    // Daily limit: treat story + deepen as the same "generation".
+    try {
+      if (userId != null) {
+        final res = await BackendClient.getStories(userId);
+        final list = res['stories'];
+        final storyCount = list is List ? list.length : 0;
+        if (storyCount >= 1 && mounted) {
+          AppToast.info(
+            context,
+            'You can create one story per day. Try again tomorrow.',
+          );
+          return;
+        }
+      }
+    } catch (_) {
+      // If stories fetch fails, let the backend enforce the limit.
+    }
+
     showDeepenConfirmModal(
       context,
       onContinue: _deepenManifestation,

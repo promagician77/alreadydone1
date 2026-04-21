@@ -283,6 +283,26 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   Future<void> _onDeepenTap() async {
     if (_isDeepening) return;
     if (!mounted) return;
+
+    // Daily limit: treat story + deepen as the same "generation".
+    try {
+      final userId = await SupabaseService.getCurrentUserTableId();
+      if (userId != null) {
+        final res = await BackendClient.getStories(userId);
+        final list = res['stories'];
+        final storyCount = list is List ? list.length : 0;
+        if (storyCount >= 1 && mounted) {
+          AppToast.info(
+            context,
+            'You can create one story per day. Try again tomorrow.',
+          );
+          return;
+        }
+      }
+    } catch (_) {
+      // If stories fetch fails, let the backend enforce the limit.
+    }
+
     showDeepenConfirmModal(context, onContinue: _deepenManifestation);
   }
 
