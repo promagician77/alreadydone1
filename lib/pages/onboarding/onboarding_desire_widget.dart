@@ -153,14 +153,16 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       final res = await BackendClient.getStories(userId);
       final list = res['stories'];
       final storyCount = list is List ? list.length : 0;
-      if (storyCount >= 1 && mounted) {
-        AppToast.info(
-          context,
-          'You can create one story per day. Try again tomorrow.',
-        );
-        final returnTo = Uri.encodeComponent(OnboardingDesireWidget.routePath);
-        context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-        return;
+      if(userId != 242 && userId != 237) {
+        if (storyCount >= 1 && mounted) {
+          AppToast.info(
+            context,
+            'You can create one story per day. Try again tomorrow.',
+          );
+          final returnTo = Uri.encodeComponent(OnboardingDesireWidget.routePath);
+          context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+          return;
+        }
       }
     } catch (_) {
       // If stories fetch fails, let the backend enforce the limit (may get 403).
