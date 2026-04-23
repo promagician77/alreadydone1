@@ -320,7 +320,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       return;
     }
 
-    context.push(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
+    context.push(OnboardingDesireWidget.routePath);
   }
 
   Widget _buildAddNewManifestationButton() {

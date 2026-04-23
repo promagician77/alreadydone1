@@ -275,9 +275,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: OnboardingDesireWidget.routeName,
           path: OnboardingDesireWidget.routePath,
-          builder: (context, params) => OnboardingDesireWidget(
-            fromDesires: params.state.extraMap['fromDesires'] == true,
-          ),
+          builder: (context, params) => OnboardingDesireWidget(),
         ),
         FFRoute(
           name: OnboardingOriginSplashWidget.routeName,

@@ -32,13 +32,10 @@ Widget _progressBar(int activeSegments) {
 }
 
 class OnboardingDesireWidget extends StatefulWidget {
-  const OnboardingDesireWidget({super.key, this.fromDesires = false});
+  const OnboardingDesireWidget({super.key});
 
   static String routeName = 'OnboardingDesire';
   static String routePath = '/onboarding/desire';
-
-  /// When true, user came from Desires "Add New Manifestation"; prefill from profile.
-  final bool fromDesires;
 
   @override
   State<OnboardingDesireWidget> createState() => _OnboardingDesireWidgetState();
@@ -52,35 +49,47 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   void initState() {
     super.initState();
     _state = OnboardingState.instance;
-    if (widget.fromDesires) {
-      _prefillLoading = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromProfile());
-    }
+    _prefillLoading = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePrefillForSubscribedUser());
   }
 
-  /// When opening from Desires, load user profile and prefill name, location, energy word, loved one.
-  Future<void> _prefillFromProfile() async {
+  bool _isSubscribedFromProfile(Map<String, dynamic> profile) {
+    final status = (profile['rc_subscription_status'] ??
+            profile['rc_subscription_Status'])
+        ?.toString()
+        .toLowerCase()
+        .trim();
+    return status == 'active' || status == 'trial';
+  }
+
+  void _applyProfileToState(Map<String, dynamic> profile) {
+    final name = (profile['name'] as String? ?? '').toString().trim();
+    final loc = (profile['location'] ?? '').toString().trim();
+    final loved = (profile['lovedOne'] ?? '').toString().trim();
+    final energyWord = (profile['energyWord'] ?? '').toString().trim();
+
+    _state.firstNameController.text = name;
+    _state.dreamLocationController.text = loc;
+    _state.lovedOneController.text = loved;
+
+    final idx = OnboardingState.energyWords.indexOf(energyWord);
+    if (idx >= 0) _state.selectedEnergyWord = idx;
+  }
+
+  Future<void> _maybePrefillForSubscribedUser() async {
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null || !mounted) return;
+    if (userId == null || !mounted) {
+      if (mounted) setState(() => _prefillLoading = false);
+      return;
+    }
     try {
       final profile = await BackendClient.getUserProfile(userId);
       if (!mounted) return;
-      final name = (profile['name'] as String? ?? '').toString().trim();
-      final loc = (profile['location'] ?? '').toString().trim();
-      final loved = (profile['lovedOne'] ?? '').toString().trim();
-      final energyWord = (profile['energyWord'] ?? '').toString();
 
-      debugPrint('Profile: $profile');
-      debugPrint('Name: $name');
-      debugPrint('Location: $loc');
-      debugPrint('Loved: $loved');
-      debugPrint('Energy Word: $energyWord');
+      if (_isSubscribedFromProfile(profile)) {
+        _applyProfileToState(profile);
+      }
 
-      if (name.isNotEmpty) _state.firstNameController.text = name;
-      if (loc.isNotEmpty) _state.dreamLocationController.text = loc;
-      if (loved.isNotEmpty) _state.lovedOneController.text = loved;
-      final idx = OnboardingState.energyWords.indexOf(energyWord);
-      if (idx >= 0) _state.selectedEnergyWord = idx;
       if (mounted) setState(() => _prefillLoading = false);
     } catch (_) {
       if (mounted) setState(() => _prefillLoading = false);

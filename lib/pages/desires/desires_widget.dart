@@ -956,7 +956,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
     }
 
     if (!mounted) return;
-    context.push(OnboardingDesireWidget.routePath, extra: {'fromDesires': true});
+    context.push(OnboardingDesireWidget.routePath);
   }
 
   Widget _buildAddButton() {
