@@ -32,7 +32,14 @@ Widget _progressBar(int activeSegments) {
 }
 
 class OnboardingDesireWidget extends StatefulWidget {
-  const OnboardingDesireWidget({super.key});
+  const OnboardingDesireWidget({
+    super.key,
+    @Deprecated('No longer used; kept for hot-reload/backwards compatibility.')
+    this.fromDesires,
+  });
+
+  @Deprecated('No longer used; kept for hot-reload/backwards compatibility.')
+  final bool? fromDesires;
 
   static String routeName = 'OnboardingDesire';
   static String routePath = '/onboarding/desire';
