@@ -11,6 +11,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '/pages/onboarding/onboarding_state.dart';
+import '/services/onboarding_service.dart';
 
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
@@ -101,6 +102,9 @@ class SupabaseService {
             response.user!.identities!.isEmpty)) {
       throw const EmailAlreadyRegisteredException();
     }
+    // New account in same app session: clear in-memory onboarding state so we
+    // don't carry over values from a previous user.
+    OnboardingState.instance.clear();
     return response;
   }
 
@@ -248,14 +252,18 @@ class SupabaseService {
     required String email,
     required String password,
   }) async {
-    return await client.auth.signInWithPassword(
+    final res = await client.auth.signInWithPassword(
       email: email,
       password: password,
     );
+    OnboardingState.instance.clear();
+    return res;
   }
 
   static Future<void> signOut() async {
     await client.auth.signOut();
+    await OnboardingService.clearProgress();
+    OnboardingState.instance.clear();
   }
 
   static Future<void> resetPasswordForEmail(String email) async {
