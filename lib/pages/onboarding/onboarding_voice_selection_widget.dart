@@ -52,15 +52,15 @@ class _OnboardingVoiceSelectionWidgetState
   bool _isLoading = false;
 
   static const _maleVoices = [
-    ('Q1QcmfZPmFDVUWmzASdy', 'Matt', 'Warm & Soothing'),
-    ('NXqsj0QYxuanzBw3KwjB', 'David', 'Confident & Powerful'), 
-    ('tJHJUEHzOkMoPmJJ5jo2', 'Alex', 'Gentle & Peaceful'),
+    ('fe7EvX6s3gGo3bkRhkNi', 'Matt', 'Warm & Soothing'),
+    ('C1npRmjB19a6yNkEucvx', 'David', 'Confident & Powerful'), 
+    ('aY4BfHcxLvYmsKVJxMJa', 'Alex', 'Gentle & Peaceful'),
   ];
 
   static const _femaleVoices = [
-    ('KGZeK6FsnWQdrkDHnDNA', 'Sarah', 'Warm & Nurturing'),
-    ('8yh4Wuya1OlwcUp0epGF', 'Maya', 'Energetic & Inspiring'),
-    ('VlQRLHkc5IdFj7o0atT1', 'Luna', 'Calm & Serene'),
+    ('BuaKXS4Sv1Mccaw3flfU', 'Sarah', 'Warm & Nurturing'),
+    ('8tsLeAV5vPVuzCCvqbbU', 'Maya', 'Energetic & Inspiring'),
+    ('Fihx1nL7DQV0DEuFJSG1', 'Luna', 'Calm & Serene'),
   ];
 
   bool get _isMyVoiceSelected => _selectedId == 'my_voice';

@@ -45,6 +45,24 @@ class BackendClient {
     throw Exception(ServerToast.message);
   }
 
+  static String _errorDetailFromResponse(http.Response response) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final detail = decoded['detail']?.toString().trim();
+        if (detail != null && detail.isNotEmpty) return detail;
+        final message = decoded['message']?.toString().trim();
+        if (message != null && message.isNotEmpty) return message;
+      }
+    } catch (_) {
+      // Fall back to raw text below.
+    }
+
+    final raw = response.body.trim();
+    if (raw.isNotEmpty) return raw;
+    return 'Request failed (${response.statusCode}).';
+  }
+
   /// PATCH api/users/{user_id} - update user profile.
   /// Body: { speed?, is_MorningTime_Reminder?, is_BedTime_Reminder?, name?, location?, energyWord?, lovedOne?, fcm_token?, ... }.
   static Future<Map<String, dynamic>> updateUserProfile(
@@ -328,9 +346,7 @@ class BackendClient {
     final response = await http.Response.fromStream(streamed);
 
     if (response.statusCode >= 400) {
-      throw Exception(
-        'Voice upload failed: ${response.statusCode} ${response.body}',
-      );
+      throw Exception(_errorDetailFromResponse(response));
     }
     final decoded = jsonDecode(response.body);
     return decoded is Map<String, dynamic> ? decoded : {'voice_id': null};
