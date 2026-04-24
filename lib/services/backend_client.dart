@@ -282,7 +282,7 @@ class BackendClient {
           body: jsonEncode(body),
         )
         .timeout(
-          const Duration(seconds: 60),
+          const Duration(seconds: 120),
           onTimeout: () => throw Exception('Deepen story timeout'),
         );
     if (response.statusCode >= 400) {
@@ -304,7 +304,7 @@ class BackendClient {
           body: jsonEncode(body),
         )
         .timeout(
-          const Duration(seconds: 60),
+          const Duration(seconds: 120),
           onTimeout: () => throw Exception('Generation timeout'),
         );
     if (response.statusCode >= 400) {
