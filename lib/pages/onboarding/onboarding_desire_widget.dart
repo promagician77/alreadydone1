@@ -472,6 +472,23 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
               ),
             ),
             ),
+          if (_prefillLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: Container(
+                  color: AuthTheme.warmWhite.withValues(alpha: 0.85),
+                  alignment: Alignment.center,
+                  child: const SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AuthTheme.gold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
