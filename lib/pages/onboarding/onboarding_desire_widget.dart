@@ -31,6 +31,34 @@ Widget _progressBar(int activeSegments) {
   );
 }
 
+String _capitalizeSentences(String text) {
+  if (text.isEmpty) return text;
+  final chars = text.characters.toList();
+  bool shouldCapNextLetter = true; // start of input
+
+  for (var i = 0; i < chars.length; i++) {
+    final c = chars[i];
+
+    // Sentence terminators toggle the next-letter flag.
+    if (c == '.' || c == '!' || c == '?') {
+      shouldCapNextLetter = true;
+      continue;
+    }
+
+    // Whitespace doesn't consume the flag.
+    if (c.trim().isEmpty) continue;
+
+    if (shouldCapNextLetter) {
+      chars[i] = c.toUpperCase();
+      shouldCapNextLetter = false;
+    } else {
+      shouldCapNextLetter = false;
+    }
+  }
+
+  return chars.join();
+}
+
 class OnboardingDesireWidget extends StatefulWidget {
   const OnboardingDesireWidget({
     super.key,
@@ -369,6 +397,18 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                         controller: _state.desireDescriptionController,
                         maxLines: 5,
                         textCapitalization: TextCapitalization.sentences,
+                        onChanged: (value) {
+                          final next = _capitalizeSentences(value);
+                          if (next == value) return;
+                          final controller = _state.desireDescriptionController;
+                          final oldSelection = controller.selection;
+                          final offset = oldSelection.baseOffset.clamp(0, next.length);
+                          controller.value = controller.value.copyWith(
+                            text: next,
+                            selection: TextSelection.collapsed(offset: offset),
+                            composing: TextRange.empty,
+                          );
+                        },
                         style: AuthTheme.bodyStyle.copyWith(fontSize: 14),
                         decoration: InputDecoration(
                           hintText: "Write it like it already happened. Be specific. Be emotional.\n\nExample: The deeply loving relationship where I felt completely seen, valued, and cherished every single day",
