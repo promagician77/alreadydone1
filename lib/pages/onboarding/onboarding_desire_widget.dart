@@ -51,6 +51,7 @@ class OnboardingDesireWidget extends StatefulWidget {
 class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   late OnboardingState _state;
   bool _prefillLoading = false;
+  bool _isSubscribed = false;
 
   @override
   void initState() {
@@ -85,21 +86,44 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
   Future<void> _maybePrefillForSubscribedUser() async {
     final userId = await SupabaseService.getCurrentUserTableId();
+    debugPrint('userId: $userId');
+
     if (userId == null || !mounted) {
-      if (mounted) setState(() => _prefillLoading = false);
+      if (mounted) {
+        setState(() {
+          _isSubscribed = false;
+          _prefillLoading = false;
+        });
+      }
       return;
     }
     try {
       final profile = await BackendClient.getUserProfile(userId);
+      debugPrint('profile: $profile');
       if (!mounted) return;
 
-      if (_isSubscribedFromProfile(profile)) {
+      final subscribed = _isSubscribedFromProfile(profile);
+      if (subscribed) {
+        debugPrint('profile is subscribed');
         _applyProfileToState(profile);
+        // Subscribed users are treated as "profile-driven": reset desire page inputs
+        // on load so they start fresh.
+        _state.clearDesireOnly();
       }
 
-      if (mounted) setState(() => _prefillLoading = false);
+      if (mounted) {
+        setState(() {
+          _isSubscribed = subscribed;
+          _prefillLoading = false;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _prefillLoading = false);
+      if (mounted) {
+        setState(() {
+          _isSubscribed = false;
+          _prefillLoading = false;
+        });
+      }
     }
   }
 
@@ -200,8 +224,8 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         } catch (_) {}
 
         if (subscribed) {
-          _state.clearDesireOnly();
-          setState(() {});
+          // No-op: subscribed users are reset on page load (initState) so that
+          // non-subscribed users keep their maintained draft immediately after generation.
         }
 
         await _state.persistToPrefs(OnboardingVoiceSelectionWidget.routePath);
