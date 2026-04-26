@@ -13,14 +13,20 @@ class TimezoneSyncService {
   static Future<String?> _getDeviceTimezone() async {
     try {
       final tz = await FlutterTimezone.getLocalTimezone();
+
+      // v5+ returns TimezoneInfo; some platforms/versions may return String.
       if (tz is String) {
         final s = tz.trim();
         return s.isEmpty ? null : s;
       }
-      // Back-compat with older plugin shapes.
+
       final dynamic d = tz;
       final identifier = (d?.identifier as String?)?.trim();
-      return (identifier != null && identifier.isNotEmpty) ? identifier : null;
+      if (identifier != null && identifier.isNotEmpty) return identifier;
+
+      // Final fallback: allow toString() if it looks usable.
+      final asString = tz.toString().trim();
+      return asString.isEmpty ? null : asString;
     } catch (_) {
       return null;
     }
