@@ -12,7 +12,7 @@ class TimezoneSyncService {
 
   static Future<String?> _getDeviceTimezone() async {
     try {
-      final tz = await FlutterTimezone.getLocalTimezone();
+      final dynamic tz = await FlutterTimezone.getLocalTimezone();
 
       // v5+ returns TimezoneInfo; some platforms/versions may return String.
       if (tz is String) {
@@ -20,8 +20,7 @@ class TimezoneSyncService {
         return s.isEmpty ? null : s;
       }
 
-      final dynamic d = tz;
-      final identifier = (d?.identifier as String?)?.trim();
+      final identifier = (tz?.identifier as String?)?.trim();
       if (identifier != null && identifier.isNotEmpty) return identifier;
 
       // Final fallback: allow toString() if it looks usable.
