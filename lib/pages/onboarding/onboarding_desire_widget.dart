@@ -81,6 +81,17 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   bool _prefillLoading = false;
   bool _isSubscribed = false;
 
+  String _nextResetMessage() {
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final time = dateTimeFormat('jm', nextMidnight);
+    final date = dateTimeFormat('MMM d', nextMidnight);
+    return 'You can create one story per day. Try again at $time ($date).';
+  }
+
+  bool _isSameLocalDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
   @override
   void initState() {
     super.initState();
@@ -204,12 +215,22 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     try {
       final res = await BackendClient.getStories(userId);
       final list = res['stories'];
-      final storyCount = list is List ? list.length : 0;
-      if(userId != 242 && userId != 237) {
-        if (storyCount >= 1 && mounted) {
+      final stories = list is List ? list : const [];
+      if (!_isSubscribed && userId != 242 && userId != 237) {
+        final now = DateTime.now();
+        var countToday = 0;
+        for (final s in stories) {
+          if (s is! Map) continue;
+          final createdRaw = s['created_at'] ?? s['createdAt'];
+          if (createdRaw == null) continue;
+          final created = DateTime.tryParse(createdRaw.toString());
+          if (created == null) continue;
+          if (_isSameLocalDay(created.toLocal(), now)) countToday++;
+        }
+        if (countToday >= 1 && mounted) {
           AppToast.info(
             context,
-            'You can create one story per day. Try again tomorrow.',
+            _nextResetMessage(),
           );
           final returnTo = Uri.encodeComponent(OnboardingDesireWidget.routePath);
           context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
@@ -272,7 +293,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                 msg.contains('story per day'))) {
           AppToast.info(
             context,
-            'You can create one story per day. Try again tomorrow.',
+            _nextResetMessage(),
           );
           final returnTo =
               Uri.encodeComponent(OnboardingDesireWidget.routePath);

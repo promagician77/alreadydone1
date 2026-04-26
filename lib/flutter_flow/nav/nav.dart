@@ -17,6 +17,7 @@ import '/services/backend_client.dart';
 import '/services/fcm_service.dart';
 import '/services/revenuecat_service.dart';
 import '/services/supabase_service.dart';
+import '/services/timezone_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '/services/onboarding_service.dart';
@@ -78,6 +79,7 @@ class AppStateNotifier extends ChangeNotifier {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_keyUserHasSignedInOnce, true);
         await SupabaseService.ensureUserProfileFromAuth();
+        TimezoneSyncService.syncInBackground();
         await FcmService.onUserSignedIn();
         if (RevenueCatService.instance.isSupported) {
           RevenueCatService.logFlow(
