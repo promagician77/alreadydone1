@@ -109,6 +109,14 @@ class OnboardingPlayerWidget extends StatefulWidget {
 }
 
 class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
+  String _nextResetMessage() {
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final time = dateTimeFormat('jm', nextMidnight);
+    final date = dateTimeFormat('MMM d', nextMidnight);
+    return 'You can create one story or deepen per day. Try again at $time ($date).';
+  }
+
   int? _parseDurationSeconds(dynamic raw) {
     if (raw == null) return null;
     if (raw is int) return raw;
@@ -441,10 +449,15 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       showDeepenResultModal(context, theme: theme, story: storyText);
     } catch (e) {
       if (mounted) {
-        AppToast.error(
-          context,
-          'Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}',
-        );
+        final msg = e.toString();
+        if (msg.contains('403') && (msg.contains('1 story per day') || msg.contains('story per day'))) {
+          AppToast.info(context, _nextResetMessage());
+        } else {
+          AppToast.error(
+            context,
+            'Could not deepen story: ${msg.replaceAll(RegExp(r'^Exception:?\s*'), '')}',
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isDeepening = false);
