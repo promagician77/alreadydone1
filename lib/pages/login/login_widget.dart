@@ -6,6 +6,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
 import 'package:go_router/go_router.dart';
 import '/flutter_flow/nav/nav.dart';
+import '/services/timezone_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
@@ -188,6 +189,13 @@ class _LoginWidgetState extends State<LoginWidget> {
         AppToast.success(context, 'Welcome back!');
         context.go('/?fromLogin=1');
       }
+      
+    // After successful login, sync user's timezone with backend
+    try {
+      await TimezoneSyncService.syncIfNeeded();
+    } catch (e) {
+      debugPrint('[Login] Failed to sync timezone: $e');
+    }
     } catch (e) {
       if (mounted) {
         AppToast.error(context, _loginErrorMessage(e));

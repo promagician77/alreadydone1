@@ -23,7 +23,6 @@ class TimezoneSyncService {
       final identifier = (tz?.identifier as String?)?.trim();
       if (identifier != null && identifier.isNotEmpty) return identifier;
 
-      // Final fallback: allow toString() if it looks usable.
       final asString = tz.toString().trim();
       return asString.isEmpty ? null : asString;
     } catch (_) {
