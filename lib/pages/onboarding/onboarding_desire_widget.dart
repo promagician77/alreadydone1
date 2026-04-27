@@ -226,8 +226,9 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
           someoneYouLove: loved != null && loved.trim().isNotEmpty ? loved.trim() : null,
         );
       }
-
+      debugPrint('body: $body');
       final result = await BackendClient.generateStory(body);
+      debugPrint('result: $result');
       if (mounted) {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
