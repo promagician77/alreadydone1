@@ -193,6 +193,7 @@ class _LoginWidgetState extends State<LoginWidget> {
     // After successful login, sync user's timezone with backend
     try {
       await TimezoneSyncService.syncIfNeeded();
+      debugPrint('Timezone synced');
     } catch (e) {
       debugPrint('[Login] Failed to sync timezone: $e');
     }
