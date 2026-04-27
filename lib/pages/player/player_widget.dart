@@ -71,6 +71,14 @@ class PlayerWidget extends StatefulWidget {
 
 class _PlayerWidgetState extends State<PlayerWidget>
     with SingleTickerProviderStateMixin {
+  String _nextResetMessage() {
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final time = dateTimeFormat('jm', nextMidnight);
+    final date = dateTimeFormat('MMM d', nextMidnight);
+    return 'You can create one story or deepen per day. Try again at $time ($date).';
+  }
+
   late PlayerModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -2767,10 +2775,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final hasConsent = await AIConsentService.ensureConsent(context);
     if (!hasConsent) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please agree to AI data sharing to deepen your manifestation.'),
-          ),
+        AppToast.info(
+          context,
+          'You need to agree to AI data sharing to deepen your manifestation.',
         );
       }
       return;
@@ -2780,9 +2787,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final storyId = _currentStoryId;
     if (storyId == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No story selected to deepen.')),
-        );
+        AppToast.info(context, 'No story selected to deepen.');
       }
       return;
     }
@@ -2830,9 +2835,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
       final story = (res['story'] ?? res['content'] ?? '').toString().trim();
       if (story.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Deepen response had no story content.')),
-        );
+        AppToast.error(context, 'Deepen response had no story content.');
         return;
       }
 
@@ -2908,9 +2911,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
       showDeepenResultModal(context, theme: theme, story: story);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}')),
-        );
+        final msg = e.toString();
+        if (msg.contains('403') && (msg.contains('1 story per day') || msg.contains('story per day'))) {
+          AppToast.info(context, _nextResetMessage());
+        } else {
+          AppToast.error(
+            context,
+            'Could not deepen story: ${msg.replaceAll(RegExp(r'^Exception:?\s*'), '')}',
+          );
+        }
       }
     } finally {
       navLockNotifier.value = false;
