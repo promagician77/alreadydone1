@@ -32,9 +32,11 @@ class TimezoneSyncService {
 
   static Future<void> syncIfNeeded() async {
     final userId = await SupabaseService.getCurrentUserTableId();
+    debugPrint('userId: $userId');
     if (userId == null) return;
 
     final timezone = await _getDeviceTimezone();
+    debugPrint('timezone: $timezone');
     if (timezone == null || timezone.isEmpty) return;
 
     try {
@@ -44,6 +46,7 @@ class TimezoneSyncService {
       if (last == timezone) return;
 
       await BackendClient.updateUserProfile(userId, timezone: timezone);
+      debugPrint('timezone synced (1)');
       await prefs.setString(key, timezone);
       debugPrint('[TimezoneSync] synced userId=$userId tz=$timezone');
     } catch (_) {
