@@ -284,27 +284,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     if (_isDeepening) return;
     if (!mounted) return;
 
-    // Daily limit: treat story + deepen as the same "generation".
-    try {
-      final userId = await SupabaseService.getCurrentUserTableId();
-      if (userId != null) {
-        final res = await BackendClient.getStories(userId);
-        final list = res['stories'];
-        final storyCount = list is List ? list.length : 0;
-        if(userId != 242 && userId != 237) {
-          if (storyCount >= 1 && mounted) {
-            AppToast.info(
-              context,
-              'You can create one story per day. Try again tomorrow.',
-            );
-            return;
-          }
-        }
-      }
-    } catch (_) {
-      // If stories fetch fails, let the backend enforce the limit.
-    }
-
     showDeepenConfirmModal(context, onContinue: _deepenManifestation);
   }
 
@@ -371,6 +350,10 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       return;
     }
     try {
+      debugPrint(
+        '[StoryLimit][OnboardingPlayer] deepen start userId=$userId '
+        'storyId=$storyId localNow=${DateTime.now().toIso8601String()}',
+      );
       final res = await BackendClient.deepenStory(
         userId: userId,
         storyId: storyId,
@@ -379,6 +362,10 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
         energyWord: energyWord,
         lovedOne: lovedOne,
         dreamLocation: dreamLocation,
+      );
+      debugPrint(
+        '[StoryLimit][OnboardingPlayer] deepen success userId=$userId '
+        'originalStoryId=$storyId newStoryId=${res['id']}',
       );
       if (!mounted) return;
       final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
@@ -462,10 +449,21 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       showDeepenResultModal(context, theme: theme, story: storyText);
     } catch (e) {
       if (mounted) {
-        AppToast.error(
-          context,
-          'Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}',
+        final msg = e.toString();
+        debugPrint(
+          '[StoryLimit][OnboardingPlayer] deepen failed userId=$userId '
+          'storyId=$storyId error=$msg',
         );
+        if (msg.contains('403') &&
+            (msg.contains('1 story per day') ||
+                msg.contains('story per day'))) {
+          AppToast.info(context, 'You can create one story per day. Try again tomorrow.');
+        } else {
+          AppToast.error(
+            context,
+            'Could not deepen story: ${msg.replaceAll(RegExp(r'^Exception:?\s*'), '')}',
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isDeepening = false);

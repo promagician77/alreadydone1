@@ -2817,6 +2817,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       return;
     }
     try {
+      debugPrint(
+        '[StoryLimit][Player] deepen start userId=$userId '
+        'storyId=$storyId localNow=${DateTime.now().toIso8601String()}',
+      );
       final res = await BackendClient.deepenStory(
         userId: userId,
         storyId: storyId,
@@ -2825,6 +2829,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
         energyWord: energyWord,
         lovedOne: lovedOne,
         dreamLocation: dreamLocation,
+      );
+      debugPrint(
+        '[StoryLimit][Player] deepen success userId=$userId '
+        'originalStoryId=$storyId newStoryId=${res['id']}',
       );
       if (!mounted) return;
       final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
@@ -2908,8 +2916,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
       showDeepenResultModal(context, theme: theme, story: story);
     } catch (e) {
       if (mounted) {
+        final msg = e.toString();
+        debugPrint(
+          '[StoryLimit][Player] deepen failed userId=$userId '
+          'storyId=$storyId error=$msg',
+        );
+        final text = msg.contains('403') &&
+                (msg.contains('1 story per day') ||
+                    msg.contains('story per day'))
+            ? 'You can create one story per day. Try again tomorrow.'
+            : 'Could not deepen story: ${msg.replaceAll(RegExp(r'^Exception:?\s*'), '')}';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not deepen story: ${e.toString().replaceAll(RegExp(r'^Exception:?\s*'), '')}')),
+          SnackBar(content: Text(text)),
         );
       }
     } finally {
@@ -2940,26 +2958,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (!isSubscribed) {
       context.go(SubscriptionWidget.routePath);
       return;
-    }
-
-    // Daily limit: treat story + deepen as the same "generation".
-    try {
-      if (userId != null) {
-        final res = await BackendClient.getStories(userId);
-        final list = res['stories'];
-        final storyCount = list is List ? list.length : 0;
-        if(userId != 242 && userId != 237) {
-          if (storyCount >= 1 && mounted) {
-            AppToast.info(
-              context,
-              'You can create one story per day. Try again tomorrow.',
-            );
-            return;
-          }
-        }
-      }
-    } catch (_) {
-      // If stories fetch fails, let the backend enforce the limit.
     }
 
     showDeepenConfirmModal(

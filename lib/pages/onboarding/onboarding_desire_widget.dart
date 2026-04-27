@@ -180,6 +180,10 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
     final userId = await SupabaseService.getCurrentUserTableId();
     final body = _state.toStoryRequestBody(userId);
+    debugPrint(
+      '[StoryLimit][OnboardingDesire] create tapped userId=$userId '
+      'localNow=${DateTime.now().toIso8601String()}',
+    );
 
     final name = body['name'] as String? ?? '';
     final location = body['location'] as String? ?? '';
@@ -213,35 +217,6 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     }
 
     try {
-      final res = await BackendClient.getStories(userId);
-      final list = res['stories'];
-      final stories = list is List ? list : const [];
-      if (!_isSubscribed && userId != 242 && userId != 237) {
-        final now = DateTime.now();
-        var countToday = 0;
-        for (final s in stories) {
-          if (s is! Map) continue;
-          final createdRaw = s['created_at'] ?? s['createdAt'];
-          if (createdRaw == null) continue;
-          final created = DateTime.tryParse(createdRaw.toString());
-          if (created == null) continue;
-          if (_isSameLocalDay(created.toLocal(), now)) countToday++;
-        }
-        if (countToday >= 1 && mounted) {
-          AppToast.info(
-            context,
-            _nextResetMessage(),
-          );
-          final returnTo = Uri.encodeComponent(OnboardingDesireWidget.routePath);
-          context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-          return;
-        }
-      }
-    } catch (_) {
-      // If stories fetch fails, let the backend enforce the limit (may get 403).
-    }
-
-    try {
       setState(() => _state.isGenerating = true);
 
       if (userId != null) {
@@ -257,6 +232,10 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       }
 
       final result = await BackendClient.generateStory(body);
+      debugPrint(
+        '[StoryLimit][OnboardingDesire] generate success '
+        'userId=$userId storyId=${result['id']}',
+      );
       if (mounted) {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
@@ -286,10 +265,9 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       if (mounted) {
         setState(() => _state.isGenerating = false);
         final msg = e.toString();
-        debugPrint('Error: $msg');
+        debugPrint('[StoryLimit][OnboardingDesire] generate failed userId=$userId error=$msg');
         if (msg.contains('403') &&
-            (msg.contains('Non-subscribers') ||
-                msg.contains('1 story per day') ||
+            (msg.contains('1 story per day') ||
                 msg.contains('story per day'))) {
           AppToast.info(
             context,
