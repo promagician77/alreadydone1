@@ -36,13 +36,14 @@ class TimezoneSyncService {
     if (userId == null) return;
 
     final timezone = await _getDeviceTimezone();
-    debugPrint('timezone: $timezone');
+    debugPrint('timezone - 1: $timezone');
     if (timezone == null || timezone.isEmpty) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_keyPrefix$userId';
       final last = prefs.getString(key)?.trim();
+      debugPrint('last: $last');
       if (last == timezone) return;
 
       await BackendClient.updateUserProfile(userId, timezone: timezone);
