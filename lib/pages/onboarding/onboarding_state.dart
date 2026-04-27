@@ -20,29 +20,18 @@ class OnboardingState {
   Map<String, dynamic>? generatedStory;
   bool isGenerating = false;
 
-  /// Duration in seconds of the last voice recording (set by recording page).
   int? recordingDurationSec;
 
-  /// Public URL of the story voice (from api/voice/speak). Set when Continue is
-  /// tapped on onboarding_voice_complete; used by onboarding_player to play.
   String? voicePlayUrl;
 
-  /// Display name of the selected voice (e.g. "Chris", "My Voice", or user's first name).
-  /// Set when creating a clone or when choosing a preset in voice selection.
   String? selectedVoiceName;
 
-  /// Voice id used to generate the current story audio (preset voice id or user's cloned voice_id).
-  /// Set by voice selection / voice pages so onboarding_player can regenerate audio after deepening.
   String? selectedVoiceId;
 
   static const List<String> energyWords = ['Powerful', 'Peaceful', 'Abundant', 'Grateful', 'Confident'];
   static const List<String> categories = ['Love', 'Money', 'Career', 'Health', 'Home'];
 
-  /// Builds the story request body from all fields (personalization + desire page).
-  /// Pass [userTableId] from SupabaseService.getCurrentUserTableId().
-  /// Returns a map with keys: user_id, name, location, energyWord, desireCategory,
-  /// desireDescription, lovedOne?.
-  Map<String, dynamic> toStoryRequestBody(int? userTableId) {
+  Map<String, dynamic> toStoryRequestBody(int? userTableId, {String? timezone}) {
     final firstName = firstNameController.text.trim();
     final dreamPlace = dreamLocationController.text.trim();
     final energyWord = energyWords[selectedEnergyWord];
@@ -59,6 +48,11 @@ class OnboardingState {
       'desireDescription': describeWhatAlreadyYours,
       'lovedOne': someoneYouLove.isEmpty ? null : someoneYouLove,
     };
+
+    final tz = timezone?.trim();
+    if (tz != null && tz.isNotEmpty) {
+      body['timezone'] = tz;
+    }
 
     return body;
   }

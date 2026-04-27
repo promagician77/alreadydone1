@@ -179,7 +179,16 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     }
 
     final userId = await SupabaseService.getCurrentUserTableId();
-    final body = _state.toStoryRequestBody(userId);
+    String? timezone;
+    if (userId != null) {
+      try {
+        final profile = await BackendClient.getUserProfile(userId);
+        timezone = profile['timezone']?.toString();
+      } catch (_) {
+        // Best-effort; if profile fetch fails we'll proceed without timezone.
+      }
+    }
+    final body = _state.toStoryRequestBody(userId, timezone: timezone);
 
     final name = body['name'] as String? ?? '';
     final location = body['location'] as String? ?? '';
