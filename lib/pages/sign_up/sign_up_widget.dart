@@ -6,6 +6,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/services/app_toast.dart';
+import '/services/timezone_sync_service.dart';
 import '/widgets/pressable.dart';
 import '/constants/legal_urls.dart';
 import 'sign_up_model.dart';
@@ -310,6 +311,17 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       );
 
       if (response.user != null && mounted) {
+        // Best-effort: ensure Users row exists, then sync timezone.
+        // Do not block the OTP flow.
+        Future<void>(() async {
+          try {
+            await SupabaseService.ensureUserProfileFromAuth(overrideName: name);
+          } catch (_) {}
+          try {
+            await TimezoneSyncService.syncIfNeeded();
+          } catch (_) {}
+        });
+
         String message =
             'Account created! We emailed you a verification code. Please check your email and enter the verification code below.';
         try {
