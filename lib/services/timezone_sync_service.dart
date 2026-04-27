@@ -30,34 +30,54 @@ class TimezoneSyncService {
     }
   }
 
-  static Future<void> syncIfNeeded() async {
+  static Future<bool> syncIfNeeded({bool verifyRemoteWhenCached = true}) async {
     final userId = await SupabaseService.getCurrentUserTableId();
     debugPrint('userId: $userId');
-    if (userId == null) return;
+    if (userId == null) return false;
 
     final timezone = await _getDeviceTimezone();
     debugPrint('timezone - 1: $timezone');
-    if (timezone == null || timezone.isEmpty) return;
+    if (timezone == null || timezone.isEmpty) return false;
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      
       final key = '$_keyPrefix$userId';
       final last = prefs.getString(key)?.trim();
       debugPrint('last: $last');
-      if (last == timezone) return;
+      if (last == timezone) {
+        if (!verifyRemoteWhenCached) return false;
+        try {
+          final remote = await BackendClient.getUserProfile(userId);
+          final remoteTz = (remote['timezone'] as String?)?.trim();
+          debugPrint('[TimezoneSync] remote timezone: $remoteTz');
+          if (remoteTz != null && remoteTz.isNotEmpty && remoteTz == timezone) {
+            return false;
+          }
+          debugPrint(
+            '[TimezoneSync] cached=$timezone but remote=$remoteTz; re-syncing',
+          );
+        } catch (e) {
+          // If we can't verify remote state, fall through and attempt the update.
+          debugPrint('[TimezoneSync] remote check failed: $e');
+        }
+      }
 
       await BackendClient.updateUserProfile(userId, timezone: timezone);
-      debugPrint('timezone synced (1)');
       await prefs.setString(key, timezone);
       debugPrint('[TimezoneSync] synced userId=$userId tz=$timezone');
+      return true;
     } catch (_) {
       // Best-effort; do not block app start / login.
+      return false;
     }
   }
 
   static void syncInBackground() {
     // Fire-and-forget wrapper so callers don't need to await.
-    Future<void>(() => syncIfNeeded());
+    Future<void>(() async {
+      await syncIfNeeded();
+    });
   }
 }
 
