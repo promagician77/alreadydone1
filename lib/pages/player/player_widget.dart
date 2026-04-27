@@ -322,6 +322,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         final voiceId = lastPlayed['voiceId']?.toString().trim();
         final sid = lastPlayed['storyId'];
         final currentId = sid is int ? sid : int.tryParse(sid?.toString() ?? '');
+        if (currentId == null) {
+          await LastPlayedService.clearLastPlayed();
+        } else {
         if (!mounted) return;
         setState(() {
           _playUrl = playUrl;
@@ -349,6 +352,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         }
         _maybeAutoPlayAndActivateSleepMode();
         return;
+        }
       }
 
       // No last played: use last created story (by created_at).
@@ -733,7 +737,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final url = _playUrl?.trim();
     if (url == null || url.isEmpty) return;
     LastPlayedService.saveLastPlayed(
-      storyId: widget.storyId,
+      storyId: _currentStoryId ?? widget.storyId,
       playUrl: url,
       title: _title,
       categoryLabel: _categoryLabel,
