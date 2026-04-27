@@ -399,9 +399,33 @@ class BackendClient {
           }),
         )
         .timeout(
-          const Duration(seconds: 90),
+          const Duration(seconds: 30),
           onTimeout: () => throw Exception('Voice generate audio timeout'),
         );
+
+    // New backend behavior: may return 202 Accepted and require polling playUrl.
+    if (response.statusCode == 202) {
+      const maxWait = Duration(seconds: 120);
+      final started = DateTime.now();
+      Duration backoff = const Duration(milliseconds: 500);
+      while (DateTime.now().difference(started) < maxWait) {
+        try {
+          final play = await getStoryPlayUrl(storyId);
+          final playUrl = (play['playUrl'] as String?)?.trim();
+          if (playUrl != null && playUrl.isNotEmpty) {
+            return {'url': playUrl, 'content_type': 'audio/mpeg'};
+          }
+        } catch (_) {
+          // 404 means not ready yet; keep polling.
+        }
+        await Future<void>.delayed(backoff);
+        if (backoff < const Duration(seconds: 3)) {
+          backoff = Duration(milliseconds: (backoff.inMilliseconds * 2).clamp(500, 3000));
+        }
+      }
+      throw Exception('Voice generate audio timed out waiting for play URL');
+    }
+
     if (response.statusCode >= 400) {
       throw Exception(
         'Voice generate audio failed: ${response.statusCode} ${response.body}',
