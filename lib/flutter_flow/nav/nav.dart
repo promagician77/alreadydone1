@@ -79,7 +79,6 @@ class AppStateNotifier extends ChangeNotifier {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_keyUserHasSignedInOnce, true);
         await SupabaseService.ensureUserProfileFromAuth();
-        debugPrint('[TimezoneSync] auth event=${state.event}; starting timezone sync');
         TimezoneSyncService.syncInBackground();
         await FcmService.onUserSignedIn();
         if (RevenueCatService.instance.isSupported) {

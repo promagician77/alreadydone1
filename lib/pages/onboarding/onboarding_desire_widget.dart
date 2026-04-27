@@ -180,10 +180,6 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
     final userId = await SupabaseService.getCurrentUserTableId();
     final body = _state.toStoryRequestBody(userId);
-    debugPrint(
-      '[StoryLimit][OnboardingDesire] create tapped userId=$userId '
-      'localNow=${DateTime.now().toIso8601String()}',
-    );
 
     final name = body['name'] as String? ?? '';
     final location = body['location'] as String? ?? '';
@@ -232,10 +228,6 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       }
 
       final result = await BackendClient.generateStory(body);
-      debugPrint(
-        '[StoryLimit][OnboardingDesire] generate success '
-        'userId=$userId storyId=${result['id']}',
-      );
       if (mounted) {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
@@ -265,7 +257,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       if (mounted) {
         setState(() => _state.isGenerating = false);
         final msg = e.toString();
-        debugPrint('[StoryLimit][OnboardingDesire] generate failed userId=$userId error=$msg');
+        debugPrint('Error: $msg');
         if (msg.contains('403') &&
             (msg.contains('1 story per day') ||
                 msg.contains('story per day'))) {

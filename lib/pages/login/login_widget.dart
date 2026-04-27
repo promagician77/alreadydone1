@@ -100,17 +100,6 @@ class _LoginWidgetState extends State<LoginWidget> {
                         obscureText: true,
                       ),
                       const SizedBox(height: 8),
-                      // Align(
-                      //   alignment: Alignment.centerRight,
-                      //   child: Pressable(
-                      //     onTap: () => context.go('/passwordReset'),
-                      //     borderRadius: BorderRadius.circular(4),
-                      //     child: Padding(
-                      //       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                      //       child: Text('Forgot password?', style: AuthTheme.forgotLinkStyle),
-                      //     ),
-                      //   ),
-                      // ),
                       const SizedBox(height: 16),
                       _primaryButton('Log In', _handleLogin),
                       const SizedBox(height: 20),

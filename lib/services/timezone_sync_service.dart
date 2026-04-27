@@ -10,69 +10,44 @@ class TimezoneSyncService {
 
   static const String _keyPrefix = 'timezone_synced_v1_';
 
-  static String _offsetFallbackTimezone() {
-    final offset = DateTime.now().timeZoneOffset;
-    final sign = offset.isNegative ? '-' : '+';
-    final hours = offset.inHours.abs().toString().padLeft(2, '0');
-    final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-    return 'UTC$sign$hours:$minutes';
-  }
-
-  static Future<String?> getDeviceTimezone() async {
+  static Future<String?> _getDeviceTimezone() async {
     try {
       final dynamic tz = await FlutterTimezone.getLocalTimezone();
+      debugPrint('tz: $tz');
 
       if (tz is String) {
         final s = tz.trim();
-        if (s.isNotEmpty) {
-          debugPrint('[TimezoneSync] device timezone string=$s');
-          return s;
-        }
+        return s.isEmpty ? null : s;
       }
 
       final identifier = (tz?.identifier as String?)?.trim();
-      if (identifier != null && identifier.isNotEmpty) {
-        debugPrint('[TimezoneSync] device timezone identifier=$identifier');
-        return identifier;
-      }
+      if (identifier != null && identifier.isNotEmpty) return identifier;
 
-      final fallback = _offsetFallbackTimezone();
-      debugPrint('[TimezoneSync] missing plugin timezone; fallback=$fallback raw=$tz');
-      return fallback;
-    } catch (e) {
-      final fallback = _offsetFallbackTimezone();
-      debugPrint('[TimezoneSync] failed to read plugin timezone: $e; fallback=$fallback');
-      return fallback;
+      // Final fallback: allow toString() if it looks usable.
+      final asString = tz.toString().trim();
+      return asString.isEmpty ? null : asString;
+    } catch (_) {
+      return null;
     }
   }
 
   static Future<void> syncIfNeeded() async {
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) {
-      debugPrint('[TimezoneSync] skipped: no user');
-      return;
-    }
+    if (userId == null) return;
 
-    final timezone = await getDeviceTimezone();
-    if (timezone == null || timezone.isEmpty) {
-      debugPrint('[TimezoneSync] skipped: empty timezone userId=$userId');
-      return;
-    }
+    final timezone = await _getDeviceTimezone();
+    if (timezone == null || timezone.isEmpty) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_keyPrefix$userId';
       final last = prefs.getString(key)?.trim();
-      if (last == timezone) {
-        debugPrint('[TimezoneSync] already synced userId=$userId tz=$timezone');
-        return;
-      }
+      if (last == timezone) return;
 
       await BackendClient.updateUserProfile(userId, timezone: timezone);
       await prefs.setString(key, timezone);
       debugPrint('[TimezoneSync] synced userId=$userId tz=$timezone');
-    } catch (e) {
-      debugPrint('[TimezoneSync] sync failed userId=$userId tz=$timezone error=$e');
+    } catch (_) {
       // Best-effort; do not block app start / login.
     }
   }

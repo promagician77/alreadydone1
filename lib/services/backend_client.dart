@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -44,35 +43,6 @@ class BackendClient {
   static Never _throwServerNap([Object? e]) {
     ServerToast.show();
     throw Exception(ServerToast.message);
-  }
-
-  static String _offsetFallbackTimezone() {
-    final offset = DateTime.now().timeZoneOffset;
-    final sign = offset.isNegative ? '-' : '+';
-    final hours = offset.inHours.abs().toString().padLeft(2, '0');
-    final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-    return 'UTC$sign$hours:$minutes';
-  }
-
-  static Future<String?> _getDeviceTimezone() async {
-    try {
-      final dynamic tz = await FlutterTimezone.getLocalTimezone();
-      if (tz is String) {
-        final value = tz.trim();
-        if (value.isNotEmpty) return value;
-      }
-
-      final identifier = (tz?.identifier as String?)?.trim();
-      if (identifier != null && identifier.isNotEmpty) return identifier;
-
-      final fallback = _offsetFallbackTimezone();
-      debugPrint('[BackendClient][Timezone] missing plugin timezone; fallback=$fallback raw=$tz');
-      return fallback;
-    } catch (e) {
-      final fallback = _offsetFallbackTimezone();
-      debugPrint('[BackendClient][Timezone] failed to read plugin timezone: $e; fallback=$fallback');
-      return fallback;
-    }
   }
 
   static String _errorDetailFromResponse(http.Response response) {
@@ -305,14 +275,6 @@ class BackendClient {
       'lovedOne': lovedOne,
       'dreamLocation': dreamLocation,
     };
-    final timezone = await _getDeviceTimezone();
-    if (timezone != null && timezone.isNotEmpty) {
-      body['timezone'] = timezone;
-    }
-    debugPrint(
-      '[BackendClient][Deepen] POST /api/stories/deepen '
-      'userId=$userId storyId=$storyId timezone=${body['timezone']}',
-    );
     final response = await client
         .post(
           resolve('/api/stories/deepen'),
@@ -323,64 +285,33 @@ class BackendClient {
           const Duration(seconds: 120),
           onTimeout: () => throw Exception('Deepen story timeout'),
         );
-    debugPrint(
-      '[BackendClient][Deepen] response status=${response.statusCode} '
-      'bodyLength=${response.body.length}',
-    );
-    if (response.statusCode >= 400) {
-      debugPrint('[BackendClient][Deepen] error body=${response.body}');
-    }
     if (response.statusCode >= 400) {
       throw Exception(
         'Deepen failed: ${response.statusCode} ${response.body}',
       );
     }
     final decoded = jsonDecode(response.body);
-    if (decoded is Map<String, dynamic>) {
-      debugPrint('[BackendClient][Deepen] decoded storyId=${decoded['id']}');
-      return decoded;
-    }
-    return {};
+    return decoded is Map<String, dynamic> ? decoded : {};
   }
 
   static Future<Map<String, dynamic>> generateStory(
     Map<String, dynamic> body,
   ) async {
-    final requestBody = Map<String, dynamic>.from(body);
-    final timezone = await _getDeviceTimezone();
-    if (timezone != null && timezone.isNotEmpty) {
-      requestBody['timezone'] = timezone;
-    }
-    debugPrint(
-      '[BackendClient][Generate] POST /api/stories/generate '
-      'userId=${requestBody['user_id']} timezone=${requestBody['timezone']}',
-    );
     final response = await client
         .post(
           resolve('/api/stories/generate'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(requestBody),
+          body: jsonEncode(body),
         )
         .timeout(
           const Duration(seconds: 120),
           onTimeout: () => throw Exception('Generation timeout'),
         );
-    debugPrint(
-      '[BackendClient][Generate] response status=${response.statusCode} '
-      'bodyLength=${response.body.length}',
-    );
-    if (response.statusCode >= 400) {
-      debugPrint('[BackendClient][Generate] error body=${response.body}');
-    }
     if (response.statusCode >= 400) {
       throw Exception('Generate failed: ${response.statusCode} ${response.body}');
     }
     final decoded = jsonDecode(response.body);
-    if (decoded is Map<String, dynamic>) {
-      debugPrint('[BackendClient][Generate] decoded storyId=${decoded['id']}');
-      return decoded;
-    }
-    return {'story': decoded};
+    return decoded is Map<String, dynamic> ? decoded : {'story': decoded};
   }
 
   static Future<Map<String, dynamic>> uploadVoiceClone({
