@@ -411,8 +411,6 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {'url': null, 'content_type': null};
   }
 
-  /// GET api/voice/speak/{story_id} - return existing play URL for a story (no generation).
-  /// Returns { "playUrl": play_url }. Throws on 404 (story not found or no playUrl yet).
   static Future<Map<String, dynamic>> getStoryPlayUrl(int storyId) async {
     final uri = resolve('/api/voice/speak/$storyId');
     final response = await client.get(uri).timeout(

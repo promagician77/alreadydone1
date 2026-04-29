@@ -4,8 +4,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart' show SupabaseService;
-import '/flutter_flow/nav/nav.dart';
-import '/pages/onboarding/onboarding_origin_splash_widget.dart';
+import '/pages/tutorial/tutorial_widget.dart';
 import '/services/app_toast.dart';
 import 'email_verification_model.dart';
 export 'email_verification_model.dart';
@@ -26,7 +25,8 @@ class EmailVerificationWidget extends StatefulWidget {
   static String routePath = '/verifyEmailOtp';
 
   @override
-  State<EmailVerificationWidget> createState() => _EmailVerificationWidgetState();
+  State<EmailVerificationWidget> createState() =>
+      _EmailVerificationWidgetState();
 }
 
 class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
@@ -100,13 +100,15 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                         const Padding(
                           padding: EdgeInsets.only(top: 16),
                           child: Center(
-                            child: CircularProgressIndicator(color: AuthTheme.gold),
+                            child: CircularProgressIndicator(
+                                color: AuthTheme.gold),
                           ),
                         ),
                       const SizedBox(height: 16),
                       Center(
                         child: TextButton(
-                          onPressed: _model.isLoading ? null : _handleResendCode,
+                          onPressed:
+                              _model.isLoading ? null : _handleResendCode,
                           child: Text(
                             'Resend code',
                             style: GoogleFonts.outfit(
@@ -147,7 +149,8 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
         hintStyle: AuthTheme.placeholderStyle,
         filled: true,
         fillColor: AuthTheme.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -205,15 +208,19 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
       if (response.user != null && mounted) {
         if (widget.isEmailChange && widget.userId != null) {
           try {
-            await BackendClient.updateUserProfile(widget.userId!, email: widget.email);
+            await BackendClient.updateUserProfile(widget.userId!,
+                email: widget.email);
           } catch (_) {}
         }
         if (mounted) {
           AppToast.success(
             context,
-            widget.isEmailChange ? 'Email updated successfully!' : 'Email verified! Welcome.',
+            widget.isEmailChange
+                ? 'Email updated successfully!'
+                : 'Email verified! Welcome.',
           );
-          context.go(widget.isEmailChange ? '/' : OnboardingOriginSplashWidget.routePath);
+          context.go(
+              widget.isEmailChange ? '/' : OnboardingTutorialWidget.routePath);
         }
       }
     } catch (e) {
@@ -252,4 +259,3 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     }
   }
 }
-

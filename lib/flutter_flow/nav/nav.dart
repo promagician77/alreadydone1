@@ -43,10 +43,11 @@ Future<bool> _hasSubscribedStatusFromProfile() async {
     if (userId == null) return false;
     final profile = await BackendClient.getUserProfile(userId);
     debugPrint('User profile: $profile');
-    final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-        ?.toString()
-        .toLowerCase()
-        .trim();
+    final status =
+        (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+            ?.toString()
+            .toLowerCase()
+            .trim();
     debugPrint('Status: $status');
     return status == 'active' || status == 'trial';
   } catch (_) {
@@ -132,7 +133,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           // After sign-in/sign-up: check Supabase users table rc_subscription_status.
           // If active or trial → home; else → default onboarding flow.
           final subscribed = await _hasSubscribedStatusFromProfile();
-          if (subscribed) return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+          if (subscribed)
+            return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
           // Not subscribed: if first story already generated → paywall
           if (await OnboardingService.hasGeneratedFirstStory()) {
             return OnboardingSplashWidget.routePath;
@@ -212,12 +214,15 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
                   initialPage: 'Player',
                   page: PlayerWidget(
                     storyId: params.getParam('storyId', ParamType.int) as int?,
-                    categoryLabel: params.getParam('categoryLabel', ParamType.String),
+                    categoryLabel:
+                        params.getParam('categoryLabel', ParamType.String),
                     title: params.getParam('title', ParamType.String),
                     subtitle: params.getParam('subtitle', ParamType.String),
-                    durationLabel: params.getParam('durationLabel', ParamType.String),
+                    durationLabel:
+                        params.getParam('durationLabel', ParamType.String),
                     playUrl: params.getParam('playUrl', ParamType.String),
-                    storyPreview: params.getParam('storyPreview', ParamType.String),
+                    storyPreview:
+                        params.getParam('storyPreview', ParamType.String),
                     voiceId: params.getParam('voiceId', ParamType.String),
                   ),
                 ),
@@ -259,7 +264,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
                 : null;
             return EmailVerificationWidget(
               email: params.getParam('email', ParamType.String) ?? '',
-              isEmailChange: params.getParam('changeEmail', ParamType.String) == '1',
+              isEmailChange:
+                  params.getParam('changeEmail', ParamType.String) == '1',
               userId: userId,
             );
           },
@@ -283,6 +289,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: OnboardingOriginSplashWidget.routeName,
           path: OnboardingOriginSplashWidget.routePath,
           builder: (context, params) => OnboardingOriginSplashWidget(),
+        ),
+        FFRoute(
+          name: OnboardingTutorialWidget.routeName,
+          path: OnboardingTutorialWidget.routePath,
+          builder: (context, params) => const OnboardingTutorialWidget(),
         ),
         FFRoute(
           name: OnboardingPersonalizeWidget.routeName,

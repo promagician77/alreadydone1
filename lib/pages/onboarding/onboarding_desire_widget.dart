@@ -208,7 +208,6 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         if (name.isEmpty) missing.add('First Name');
         if (location.isEmpty) missing.add('Dream Place');
         if (someoneYouLove.isEmpty) missing.add('Someone You Love');
-        // Description handled above with its own toast.
         AppToast.info(context, 'Please fill in ${missing.join(', ')}');
       }
       return;
@@ -235,9 +234,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
           someoneYouLove: loved != null && loved.trim().isNotEmpty ? loved.trim() : null,
         );
       }
-      debugPrint('body: $body');
       final result = await BackendClient.generateStory(body);
-      debugPrint('result: $result');
       if (mounted) {
         _state.generatedStory = result;
         setState(() => _state.isGenerating = false);
