@@ -4,7 +4,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
@@ -19,6 +18,7 @@ import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_desire_widget.dart';
 import '/services/onboarding_service.dart';
+import '/services/coachmark_progress_service.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
 
@@ -60,10 +60,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   late final AnimationController _idleWaveController;
   int _playNonce = 0;
 
-  static const String _newManifestationCoachmarkKeyPrefix =
-      'new_manifestation_coachmark_v1_';
   bool _showNewManifestationCoachmark = false;
-  bool _newManifestationCoachmarkCheckScheduled = false;
 
   /// Some native players/CDNs cache audio aggressively by URL.
   /// Add a cache-busting query param only for non-signed URLs.
@@ -173,21 +170,14 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     });
   }
 
-  String _newManifestationCoachmarkStorageKey() {
-    final user = SupabaseService.currentUser;
-    final userKey = user?.id.toLowerCase() ?? 'guest';
-    return '$_newManifestationCoachmarkKeyPrefix$userKey';
-  }
-
   Future<void> _maybeShowNewManifestationCoachmark() async {
     if (_showNewManifestationCoachmark) return;
     // Show only after user has at least one story so "additional stories" makes sense.
     final hasStory = await OnboardingService.hasGeneratedFirstStory();
     if (!hasStory) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool(_newManifestationCoachmarkStorageKey()) ?? false;
-    if (seen) return;
+    // Ordered sequence: this is stage 3 (after Done/Library coachmark).
+    final stage = await CoachmarkProgressService.getStage();
+    if (stage != 2) return;
 
     if (!mounted) return;
     setState(() => _showNewManifestationCoachmark = true);
@@ -336,8 +326,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   Future<void> _dismissNewManifestationCoachmark() async {
     if (!_showNewManifestationCoachmark) return;
     setState(() => _showNewManifestationCoachmark = false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_newManifestationCoachmarkStorageKey(), true);
+    await CoachmarkProgressService.advanceToAtLeast(3);
   }
 
   Future<void> _loadData() async {
@@ -779,15 +768,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
   @override
   Widget build(BuildContext context) {
-    // Re-check on every entry/render so the coachmark can appear after the first
-    // story is generated (even if this widget was already alive before that).
-    if (!_showNewManifestationCoachmark && !_newManifestationCoachmarkCheckScheduled) {
-      _newManifestationCoachmarkCheckScheduled = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        _newManifestationCoachmarkCheckScheduled = false;
-        await _maybeShowNewManifestationCoachmark();
-      });
-    }
+    // Re-check on every entry/build so this still shows if the first story is
+    // created after HomeDashboard was first mounted.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowNewManifestationCoachmark();
+    });
     final filtered = _getFilteredStories();
     final lastPlayed = _model.stories.isEmpty ? null : _model.stories.first;
     final recentStories = filtered.isEmpty

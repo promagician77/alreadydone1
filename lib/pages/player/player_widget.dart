@@ -13,6 +13,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
 import '/services/ai_consent_service.dart';
 import '/services/app_toast.dart';
+import '/services/coachmark_progress_service.dart';
+import '/services/onboarding_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import '/index.dart';
@@ -73,8 +75,6 @@ class PlayerWidget extends StatefulWidget {
 class _PlayerWidgetState extends State<PlayerWidget>
     with SingleTickerProviderStateMixin {
   final LayerLink _settingsGearLink = LayerLink();
-  static const String _settingsCoachmarkKeyPrefix =
-      'player_settings_coachmark_v1_';
 
   String _nextResetMessage() {
     final now = DateTime.now();
@@ -216,22 +216,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   bool _showSettingsCoachmark = false;
 
-  String _settingsCoachmarkStorageKey() {
-    final user = SupabaseService.currentUser;
-    final userKey = user?.id.toLowerCase() ?? 'guest';
-    return '$_settingsCoachmarkKeyPrefix$userKey';
-  }
-
   Future<void> _maybeShowSettingsCoachmark() async {
     // Only show when the player screen is actually usable.
     if (!mounted) return;
     if (_sleepModeActive) return;
     if (_isGeneratingVoice || _isDeepening) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final key = _settingsCoachmarkStorageKey();
-    final seen = prefs.getBool(key) ?? false;
-    if (seen) return;
+    // Ordered sequence: only start after first story is created.
+    final hasStory = await OnboardingService.hasGeneratedFirstStory();
+    if (!hasStory) return;
+
+    final stage = await CoachmarkProgressService.getStage();
+    if (stage != 0) return;
     if (!mounted) return;
     setState(() => _showSettingsCoachmark = true);
   }
@@ -239,8 +235,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Future<void> _dismissSettingsCoachmark() async {
     if (!_showSettingsCoachmark) return;
     setState(() => _showSettingsCoachmark = false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_settingsCoachmarkStorageKey(), true);
+    await CoachmarkProgressService.advanceToAtLeast(1);
   }
 
   // ---------------------------------------------------------------------------
@@ -1894,6 +1889,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   @override
   Widget build(BuildContext context) {
+    // Re-check on every entry/build so this still shows if the first story is
+    // created after Player was first mounted.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowSettingsCoachmark();
+    });
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();

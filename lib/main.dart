@@ -26,6 +26,7 @@ import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
 import '/services/onboarding_service.dart';
+import '/services/coachmark_progress_service.dart';
 import '/widgets/pressable.dart';
 import 'index.dart';
 
@@ -335,12 +336,8 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
   String _currentPageName = 'HomeDashboard';
   late Widget? _currentPage;
 
-  static const String _doneLibraryCoachmarkKeyPrefix =
-      'done_library_coachmark_v1_';
-
   late final AnimationController _coachmarkPulseController;
   bool _showDoneLibraryCoachmark = false;
-  bool _doneLibraryCoachmarkCheckScheduled = false;
 
   @override
   void initState() {
@@ -363,20 +360,14 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  String _doneLibraryCoachmarkStorageKey() {
-    final user = SupabaseService.currentUser;
-    final userKey = user?.id.toLowerCase() ?? 'guest';
-    return '$_doneLibraryCoachmarkKeyPrefix$userKey';
-  }
-
   Future<void> _maybeShowDoneLibraryCoachmark() async {
+    if (_showDoneLibraryCoachmark) return;
     // Only show once the user has actually generated a manifestation.
     final hasStory = await OnboardingService.hasGeneratedFirstStory();
     if (!hasStory) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool(_doneLibraryCoachmarkStorageKey()) ?? false;
-    if (seen) return;
+    // Ordered sequence: this is stage 2 (after Player settings).
+    final stage = await CoachmarkProgressService.getStage();
+    if (stage != 1) return;
 
     if (!mounted) return;
     setState(() => _showDoneLibraryCoachmark = true);
@@ -385,8 +376,7 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
   Future<void> _dismissDoneLibraryCoachmark() async {
     if (!_showDoneLibraryCoachmark) return;
     setState(() => _showDoneLibraryCoachmark = false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_doneLibraryCoachmarkStorageKey(), true);
+    await CoachmarkProgressService.advanceToAtLeast(2);
   }
 
   void _onNavTap(int index) {
@@ -449,21 +439,18 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
     final currentIndex = tabKeys.indexOf(_currentPageName);
     final isPlayerSleepMode = _currentPageName == 'Player';
 
+    // Re-check on every entry/build so this still shows if the first story is
+    // created after NavBarPage was first mounted.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowDoneLibraryCoachmark();
+    });
+
     return ValueListenableBuilder<bool>(
       valueListenable: sleepModeNotifier,
       builder: (context, sleepMode, _) {
         return ValueListenableBuilder<bool>(
           valueListenable: navLockNotifier,
           builder: (context, navLocked, __) {
-            // Re-check after user generates their first story, even if this widget
-            // was created earlier (common when onboarding finishes and returns here).
-            if (!_showDoneLibraryCoachmark && !_doneLibraryCoachmarkCheckScheduled) {
-              _doneLibraryCoachmarkCheckScheduled = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) async {
-                _doneLibraryCoachmarkCheckScheduled = false;
-                await _maybeShowDoneLibraryCoachmark();
-              });
-            }
             final useSleepStyle = isPlayerSleepMode && sleepMode;
             final barColor = useSleepStyle ? _NavColors.sleepSurface : _NavColors.surface;
             final selectedColor = useSleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
