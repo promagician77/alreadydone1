@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
+import '/pages/onboarding/recording_circle.dart';
 import '/pages/onboarding/onboarding_origin_splash_widget.dart';
 import '/widgets/pressable.dart';
 import 'tutorial_step.dart';
@@ -518,6 +519,7 @@ class _VoiceSelectPreview extends StatelessWidget {
             description: 'Your own cloned voice, the most powerful option',
             selected: true,
             badge: 'RECOMMENDED',
+            isMyVoice: true,
           ),
         ),
         SizedBox(height: 14),
@@ -545,29 +547,11 @@ class _VoiceRecordPreview extends StatelessWidget {
           subtitle: 'Record yourself reading the words below.',
         ),
         const SizedBox(height: 16),
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AuthTheme.surface,
-            border: Border.all(color: AuthTheme.stoneMid),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.mic_rounded, color: AuthTheme.gold, size: 24),
-              const SizedBox(height: 2),
-              Text(
-                '0:30',
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AuthTheme.ink,
-                ),
-              ),
-            ],
-          ),
+        const RecordingCircle(
+          progress: 0,
+          timerText: '00:30',
+          label: '',
+          size: 126,
         ),
         const SizedBox(height: 16),
         Container(
@@ -614,36 +598,29 @@ class _VoiceClonePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       children: [
-        const _PreviewTitle(
+        _PreviewTitle(
           title: 'Great Recording!',
           subtitle: 'Your voice clone is ready to create.',
         ),
-        const SizedBox(height: 16),
-        Container(
-          width: 78,
-          height: 78,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AuthTheme.goldPale,
-            border: Border.all(color: AuthTheme.gold, width: 2),
-          ),
-          child: const Icon(
-            Icons.check_rounded,
-            color: AuthTheme.gold,
-            size: 30,
-          ),
+        SizedBox(height: 16),
+        RecordingCircle(
+          progress: 1,
+          timerText: '00:00',
+          label: '',
+          showCheckmark: true,
+          size: 126,
         ),
-        const SizedBox(height: 14),
-        const _InfoBanner(
+        SizedBox(height: 14),
+        _InfoBanner(
           text:
               "Perfect! 30 seconds recorded.\nTap 'Create Clone Voice' below to continue.",
         ),
-        const SizedBox(height: 12),
-        const _NextStepCard(),
-        const SizedBox(height: 12),
-        const Row(
+        SizedBox(height: 12),
+        _NextStepCard(),
+        SizedBox(height: 12),
+        Row(
           children: [
             Expanded(
                 child: _SmallActionButton(
@@ -654,8 +631,8 @@ class _VoiceClonePreview extends StatelessWidget {
                     icon: Icons.refresh, label: 'Re-record')),
           ],
         ),
-        const SizedBox(height: 12),
-        const _PulsingButton(label: 'Create Clone Voice'),
+        SizedBox(height: 12),
+        _PulsingButton(label: 'Create Clone Voice'),
       ],
     );
   }
@@ -907,20 +884,30 @@ class _SectionDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: Divider(color: AuthTheme.stone)),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: AuthTheme.stone,
+          ),
+        ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             label,
             style: GoogleFonts.outfit(
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1,
               color: AuthTheme.inkSoft,
             ),
           ),
         ),
-        const Expanded(child: Divider(color: AuthTheme.stone)),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: AuthTheme.stone,
+          ),
+        ),
       ],
     );
   }
@@ -932,12 +919,14 @@ class _VoiceOption extends StatelessWidget {
     required this.description,
     this.selected = false,
     this.badge,
+    this.isMyVoice = false,
   });
 
   final String name;
   final String description;
   final bool selected;
   final String? badge;
+  final bool isMyVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -945,12 +934,32 @@ class _VoiceOption extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: selected ? AuthTheme.goldPale : AuthTheme.surface,
-        borderRadius: BorderRadius.circular(14),
+        gradient: isMyVoice
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AuthTheme.goldPale, AuthTheme.warmWhite],
+              )
+            : null,
+        color: isMyVoice
+            ? null
+            : (selected ? AuthTheme.goldPale : AuthTheme.surface),
+        borderRadius: BorderRadius.circular(isMyVoice ? 16 : 12),
         border: Border.all(
-          color: selected ? AuthTheme.gold : AuthTheme.stone,
-          width: selected ? 1.6 : 1,
+          color: selected
+              ? AuthTheme.gold
+              : (isMyVoice ? AuthTheme.goldLight : AuthTheme.stone),
+          width: isMyVoice ? 2 : 1.5,
         ),
+        boxShadow: selected && isMyVoice
+            ? [
+                BoxShadow(
+                  color: AuthTheme.ink.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Row(
         children: [
@@ -990,8 +999,8 @@ class _VoiceOption extends StatelessWidget {
                     Text(
                       name,
                       style: GoogleFonts.outfit(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontSize: isMyVoice ? 16 : 14,
+                        fontWeight: FontWeight.w600,
                         color: AuthTheme.ink,
                       ),
                     ),
@@ -1003,7 +1012,7 @@ class _VoiceOption extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AuthTheme.gold,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           badge!,
@@ -1021,7 +1030,7 @@ class _VoiceOption extends StatelessWidget {
                 Text(
                   description,
                   style: GoogleFonts.outfit(
-                    fontSize: 12,
+                    fontSize: isMyVoice ? 12 : 11,
                     height: 1.35,
                     color: AuthTheme.inkSoft,
                   ),
