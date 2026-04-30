@@ -193,13 +193,13 @@ class _TutorialBody extends StatelessWidget {
                   ? MainAxisAlignment.start
                   : MainAxisAlignment.center,
               children: [
-                _PreviewCard(step: step),
-                SizedBox(height: isCompact ? 18 : 28),
                 _InstructionCard(
                   step: step,
                   stepIndex: stepIndex,
                   totalSteps: totalSteps,
                 ),
+                SizedBox(height: isCompact ? 18 : 28),
+                _PreviewCard(step: step),
               ],
             ),
           ),
@@ -1430,19 +1430,19 @@ class _InstructionCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 420),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
-        color: AuthTheme.surface,
+        color: AuthTheme.goldPale,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AuthTheme.gold.withValues(alpha: 0.72)),
+        border: Border.all(color: AuthTheme.gold.withValues(alpha: 0.9)),
         boxShadow: [
           BoxShadow(
-            color: AuthTheme.ink.withValues(alpha: 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
+            color: AuthTheme.gold.withValues(alpha: 0.20),
+            blurRadius: 32,
+            offset: const Offset(0, 14),
           ),
           BoxShadow(
-            color: AuthTheme.gold.withValues(alpha: 0.14),
-            blurRadius: 36,
-            offset: const Offset(0, 12),
+            color: AuthTheme.ink.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
