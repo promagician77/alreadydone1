@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
@@ -13,11 +14,11 @@ import '/widgets/pressable.dart';
 import '/services/app_toast.dart';
 import '/services/ai_consent_service.dart';
 import '/services/backend_client.dart';
-import '/services/main_experience_coachmark_service.dart';
 import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_desire_widget.dart';
+import '/services/onboarding_service.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
 
@@ -59,6 +60,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   late final AnimationController _idleWaveController;
   int _playNonce = 0;
 
+  static const String _newManifestationCoachmarkKeyPrefix =
+      'new_manifestation_coachmark_v1_';
   bool _showNewManifestationCoachmark = false;
 
   /// Some native players/CDNs cache audio aggressively by URL.
@@ -169,12 +172,21 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     });
   }
 
+  String _newManifestationCoachmarkStorageKey() {
+    final user = SupabaseService.currentUser;
+    final userKey = user?.id.toLowerCase() ?? 'guest';
+    return '$_newManifestationCoachmarkKeyPrefix$userKey';
+  }
+
   Future<void> _maybeShowNewManifestationCoachmark() async {
     if (_showNewManifestationCoachmark) return;
-    final canShow = await MainExperienceCoachmarkService.canShow(
-      MainCoachmarkStep.addManifestation,
-    );
-    if (!canShow) return;
+    // Show only after user has at least one story so "additional stories" makes sense.
+    final hasStory = await OnboardingService.hasGeneratedFirstStory();
+    if (!hasStory) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool(_newManifestationCoachmarkStorageKey()) ?? false;
+    if (seen) return;
 
     if (!mounted) return;
     setState(() => _showNewManifestationCoachmark = true);
@@ -323,9 +335,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   Future<void> _dismissNewManifestationCoachmark() async {
     if (!_showNewManifestationCoachmark) return;
     setState(() => _showNewManifestationCoachmark = false);
-    await MainExperienceCoachmarkService.markSeen(
-      MainCoachmarkStep.addManifestation,
-    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_newManifestationCoachmarkStorageKey(), true);
   }
 
   Future<void> _loadData() async {
