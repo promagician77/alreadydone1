@@ -72,6 +72,7 @@ class PlayerWidget extends StatefulWidget {
 
 class _PlayerWidgetState extends State<PlayerWidget>
     with SingleTickerProviderStateMixin {
+  final LayerLink _settingsGearLink = LayerLink();
   static const String _settingsCoachmarkKeyPrefix =
       'player_settings_coachmark_v1_';
 
@@ -2033,6 +2034,44 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 ),
               ),
             if (_showSettingsCoachmark)
+              IgnorePointer(
+                ignoring: true,
+                child: CompositedTransformFollower(
+                  link: _settingsGearLink,
+                  showWhenUnlinked: false,
+                  child: AnimatedBuilder(
+                    animation: _waveformController,
+                    builder: (context, _) {
+                      if (_sleepModeActive) return const SizedBox.shrink();
+                      final t = _waveformController.value * math.pi * 2;
+                      final pulse = (math.sin(t) + 1) / 2; // 0..1
+                      final glowAlpha = 0.22 + pulse * 0.22;
+                      return Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _PlayerColors.surface,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: _PlayerColors.gold.withValues(alpha: glowAlpha),
+                              blurRadius: 34,
+                              spreadRadius: 3,
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.settings,
+                          size: 24,
+                          color: _PlayerColors.inkSoft,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            if (_showSettingsCoachmark)
               Positioned(
                 // Keep this below the header so it doesn't cover the gear icon.
                 top: 160,
@@ -2207,30 +2246,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
               width: settingsIconSize,
               height: settingsIconSize,
               child: Center(
-                child: AnimatedBuilder(
-                  animation: _waveformController,
-                  builder: (context, child) {
-                    final isHighlighted = _showSettingsCoachmark && !_sleepModeActive;
-                    final t = _waveformController.value * math.pi * 2;
-                    final pulse = (math.sin(t) + 1) / 2; // 0..1
-                    final glowAlpha = isHighlighted ? (0.22 + pulse * 0.18) : 0.0;
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: isHighlighted ? _PlayerColors.surface : Colors.transparent,
-                        shape: BoxShape.circle,
-                        boxShadow: isHighlighted
-                            ? [
-                                BoxShadow(
-                                  color: _PlayerColors.gold.withValues(alpha: glowAlpha),
-                                  blurRadius: 28,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: child,
-                    );
-                  },
+                child: CompositedTransformTarget(
+                  link: _settingsGearLink,
                   child: Pressable(
                     onTap: () async {
                       await _dismissSettingsCoachmark();
