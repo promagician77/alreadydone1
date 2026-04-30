@@ -63,6 +63,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   static const String _newManifestationCoachmarkKeyPrefix =
       'new_manifestation_coachmark_v1_';
   bool _showNewManifestationCoachmark = false;
+  bool _newManifestationCoachmarkCheckScheduled = false;
 
   /// Some native players/CDNs cache audio aggressively by URL.
   /// Add a cache-busting query param only for non-signed URLs.
@@ -778,6 +779,15 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
   @override
   Widget build(BuildContext context) {
+    // Re-check on every entry/render so the coachmark can appear after the first
+    // story is generated (even if this widget was already alive before that).
+    if (!_showNewManifestationCoachmark && !_newManifestationCoachmarkCheckScheduled) {
+      _newManifestationCoachmarkCheckScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        _newManifestationCoachmarkCheckScheduled = false;
+        await _maybeShowNewManifestationCoachmark();
+      });
+    }
     final filtered = _getFilteredStories();
     final lastPlayed = _model.stories.isEmpty ? null : _model.stories.first;
     final recentStories = filtered.isEmpty

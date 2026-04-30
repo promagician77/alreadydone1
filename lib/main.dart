@@ -340,6 +340,7 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
 
   late final AnimationController _coachmarkPulseController;
   bool _showDoneLibraryCoachmark = false;
+  bool _doneLibraryCoachmarkCheckScheduled = false;
 
   @override
   void initState() {
@@ -454,6 +455,15 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
         return ValueListenableBuilder<bool>(
           valueListenable: navLockNotifier,
           builder: (context, navLocked, __) {
+            // Re-check after user generates their first story, even if this widget
+            // was created earlier (common when onboarding finishes and returns here).
+            if (!_showDoneLibraryCoachmark && !_doneLibraryCoachmarkCheckScheduled) {
+              _doneLibraryCoachmarkCheckScheduled = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                _doneLibraryCoachmarkCheckScheduled = false;
+                await _maybeShowDoneLibraryCoachmark();
+              });
+            }
             final useSleepStyle = isPlayerSleepMode && sleepMode;
             final barColor = useSleepStyle ? _NavColors.sleepSurface : _NavColors.surface;
             final selectedColor = useSleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
