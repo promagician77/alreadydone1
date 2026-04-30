@@ -542,9 +542,29 @@ class _VoiceRecordPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const _PreviewTitle(
-          title: 'Clone Your Voice',
-          subtitle: 'Record yourself reading the words below.',
+        Column(
+          children: [
+            Text(
+              'Clone Your Voice',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 25,
+                height: 1.08,
+                fontWeight: FontWeight.w500,
+                color: AuthTheme.ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Record yourself reading the words below.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                color: AuthTheme.inkSoft,
+                height: 1.35,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         const RecordingCircle(
