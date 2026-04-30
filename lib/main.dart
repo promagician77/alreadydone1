@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -292,6 +293,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
 class _NavColors {
   static const surface = Color(0xFFFEFDFB);
+  static const ink = Color(0xFF1C1917);
   static const inkSoft = Color(0xFF78716C);
   static const gold = Color(0xFFB8861E);  
   static const sleepSurface = Color(0xFF1A1F3A);
@@ -631,19 +633,23 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
           children: [
             Positioned(
               bottom: -10,
-              left: '50%',
-              child: Transform.translate(
-                offset: const Offset(20, 0),
-                child: Transform.rotate(
-                  angle: math.pi / 4,
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: _NavColors.surface,
-                      border: Border(
-                        right: BorderSide(color: _NavColors.gold, width: 1.5),
-                        bottom: BorderSide(color: _NavColors.gold, width: 1.5),
+              left: 0,
+              right: 0,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Transform.translate(
+                  offset: const Offset(20, 0),
+                  child: Transform.rotate(
+                    angle: math.pi / 4,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: _NavColors.surface,
+                        border: Border(
+                          right: BorderSide(color: _NavColors.gold, width: 1.5),
+                          bottom: BorderSide(color: _NavColors.gold, width: 1.5),
+                        ),
                       ),
                     ),
                   ),

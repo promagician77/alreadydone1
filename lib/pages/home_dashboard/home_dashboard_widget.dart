@@ -194,11 +194,140 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       context: context,
       barrierDismissible: false,
       barrierColor: _AppColors.ink.withValues(alpha: 0.55),
-      builder: (_) => _NewManifestationCoachmarkDialog(
+      builder: (_) => _buildNewManifestationCoachmarkDialog(
         onGotIt: () async {
           Navigator.of(context).pop();
           await _dismissNewManifestationCoachmark();
         },
+      ),
+    );
+  }
+
+  Widget _buildNewManifestationCoachmarkDialog({
+    required VoidCallback onGotIt,
+  }) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: _AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _AppColors.gold, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 36,
+                    offset: const Offset(0, 18),
+                  ),
+                  BoxShadow(
+                    color: _AppColors.gold.withValues(alpha: 0.18),
+                    blurRadius: 60,
+                  ),
+                ],
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    bottom: -10,
+                    left: 0,
+                    right: 0,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Transform.rotate(
+                        angle: math.pi / 4,
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: _AppColors.surface,
+                            border: Border(
+                              right: BorderSide(color: _AppColors.gold, width: 1.5),
+                              bottom: BorderSide(color: _AppColors.gold, width: 1.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quick Tip',
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.8,
+                            color: _AppColors.gold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Create more stories anytime',
+                          style: GoogleFonts.cormorantGaramond(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                            color: _AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tap “Add New Manifestation” to create additional stories whenever you want.',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            height: 1.55,
+                            color: _AppColors.inkSoft,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: Pressable(
+                            onTap: onGotIt,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: _AppColors.gold,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _AppColors.gold.withValues(alpha: 0.25),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Got it',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -822,139 +951,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       ),
     );
   }
-
-class _NewManifestationCoachmarkDialog extends StatelessWidget {
-  const _NewManifestationCoachmarkDialog({required this.onGotIt});
-
-  final VoidCallback onGotIt;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              decoration: BoxDecoration(
-                color: _AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _AppColors.gold, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.22),
-                    blurRadius: 36,
-                    offset: const Offset(0, 18),
-                  ),
-                  BoxShadow(
-                    color: _AppColors.gold.withValues(alpha: 0.18),
-                    blurRadius: 60,
-                  ),
-                ],
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    bottom: -10,
-                    left: '50%',
-                    child: Transform.translate(
-                      offset: const Offset(0, 0),
-                      child: Transform.rotate(
-                        angle: math.pi / 4,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: _AppColors.surface,
-                            border: Border(
-                              right: BorderSide(color: _AppColors.gold, width: 1.5),
-                              bottom: BorderSide(color: _AppColors.gold, width: 1.5),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Quick Tip',
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.8,
-                            color: _AppColors.gold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Create more stories anytime',
-                          style: GoogleFonts.cormorantGaramond(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                            height: 1.2,
-                            color: _AppColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap “Add New Manifestation” to create additional stories whenever you want.',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
-                            color: _AppColors.inkSoft,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: Pressable(
-                            onTap: onGotIt,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: _AppColors.gold,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _AppColors.gold.withValues(alpha: 0.25),
-                                    blurRadius: 18,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Got it',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
   static const List<double> _staticWaveHeights = [8.0, 16.0, 24.0, 14.0, 28.0, 20.0, 12.0, 22.0, 18.0, 10.0];
   static const int _totalWaveBars = 56;

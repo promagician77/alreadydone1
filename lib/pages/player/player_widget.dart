@@ -2037,7 +2037,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 top: 110,
                 left: 20,
                 right: 20,
-                child: _PlayerSettingsCoachmark(
+                child: _buildPlayerSettingsCoachmark(
                   onGotIt: () => _dismissSettingsCoachmark(),
                 ),
               ),
@@ -2256,13 +2256,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     );
   }
 
-class _PlayerSettingsCoachmark extends StatelessWidget {
-  const _PlayerSettingsCoachmark({required this.onGotIt});
-
-  final VoidCallback onGotIt;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildPlayerSettingsCoachmark({required VoidCallback onGotIt}) {
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -2410,7 +2404,6 @@ class _PlayerSettingsCoachmark extends StatelessWidget {
       ),
     );
   }
-}
 
   Widget _buildDurationAndVoiceRow() {
     final durationText = _effectiveDuration.inSeconds > 0
