@@ -116,7 +116,7 @@ class _TutorialHeader extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Quick Tour',
+                'Tutorial Walkthrough',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -299,8 +299,6 @@ class _TutorialVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     switch (step.visualType) {
-      case TutorialVisualType.welcome:
-        return const _WelcomePreview();
       case TutorialVisualType.personalize:
         return const _PersonalizePreview();
       case TutorialVisualType.category:
@@ -309,74 +307,17 @@ class _TutorialVisual extends StatelessWidget {
         return const _DesirePreview();
       case TutorialVisualType.createStory:
         return const _CreateStoryPreview();
+      case TutorialVisualType.paywall:
+        return const _PaywallPreview();
+      case TutorialVisualType.voiceSelect:
+        return const _VoiceSelectPreview();
+      case TutorialVisualType.voiceRecord:
+        return const _VoiceRecordPreview();
+      case TutorialVisualType.voiceClone:
+        return const _VoiceClonePreview();
+      case TutorialVisualType.voiceReady:
+        return const _VoiceReadyPreview();
     }
-  }
-}
-
-class _WelcomePreview extends StatelessWidget {
-  const _WelcomePreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const SizedBox(height: 8),
-        Container(
-          width: 76,
-          height: 76,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: AuthTheme.gold.withValues(alpha: 0.18),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: Image.asset(
-              'assets/icon/app_icon.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        RichText(
-          textAlign: TextAlign.center,
-          text: TextSpan(
-            style: GoogleFonts.cormorantGaramond(
-              fontSize: 28,
-              fontWeight: FontWeight.w400,
-              color: AuthTheme.ink,
-              height: 1.08,
-            ),
-            children: [
-              const TextSpan(text: 'Your dream life.\n'),
-              TextSpan(
-                text: 'Already done.',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w400,
-                  fontStyle: FontStyle.italic,
-                  color: AuthTheme.gold,
-                  height: 1.08,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'In your voice.',
-          style: GoogleFonts.outfit(
-            fontSize: 13,
-            color: AuthTheme.inkSoft,
-          ),
-        ),
-      ],
-    );
   }
 }
 
@@ -496,6 +437,723 @@ class _CreateStoryPreview extends StatelessWidget {
         SizedBox(height: 16),
         _PulsingButton(label: 'Create My Story'),
       ],
+    );
+  }
+}
+
+class _PaywallPreview extends StatelessWidget {
+  const _PaywallPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: GoogleFonts.cormorantGaramond(
+              fontSize: 27,
+              fontWeight: FontWeight.w500,
+              color: AuthTheme.ink,
+              height: 1.08,
+            ),
+            children: [
+              const TextSpan(text: 'Your dream life.\n'),
+              TextSpan(
+                text: 'Already done.',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 27,
+                  fontStyle: FontStyle.italic,
+                  color: AuthTheme.gold,
+                  height: 1.08,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Unlimited stories in your voice',
+          style: GoogleFonts.outfit(fontSize: 13, color: AuthTheme.inkSoft),
+        ),
+        const SizedBox(height: 16),
+        const _PaywallStatsCard(),
+        const SizedBox(height: 14),
+        const _PulsingButton(label: 'Start your 3-day free trial today'),
+        const SizedBox(height: 14),
+        const _PlanCard(
+          title: 'Monthly',
+          price: r'$29.99',
+          period: '/month',
+          selected: true,
+          note: 'Save 30% vs weekly plan',
+        ),
+        const SizedBox(height: 10),
+        const _PlanCard(
+          title: 'Weekly',
+          price: r'$9.99',
+          period: '/week',
+        ),
+      ],
+    );
+  }
+}
+
+class _VoiceSelectPreview extends StatelessWidget {
+  const _VoiceSelectPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PreviewTitle(
+          title: 'Choose your\nnarration voice',
+          subtitle: 'Your own voice is recommended for manifestation.',
+        ),
+        SizedBox(height: 16),
+        _HighlightedBox(
+          child: _VoiceOption(
+            name: 'My Voice',
+            description: 'Your own cloned voice, the most powerful option',
+            selected: true,
+            badge: 'RECOMMENDED',
+          ),
+        ),
+        SizedBox(height: 14),
+        _SectionDivider(label: 'OR CHOOSE A PRE-MADE VOICE'),
+        SizedBox(height: 12),
+        _VoiceOption(name: 'Matt', description: 'Warm & Soothing'),
+        SizedBox(height: 8),
+        _VoiceOption(name: 'David', description: 'Confident & Powerful'),
+        SizedBox(height: 8),
+        _VoiceOption(name: 'Sarah', description: 'Warm & Nurturing'),
+      ],
+    );
+  }
+}
+
+class _VoiceRecordPreview extends StatelessWidget {
+  const _VoiceRecordPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _PreviewTitle(
+          title: 'Clone Your Voice',
+          subtitle: 'Record yourself reading the words below.',
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AuthTheme.surface,
+            border: Border.all(color: AuthTheme.stoneMid),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.mic_rounded, color: AuthTheme.gold, size: 24),
+              const SizedBox(height: 2),
+              Text(
+                '0:30',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AuthTheme.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AuthTheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AuthTheme.gold, width: 1.5),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'READ THIS ALOUD 3 TIMES',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: AuthTheme.gold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Three months later, I stood on the private terrace of my Newport Coast estate, watching the sunrise paint the Pacific in liquid gold...',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 15,
+                  height: 1.35,
+                  color: AuthTheme.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        const _PulsingButton(label: 'Start Recording'),
+      ],
+    );
+  }
+}
+
+class _VoiceClonePreview extends StatelessWidget {
+  const _VoiceClonePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const _PreviewTitle(
+          title: 'Great Recording!',
+          subtitle: 'Your voice clone is ready to create.',
+        ),
+        const SizedBox(height: 16),
+        Container(
+          width: 78,
+          height: 78,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AuthTheme.goldPale,
+            border: Border.all(color: AuthTheme.gold, width: 2),
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: AuthTheme.gold,
+            size: 30,
+          ),
+        ),
+        const SizedBox(height: 14),
+        const _InfoBanner(
+          text:
+              "Perfect! 30 seconds recorded.\nTap 'Create Clone Voice' below to continue.",
+        ),
+        const SizedBox(height: 12),
+        const _NextStepCard(),
+        const SizedBox(height: 12),
+        const Row(
+          children: [
+            Expanded(
+                child: _SmallActionButton(
+                    icon: Icons.headphones, label: 'Listen')),
+            SizedBox(width: 8),
+            Expanded(
+                child: _SmallActionButton(
+                    icon: Icons.refresh, label: 'Re-record')),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const _PulsingButton(label: 'Create Clone Voice'),
+      ],
+    );
+  }
+}
+
+class _VoiceReadyPreview extends StatelessWidget {
+  const _VoiceReadyPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            color: AuthTheme.goldPale,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AuthTheme.gold.withValues(alpha: 0.45)),
+            boxShadow: [
+              BoxShadow(
+                color: AuthTheme.gold.withValues(alpha: 0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.auto_awesome_rounded,
+            color: AuthTheme.gold,
+            size: 34,
+          ),
+        ),
+        const SizedBox(height: 18),
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: GoogleFonts.cormorantGaramond(
+              fontSize: 28,
+              fontWeight: FontWeight.w500,
+              color: AuthTheme.ink,
+              height: 1.08,
+            ),
+            children: [
+              const TextSpan(text: "It's already done.\n"),
+              TextSpan(
+                text: 'Welcome home.',
+                style: GoogleFonts.cormorantGaramond(
+                  fontSize: 28,
+                  fontStyle: FontStyle.italic,
+                  color: AuthTheme.gold,
+                  height: 1.08,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Every manifestation can now be narrated in your own voice.',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.outfit(
+            fontSize: 13,
+            height: 1.45,
+            color: AuthTheme.inkSoft,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaywallStatsCard extends StatelessWidget {
+  const _PaywallStatsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    const stats = [
+      ('4.8*', 'RATING'),
+      ('50K+', 'STORIES'),
+      ('12K+', 'USERS'),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AuthTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AuthTheme.stone),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'TRUSTED BY THOUSANDS',
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+              color: AuthTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: stats.map((stat) {
+              return Column(
+                children: [
+                  Text(
+                    stat.$1,
+                    style: GoogleFonts.cormorantGaramond(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AuthTheme.gold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    stat.$2,
+                    style: GoogleFonts.outfit(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                      color: AuthTheme.inkSoft,
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.title,
+    required this.price,
+    required this.period,
+    this.selected = false,
+    this.note,
+  });
+
+  final String title;
+  final String price;
+  final String period;
+  final bool selected;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: selected ? const Color(0xFFE3F0E0) : AuthTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: selected ? const Color(0xFF5A8A4A) : AuthTheme.stone,
+          width: selected ? 1.6 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AuthTheme.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.outfit(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AuthTheme.ink,
+                    ),
+                    children: [
+                      TextSpan(text: price),
+                      TextSpan(
+                        text: ' $period',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AuthTheme.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (note != null) ...[
+                  const SizedBox(height: 7),
+                  Text(
+                    note!,
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF5A8A4A),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? const Color(0xFF5A8A4A) : AuthTheme.stoneMid,
+                width: 1.5,
+              ),
+            ),
+            child: selected
+                ? Center(
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF5A8A4A),
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AuthTheme.stone)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: AuthTheme.inkSoft,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: AuthTheme.stone)),
+      ],
+    );
+  }
+}
+
+class _VoiceOption extends StatelessWidget {
+  const _VoiceOption({
+    required this.name,
+    required this.description,
+    this.selected = false,
+    this.badge,
+  });
+
+  final String name;
+  final String description;
+  final bool selected;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: selected ? AuthTheme.goldPale : AuthTheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: selected ? AuthTheme.gold : AuthTheme.stone,
+          width: selected ? 1.6 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? AuthTheme.gold : AuthTheme.stoneMid,
+                width: 1.6,
+              ),
+            ),
+            child: selected
+                ? Center(
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AuthTheme.gold,
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      name,
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AuthTheme.ink,
+                      ),
+                    ),
+                    if (badge != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AuthTheme.gold,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          badge!,
+                          style: GoogleFonts.outfit(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.7,
+                            color: AuthTheme.surface,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AuthTheme.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!selected) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.play_arrow_rounded,
+                size: 20, color: AuthTheme.ink),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  const _InfoBanner({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F0E0),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x805A8A4A)),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.outfit(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          height: 1.4,
+          color: const Color(0xFF5A8A4A),
+        ),
+      ),
+    );
+  }
+}
+
+class _NextStepCard extends StatelessWidget {
+  const _NextStepCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AuthTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AuthTheme.stone),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome_rounded,
+                color: AuthTheme.gold,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'What happens next?',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AuthTheme.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Tap 'Create Clone Voice' to generate your manifestation story. Takes 30 to 45 seconds.",
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              height: 1.4,
+              color: AuthTheme.inkSoft,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmallActionButton extends StatelessWidget {
+  const _SmallActionButton({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+      decoration: BoxDecoration(
+        color: AuthTheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AuthTheme.stone),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 14, color: AuthTheme.ink),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AuthTheme.ink,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -791,14 +1449,54 @@ class _InstructionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Step ${stepIndex + 1} of $totalSteps',
-            style: GoogleFonts.outfit(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.7,
-              color: AuthTheme.gold,
-            ),
+          Row(
+            children: [
+              Text(
+                '${step.phaseLabel} · Step ${stepIndex + 1} of $totalSteps',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: AuthTheme.gold,
+                ),
+              ),
+              if (step.isPaywall) ...[
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AuthTheme.goldPale,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: AuthTheme.gold.withValues(alpha: 0.32),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lock_rounded,
+                        size: 10,
+                        color: AuthTheme.gold,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'PAYWALL',
+                        style: GoogleFonts.outfit(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: AuthTheme.gold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 10),
           Text(
