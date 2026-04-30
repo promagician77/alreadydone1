@@ -2025,8 +2025,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
             if (_showSettingsCoachmark)
               Positioned.fill(
-                child: AbsorbPointer(
-                  absorbing: true,
+                child: IgnorePointer(
+                  ignoring: true,
                   child: Container(
                     color: _PlayerColors.ink.withValues(alpha: 0.55),
                   ),
@@ -2034,7 +2034,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
             if (_showSettingsCoachmark)
               Positioned(
-                top: 110,
+                // Keep this below the header so it doesn't cover the gear icon.
+                top: 160,
                 left: 20,
                 right: 20,
                 child: _buildPlayerSettingsCoachmark(
@@ -2281,7 +2282,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
           children: [
             Positioned(
               top: -10,
-              right: 20,
+              // Align arrow closer to the settings gear (top-right).
+              right: 34,
               child: Transform.rotate(
                 angle: math.pi / 4,
                 child: Container(
