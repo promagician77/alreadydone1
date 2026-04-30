@@ -7,6 +7,7 @@ import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
 import '/pages/onboarding/recording_circle.dart';
 import '/pages/onboarding/onboarding_origin_splash_widget.dart';
+import '/services/onboarding_service.dart';
 import '/widgets/pressable.dart';
 import 'tutorial_step.dart';
 
@@ -30,13 +31,15 @@ class _OnboardingTutorialWidgetState extends State<OnboardingTutorialWidget> {
   bool get _isFirstStep => _stepIndex == 0;
   bool get _isLastStep => _stepIndex == tutorialSteps.length - 1;
 
-  void _goToOnboarding() {
+  Future<void> _goToOnboarding() async {
+    await OnboardingService.setTutorialSeen();
+    if (!mounted) return;
     context.go(OnboardingOriginSplashWidget.routePath);
   }
 
-  void _next() {
+  Future<void> _next() async {
     if (_isLastStep) {
-      _goToOnboarding();
+      await _goToOnboarding();
       return;
     }
     setState(() => _stepIndex += 1);
@@ -57,7 +60,7 @@ class _OnboardingTutorialWidgetState extends State<OnboardingTutorialWidget> {
             _TutorialHeader(
               stepIndex: _stepIndex,
               totalSteps: tutorialSteps.length,
-              onSkip: _goToOnboarding,
+              onSkip: () => _goToOnboarding(),
             ),
             Expanded(
               child: AnimatedSwitcher(
@@ -88,7 +91,7 @@ class _OnboardingTutorialWidgetState extends State<OnboardingTutorialWidget> {
               isFirstStep: _isFirstStep,
               isLastStep: _isLastStep,
               onBack: _back,
-              onNext: _next,
+              onNext: () => _next(),
             ),
           ],
         ),

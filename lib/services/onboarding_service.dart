@@ -7,6 +7,7 @@ class OnboardingService {
   static const _stepPrefix = 'onboarding_step_';
   static const _dataPrefix = 'onboarding_data_';
   static const _firstStoryPrefix = 'first_story_generated_';
+  static const _tutorialSeenPrefix = 'onboarding_tutorial_seen_';
 
   static String _storageKey() {
     final userId = SupabaseService.currentUser?.id;
@@ -28,6 +29,11 @@ class OnboardingService {
     return '$_firstStoryPrefix${userId?.toLowerCase() ?? 'guest'}';
   }
 
+  static String _tutorialSeenKey() {
+    final userId = SupabaseService.currentUser?.id;
+    return '$_tutorialSeenPrefix${userId?.toLowerCase() ?? 'guest'}';
+  }
+
   /// Mark that the user has generated their first story (used for relaunch routing).
   static Future<void> setFirstStoryGenerated() async {
     final prefs = await SharedPreferences.getInstance();
@@ -38,6 +44,18 @@ class OnboardingService {
   static Future<bool> hasGeneratedFirstStory() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_firstStoryKey()) ?? false;
+  }
+
+  /// Returns true if the user has already seen the tutorial (one-time gate).
+  static Future<bool> hasSeenTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_tutorialSeenKey()) ?? false;
+  }
+
+  /// Mark the tutorial as seen so it won't show again for this user.
+  static Future<void> setTutorialSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_tutorialSeenKey(), true);
   }
 
   /// Check if user has completed onboarding. Uses Supabase Users table as source
@@ -76,8 +94,7 @@ class OnboardingService {
         try {
           await SupabaseService.client
               .from('Users')
-              .update({'onboarding_completed': true})
-              .eq('email', email);
+              .update({'onboarding_completed': true}).eq('email', email);
         } catch (_) {}
       }
     }
@@ -125,4 +142,3 @@ class OnboardingService {
     await prefs.remove(_dataKey());
   }
 }
-

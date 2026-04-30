@@ -130,11 +130,16 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           return LoginWidget.routePath;
         }
         if (isAuth && isAuthRoute) {
-          // After sign-in/sign-up: check Supabase users table rc_subscription_status.
-          // If active or trial → home; else → default onboarding flow.
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed)
             return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+          final completed = await OnboardingService.hasCompletedOnboarding();
+          if (!completed &&
+              !(await OnboardingService.hasGeneratedFirstStory()) &&
+              (await OnboardingService.getSavedStep()) == null &&
+              !(await OnboardingService.hasSeenTutorial())) {
+            return OnboardingTutorialWidget.routePath;
+          }
           // Not subscribed: if first story already generated → paywall
           if (await OnboardingService.hasGeneratedFirstStory()) {
             return OnboardingSplashWidget.routePath;
@@ -143,15 +148,21 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           final savedStep = await OnboardingService.getSavedStep();
           if (savedStep != null) return savedStep;
           // Check if onboarding completed without subscription
-          final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed) return OnboardingOriginSplashWidget.routePath;
           return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
         }
         if (isAuth && !isOnboardingRoute) {
-          // Subscribed (rc_subscription_status active/trial) stay on current route; others → onboarding
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed) return null;
           final completed = await OnboardingService.hasCompletedOnboarding();
+          // If user is new and hasn't started onboarding yet, show tutorial once.
+          if (!completed &&
+              !(await OnboardingService.hasGeneratedFirstStory()) &&
+              (await OnboardingService.getSavedStep()) == null &&
+              !(await OnboardingService.hasSeenTutorial()) &&
+              path != OnboardingTutorialWidget.routePath) {
+            return OnboardingTutorialWidget.routePath;
+          }
           // If onboarding is completed, allow the user to stay on the current route.
           // (Prevents / <-> /onboarding redirect loops when `first_story_generated` is true.)
           if (completed) return null;
