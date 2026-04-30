@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
+import '/pages/onboarding/onboarding_personalize_widget.dart';
 import '/pages/onboarding/recording_circle.dart';
-import '/pages/onboarding/onboarding_origin_splash_widget.dart';
+import '/services/ai_consent_service.dart';
+import '/services/app_toast.dart';
 import '/services/onboarding_service.dart';
 import '/widgets/pressable.dart';
 import 'tutorial_step.dart';
@@ -34,7 +36,18 @@ class _OnboardingTutorialWidgetState extends State<OnboardingTutorialWidget> {
   Future<void> _goToOnboarding() async {
     await OnboardingService.setTutorialSeen();
     if (!mounted) return;
-    context.go(OnboardingOriginSplashWidget.routePath);
+    final hasConsent = await AIConsentService.ensureConsent(context);
+    if (!hasConsent) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'You need to agree to AI data sharing to start onboarding.',
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    context.go(OnboardingPersonalizeWidget.routePath);
   }
 
   Future<void> _next() async {

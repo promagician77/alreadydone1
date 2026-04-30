@@ -8,8 +8,8 @@ export default function AlreadyDoneTutorial() {
   const preFlowSteps = [
     {
       screen: 'personalize',
-      title: 'Personalize Your Experience',
-      body: "Enter your name, your dream location, your energy word, and someone you love. Then tap Continue. These details make every story unique to you.",
+      title: 'Quick Tutorial First',
+      body: "Just follow along, no need to fill anything in yet. On this screen, you'll enter your name, dream location, energy word, and someone you love. These details make every story unique to you. You'll set everything up when the tutorial ends.",
       target: 'personalize-form',
       cardPosition: 'bottom',
       arrowDirection: 'up',

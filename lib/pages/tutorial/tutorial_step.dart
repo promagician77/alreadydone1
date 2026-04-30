@@ -30,9 +30,9 @@ class TutorialStep {
 
 const tutorialSteps = <TutorialStep>[
   TutorialStep(
-    title: 'Personalize Your Experience',
+    title: 'Quick Tutorial First',
     body:
-        'Enter your name, your dream location, your energy word, and someone you love. Then tap Continue. These details make every story unique to you.',
+        "Just follow along, no need to fill anything in yet. On this screen, you'll enter your name, dream location, energy word, and someone you love. These details make every story unique to you. You'll set everything up when the tutorial ends.",
     visualType: TutorialVisualType.personalize,
     focusLabel: 'Personalize Form',
     phaseLabel: 'Pre-Paywall',

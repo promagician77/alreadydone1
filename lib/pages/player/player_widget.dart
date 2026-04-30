@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/last_played_service.dart';
@@ -71,6 +72,9 @@ class PlayerWidget extends StatefulWidget {
 
 class _PlayerWidgetState extends State<PlayerWidget>
     with SingleTickerProviderStateMixin {
+  static const String _settingsCoachmarkKeyPrefix =
+      'player_settings_coachmark_v1_';
+
   String _nextResetMessage() {
     final now = DateTime.now();
     final nextMidnight = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
@@ -209,6 +213,35 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   String get _currentThetaTrackName => _thetaTracks[_selectedThetaIndex].$1;
 
+  bool _showSettingsCoachmark = false;
+
+  String _settingsCoachmarkStorageKey() {
+    final user = SupabaseService.currentUser;
+    final userKey = user?.id.toLowerCase() ?? 'guest';
+    return '$_settingsCoachmarkKeyPrefix$userKey';
+  }
+
+  Future<void> _maybeShowSettingsCoachmark() async {
+    // Only show when the player screen is actually usable.
+    if (!mounted) return;
+    if (_sleepModeActive) return;
+    if (_isGeneratingVoice || _isDeepening) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = _settingsCoachmarkStorageKey();
+    final seen = prefs.getBool(key) ?? false;
+    if (seen) return;
+    if (!mounted) return;
+    setState(() => _showSettingsCoachmark = true);
+  }
+
+  Future<void> _dismissSettingsCoachmark() async {
+    if (!_showSettingsCoachmark) return;
+    setState(() => _showSettingsCoachmark = false);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_settingsCoachmarkStorageKey(), true);
+  }
+
   // ---------------------------------------------------------------------------
   AudioContext _buildMixAudioContext() {
     return AudioContextConfig(
@@ -261,6 +294,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (!_disposed && mounted) setState(() => _position = p);
     });
     _loadStoryData();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowSettingsCoachmark();
+    });
   }
 
   Future<void> _loadStoryData() async {
@@ -1986,6 +2023,24 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   ),
                 ),
               ),
+            if (_showSettingsCoachmark)
+              Positioned.fill(
+                child: AbsorbPointer(
+                  absorbing: true,
+                  child: Container(
+                    color: _PlayerColors.ink.withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+            if (_showSettingsCoachmark)
+              Positioned(
+                top: 110,
+                left: 20,
+                right: 20,
+                child: _PlayerSettingsCoachmark(
+                  onGotIt: () => _dismissSettingsCoachmark(),
+                ),
+              ),
           ],
         ),
       ),
@@ -2151,17 +2206,45 @@ class _PlayerWidgetState extends State<PlayerWidget>
               width: settingsIconSize,
               height: settingsIconSize,
               child: Center(
-                child: Pressable(
-                  onTap: _openSettingsModal,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.settings,
-                      size: 24,
-                      color: _sleepModeActive
-                          ? Colors.white.withValues(alpha: 0.7)
-                          : _PlayerColors.inkSoft,
+                child: AnimatedBuilder(
+                  animation: _waveformController,
+                  builder: (context, child) {
+                    final isHighlighted = _showSettingsCoachmark && !_sleepModeActive;
+                    final t = _waveformController.value * math.pi * 2;
+                    final pulse = (math.sin(t) + 1) / 2; // 0..1
+                    final glowAlpha = isHighlighted ? (0.22 + pulse * 0.18) : 0.0;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isHighlighted ? _PlayerColors.surface : Colors.transparent,
+                        shape: BoxShape.circle,
+                        boxShadow: isHighlighted
+                            ? [
+                                BoxShadow(
+                                  color: _PlayerColors.gold.withValues(alpha: glowAlpha),
+                                  blurRadius: 28,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Pressable(
+                    onTap: () async {
+                      await _dismissSettingsCoachmark();
+                      _openSettingsModal();
+                    },
+                    borderRadius: BorderRadius.circular(999),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(
+                        Icons.settings,
+                        size: 24,
+                        color: _sleepModeActive
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : _PlayerColors.inkSoft,
+                      ),
                     ),
                   ),
                 ),
@@ -2172,6 +2255,162 @@ class _PlayerWidgetState extends State<PlayerWidget>
       ),
     );
   }
+
+class _PlayerSettingsCoachmark extends StatelessWidget {
+  const _PlayerSettingsCoachmark({required this.onGotIt});
+
+  final VoidCallback onGotIt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: _PlayerColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _PlayerColors.gold, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 36,
+              offset: const Offset(0, 18),
+            ),
+            BoxShadow(
+              color: _PlayerColors.gold.withValues(alpha: 0.18),
+              blurRadius: 60,
+            ),
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: -10,
+              right: 20,
+              child: Transform.rotate(
+                angle: math.pi / 4,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: _PlayerColors.surface,
+                    border: Border(
+                      top: BorderSide(color: _PlayerColors.gold, width: 1.5),
+                      left: BorderSide(color: _PlayerColors.gold, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Quick Tip',
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.8,
+                      color: _PlayerColors.gold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Customize your experience',
+                    style: GoogleFonts.cormorantGaramond(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                      color: _PlayerColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text.rich(
+                    TextSpan(
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        height: 1.55,
+                        color: _PlayerColors.inkSoft,
+                      ),
+                      children: [
+                        const TextSpan(text: 'Tap here to access '),
+                        TextSpan(
+                          text: 'Sleep Mode',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            height: 1.55,
+                            fontWeight: FontWeight.w700,
+                            color: _PlayerColors.ink,
+                          ),
+                        ),
+                        const TextSpan(text: ', '),
+                        TextSpan(
+                          text: 'Speed',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            height: 1.55,
+                            fontWeight: FontWeight.w700,
+                            color: _PlayerColors.ink,
+                          ),
+                        ),
+                        const TextSpan(text: ', and '),
+                        TextSpan(
+                          text: 'Loop',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            height: 1.55,
+                            fontWeight: FontWeight.w700,
+                            color: _PlayerColors.ink,
+                          ),
+                        ),
+                        const TextSpan(text: '.'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Pressable(
+                      onTap: onGotIt,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _PlayerColors.gold,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _PlayerColors.gold.withValues(alpha: 0.25),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Got it',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
   Widget _buildDurationAndVoiceRow() {
     final durationText = _effectiveDuration.inSeconds > 0
