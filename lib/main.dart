@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -26,7 +25,6 @@ import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
 import '/services/onboarding_service.dart';
-import '/services/coachmark_progress_service.dart';
 import '/widgets/pressable.dart';
 import 'index.dart';
 
@@ -332,58 +330,19 @@ class NavBarPage extends StatefulWidget {
   _NavBarPageState createState() => _NavBarPageState();
 }
 
-class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateMixin {
+class _NavBarPageState extends State<NavBarPage> {
   String _currentPageName = 'HomeDashboard';
   late Widget? _currentPage;
-
-  late final AnimationController _coachmarkPulseController;
-  bool _showDoneLibraryCoachmark = false;
 
   @override
   void initState() {
     super.initState();
     _currentPageName = widget.initialPage ?? _currentPageName;
     _currentPage = widget.page;
-    _coachmarkPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowDoneLibraryCoachmark();
-    });
-  }
-
-  @override
-  void dispose() {
-    _coachmarkPulseController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _maybeShowDoneLibraryCoachmark() async {
-    if (_showDoneLibraryCoachmark) return;
-    // Only show once the user has actually generated a manifestation.
-    final hasStory = await OnboardingService.hasGeneratedFirstStory();
-    if (!hasStory) return;
-    // Ordered sequence: this is stage 2 (after Player settings).
-    final stage = await CoachmarkProgressService.getStage();
-    if (stage != 1) return;
-
-    if (!mounted) return;
-    setState(() => _showDoneLibraryCoachmark = true);
-  }
-
-  Future<void> _dismissDoneLibraryCoachmark() async {
-    if (!_showDoneLibraryCoachmark) return;
-    setState(() => _showDoneLibraryCoachmark = false);
-    await CoachmarkProgressService.advanceToAtLeast(2);
   }
 
   void _onNavTap(int index) {
     final tabKeys = ['HomeDashboard', 'Player', 'Desires', 'Profile'];
-    if (index == 2) {
-      _dismissDoneLibraryCoachmark();
-    }
     safeSetState(() {
       _currentPage = null;
       _currentPageName = tabKeys[index];
@@ -439,12 +398,6 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
     final currentIndex = tabKeys.indexOf(_currentPageName);
     final isPlayerSleepMode = _currentPageName == 'Player';
 
-    // Re-check on every entry/build so this still shows if the first story is
-    // created after NavBarPage was first mounted.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowDoneLibraryCoachmark();
-    });
-
     return ValueListenableBuilder<bool>(
       valueListenable: sleepModeNotifier,
       builder: (context, sleepMode, _) {
@@ -459,32 +412,10 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
 
             return Scaffold(
               resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
-              body: Stack(
+              body: Column(
                 children: [
-                  Column(
-                    children: [
-                      Expanded(child: _currentPage ?? tabs[_currentPageName]!),
-                      _buildNavBar(context, barColor, currentIndex, useSleepStyle, navLocked),
-                    ],
-                  ),
-                  if (_showDoneLibraryCoachmark)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        ignoring: true,
-                        child: Container(
-                          color: _NavColors.ink.withValues(alpha: 0.55),
-                        ),
-                      ),
-                    ),
-                  if (_showDoneLibraryCoachmark)
-                    Positioned(
-                      left: 20,
-                      right: 20,
-                      bottom: 92,
-                      child: _DoneLibraryCoachmarkCard(
-                        onGotIt: () => _dismissDoneLibraryCoachmark(),
-                      ),
-                    ),
+                  Expanded(child: _currentPage ?? tabs[_currentPageName]!),
+                  _buildNavBar(context, barColor, currentIndex, useSleepStyle, navLocked),
                 ],
               ),
             );
@@ -501,8 +432,6 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
     bool useSleepStyle,
     bool navLocked,
   ) {
-    final shouldHighlightDone =
-        _showDoneLibraryCoachmark && !navLocked && currentIndex != 2;
     return ColoredBox(
       color: barColor,
       child: SafeArea(
@@ -544,41 +473,14 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
                     useSleepStyle,
                     navLocked ? null : () => _onNavTap(1),
                   ),
-                  AnimatedBuilder(
-                    animation: _coachmarkPulseController,
-                    builder: (context, child) {
-                      final t = _coachmarkPulseController.value * math.pi * 2;
-                      final pulse = (math.sin(t) + 1) / 2; // 0..1
-                      final bgAlpha = shouldHighlightDone ? (0.28 + pulse * 0.16) : 0.0;
-                      final glowAlpha = shouldHighlightDone ? (0.30 + pulse * 0.24) : 0.0;
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: shouldHighlightDone
-                              ? _NavColors.gold.withValues(alpha: bgAlpha)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: shouldHighlightDone
-                              ? [
-                                  BoxShadow(
-                                    color: _NavColors.gold.withValues(alpha: glowAlpha),
-                                    blurRadius: 28,
-                                    spreadRadius: 2,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: child,
-                      );
-                    },
-                    child: _buildNavItem(
-                      context,
-                      Icons.check,
-                      'Done',
-                      2,
-                      currentIndex,
-                      useSleepStyle,
-                      navLocked ? null : () => _onNavTap(2),
-                    ),
+                  _buildNavItem(
+                    context,
+                    Icons.check,
+                    'Done',
+                    2,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(2),
                   ),
                   _buildNavItem(
                     context,
@@ -593,135 +495,6 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DoneLibraryCoachmarkCard extends StatelessWidget {
-  const _DoneLibraryCoachmarkCard({required this.onGotIt});
-
-  final VoidCallback onGotIt;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(
-          color: _NavColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _NavColors.gold, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
-              blurRadius: 36,
-              offset: const Offset(0, 18),
-            ),
-            BoxShadow(
-              color: _NavColors.gold.withValues(alpha: 0.18),
-              blurRadius: 60,
-            ),
-          ],
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              bottom: -10,
-              left: 0,
-              right: 0,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Transform.translate(
-                  offset: const Offset(20, 0),
-                  child: Transform.rotate(
-                    angle: math.pi / 4,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: _NavColors.surface,
-                        border: Border(
-                          right: BorderSide(color: _NavColors.gold, width: 1.5),
-                          bottom: BorderSide(color: _NavColors.gold, width: 1.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Quick Tip',
-                    style: GoogleFonts.outfit(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.8,
-                      color: _NavColors.gold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your library lives here',
-                    style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      height: 1.2,
-                      color: _NavColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'This is your library where all your manifestations are stored.',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      height: 1.55,
-                      color: _NavColors.inkSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Pressable(
-                      onTap: onGotIt,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _NavColors.gold,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _NavColors.gold.withValues(alpha: 0.25),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Got it',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

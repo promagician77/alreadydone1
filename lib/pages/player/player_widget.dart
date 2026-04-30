@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/services/last_played_service.dart';
@@ -13,8 +12,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
 import '/services/ai_consent_service.dart';
 import '/services/app_toast.dart';
-import '/services/coachmark_progress_service.dart';
-import '/services/onboarding_service.dart';
+import '/services/main_experience_coachmark_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import '/index.dart';
@@ -221,13 +219,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (!mounted) return;
     if (_sleepModeActive) return;
     if (_isGeneratingVoice || _isDeepening) return;
-
-    // Ordered sequence: only start after first story is created.
-    final hasStory = await OnboardingService.hasGeneratedFirstStory();
-    if (!hasStory) return;
-
-    final stage = await CoachmarkProgressService.getStage();
-    if (stage != 0) return;
+    final canShow = await MainExperienceCoachmarkService.canShow(
+      MainCoachmarkStep.playerSettings,
+    );
+    if (!canShow) return;
     if (!mounted) return;
     setState(() => _showSettingsCoachmark = true);
   }
@@ -235,7 +230,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Future<void> _dismissSettingsCoachmark() async {
     if (!_showSettingsCoachmark) return;
     setState(() => _showSettingsCoachmark = false);
-    await CoachmarkProgressService.advanceToAtLeast(1);
+    await MainExperienceCoachmarkService.markSeen(
+      MainCoachmarkStep.playerSettings,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1889,11 +1886,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   @override
   Widget build(BuildContext context) {
-    // Re-check on every entry/build so this still shows if the first story is
-    // created after Player was first mounted.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowSettingsCoachmark();
-    });
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();

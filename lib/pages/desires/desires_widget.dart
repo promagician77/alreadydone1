@@ -7,6 +7,7 @@ import '/services/supabase_service.dart';
 import '/services/backend_client.dart';
 import '/services/app_toast.dart';
 import '/services/ai_consent_service.dart';
+import '/services/main_experience_coachmark_service.dart';
 import '/pages/onboarding/onboarding_state.dart';
 import '/widgets/pressable.dart';
 import 'desires_model.dart';
@@ -91,12 +92,140 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   /// Story selected for delete confirmation modal.
   _StoryItem? _storyToDeleteForModal;
   bool _isDeleting = false;
+  bool _showLibraryCoachmark = false;
 
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => DesiresModel());
     _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowLibraryCoachmark();
+    });
+  }
+
+  Future<void> _maybeShowLibraryCoachmark() async {
+    if (_showLibraryCoachmark) return;
+    final canShow = await MainExperienceCoachmarkService.canShow(
+      MainCoachmarkStep.library,
+    );
+    if (!canShow || !mounted) return;
+    setState(() => _showLibraryCoachmark = true);
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: _DesiresColors.ink.withValues(alpha: 0.55),
+      builder: (_) => _buildLibraryCoachmarkDialog(),
+    );
+  }
+
+  Future<void> _dismissLibraryCoachmark() async {
+    if (!_showLibraryCoachmark) return;
+    setState(() => _showLibraryCoachmark = false);
+    await MainExperienceCoachmarkService.markSeen(MainCoachmarkStep.library);
+  }
+
+  Widget _buildLibraryCoachmarkDialog() {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: _DesiresColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _DesiresColors.gold, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 36,
+                    offset: const Offset(0, 18),
+                  ),
+                  BoxShadow(
+                    color: _DesiresColors.gold.withValues(alpha: 0.18),
+                    blurRadius: 60,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Quick Tip',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.8,
+                        color: _DesiresColors.gold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your library lives here',
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                        color: _DesiresColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This is your library where all your manifestations are stored.',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        height: 1.55,
+                        color: _DesiresColors.inkSoft,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Pressable(
+                        onTap: () async {
+                          Navigator.of(context).pop();
+                          await _dismissLibraryCoachmark();
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _DesiresColors.gold,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _DesiresColors.gold.withValues(alpha: 0.25),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Got it',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadData() async {

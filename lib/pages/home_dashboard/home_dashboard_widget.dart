@@ -13,12 +13,11 @@ import '/widgets/pressable.dart';
 import '/services/app_toast.dart';
 import '/services/ai_consent_service.dart';
 import '/services/backend_client.dart';
+import '/services/main_experience_coachmark_service.dart';
 import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_desire_widget.dart';
-import '/services/onboarding_service.dart';
-import '/services/coachmark_progress_service.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
 
@@ -172,12 +171,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
   Future<void> _maybeShowNewManifestationCoachmark() async {
     if (_showNewManifestationCoachmark) return;
-    // Show only after user has at least one story so "additional stories" makes sense.
-    final hasStory = await OnboardingService.hasGeneratedFirstStory();
-    if (!hasStory) return;
-    // Ordered sequence: this is stage 3 (after Done/Library coachmark).
-    final stage = await CoachmarkProgressService.getStage();
-    if (stage != 2) return;
+    final canShow = await MainExperienceCoachmarkService.canShow(
+      MainCoachmarkStep.addManifestation,
+    );
+    if (!canShow) return;
 
     if (!mounted) return;
     setState(() => _showNewManifestationCoachmark = true);
@@ -326,7 +323,9 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   Future<void> _dismissNewManifestationCoachmark() async {
     if (!_showNewManifestationCoachmark) return;
     setState(() => _showNewManifestationCoachmark = false);
-    await CoachmarkProgressService.advanceToAtLeast(3);
+    await MainExperienceCoachmarkService.markSeen(
+      MainCoachmarkStep.addManifestation,
+    );
   }
 
   Future<void> _loadData() async {
@@ -768,11 +767,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
   @override
   Widget build(BuildContext context) {
-    // Re-check on every entry/build so this still shows if the first story is
-    // created after HomeDashboard was first mounted.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowNewManifestationCoachmark();
-    });
     final filtered = _getFilteredStories();
     final lastPlayed = _model.stories.isEmpty ? null : _model.stories.first;
     final recentStories = filtered.isEmpty
