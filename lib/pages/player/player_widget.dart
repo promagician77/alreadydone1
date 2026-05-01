@@ -18,6 +18,7 @@ import '/widgets/pressable.dart';
 import '/index.dart';
 import 'player_modals/player_modals.dart';
 import 'player_model.dart';
+import 'player_settings_coachmark.dart';
 export 'player_model.dart';
 
 class _PlayerColors {
@@ -72,7 +73,6 @@ class PlayerWidget extends StatefulWidget {
 
 class _PlayerWidgetState extends State<PlayerWidget>
     with SingleTickerProviderStateMixin {
-  final LayerLink _settingsGearLink = LayerLink();
   static const String _settingsCoachmarkKeyPrefix =
       'player_settings_coachmark_v1_';
 
@@ -87,6 +87,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   late PlayerModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey _playerBodyStackKey = GlobalKey();
+  final GlobalKey _settingsCoachmarkButtonKey = GlobalKey();
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   final AudioPlayer _thetaTrackPlayer = AudioPlayer();
@@ -1905,6 +1907,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             ? _PlayerColors.sleepDark
             : _PlayerColors.surface,
         body: Stack(
+          key: _playerBodyStackKey,
           children: [
             if (_sleepModeActive) ...[
               Positioned.fill(
@@ -2026,76 +2029,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
             if (_showSettingsCoachmark)
               Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: true,
-                  child: Container(
-                    color: _PlayerColors.ink.withValues(alpha: 0.55),
-                  ),
-                ),
-              ),
-            if (_showSettingsCoachmark)
-              IgnorePointer(
-                ignoring: true,
-                child: CompositedTransformFollower(
-                  link: _settingsGearLink,
-                  showWhenUnlinked: false,
-                  child: AnimatedBuilder(
-                    animation: _waveformController,
-                    builder: (context, _) {
-                      if (_sleepModeActive) return const SizedBox.shrink();
-                      final t = _waveformController.value * math.pi * 2;
-                      final pulse = (math.sin(t) + 1) / 2; // 0..1
-                      final glowOuter =
-                          0.18 + pulse * 0.12; // soft golden-brown halo
-                      final glowInner = 0.28 + pulse * 0.18;
-                      return Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: _PlayerColors.surface,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _PlayerColors.stone.withValues(alpha: 0.85),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF8B6914)
-                                  .withValues(alpha: glowOuter),
-                              blurRadius: 28,
-                              spreadRadius: 4,
-                            ),
-                            BoxShadow(
-                              color: _PlayerColors.gold.withValues(alpha: glowInner),
-                              blurRadius: 20,
-                              spreadRadius: 0,
-                            ),
-                            BoxShadow(
-                              color: _PlayerColors.gold.withValues(alpha: 0.12 + pulse * 0.08),
-                              blurRadius: 40,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.settings_outlined,
-                          size: 24,
-                          color: _PlayerColors.ink,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            if (_showSettingsCoachmark)
-              Positioned(
-                // Below header; extra right inset shifts card left so the tail aims at the gear.
-                top: 148,
-                left: 20,
-                right: 52,
-                child: _buildPlayerSettingsCoachmark(
+                child: PlayerSettingsCoachmarkOverlay(
+                  stackKey: _playerBodyStackKey,
+                  settingsTargetKey: _settingsCoachmarkButtonKey,
                   onGotIt: () => _dismissSettingsCoachmark(),
+                  onSettingsTap: () async {
+                    await _dismissSettingsCoachmark();
+                    if (mounted) _openSettingsModal();
+                  },
                 ),
               ),
           ],
@@ -2260,11 +2201,45 @@ class _PlayerWidgetState extends State<PlayerWidget>
           Padding(
             padding: const EdgeInsets.only(top: 4, right: 20),
             child: SizedBox(
+              key: _settingsCoachmarkButtonKey,
               width: settingsIconSize,
               height: settingsIconSize,
               child: Center(
-                child: CompositedTransformTarget(
-                  link: _settingsGearLink,
+                child: AnimatedBuilder(
+                  animation: _waveformController,
+                  builder: (context, child) {
+                    final isHighlighted =
+                        _showSettingsCoachmark && !_sleepModeActive;
+                    final t = _waveformController.value * math.pi * 2;
+                    final pulse = (math.sin(t) + 1) / 2;
+                    final glowAlpha =
+                        isHighlighted ? (0.22 + pulse * 0.18) : 0.0;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: isHighlighted
+                            ? PlayerSettingsCoachmarkTokens.bgCard
+                            : Colors.transparent,
+                        shape: BoxShape.circle,
+                        boxShadow: isHighlighted
+                            ? [
+                                BoxShadow(
+                                  color: _PlayerColors.ink
+                                      .withValues(alpha: 0.12),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                ),
+                                BoxShadow(
+                                  color: _PlayerColors.gold
+                                      .withValues(alpha: glowAlpha),
+                                  blurRadius: 28,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: child,
+                    );
+                  },
                   child: Pressable(
                     onTap: () async {
                       await _dismissSettingsCoachmark();
@@ -2274,7 +2249,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                     child: Padding(
                       padding: const EdgeInsets.all(10),
                       child: Icon(
-                        Icons.settings_outlined,
+                        Icons.settings,
                         size: 24,
                         color: _sleepModeActive
                             ? Colors.white.withValues(alpha: 0.7)
@@ -2287,156 +2262,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlayerSettingsCoachmark({required VoidCallback onGotIt}) {
-    const cardBg = Color(0xFFFFFDF7); // warm cream (matches design mock)
-    // Reference typography tokens (player-settings-coachmark / HTML)
-    const textMuted = Color(0xFF7A6F5E);
-    const labelGold = Color(0xFFB8862F);
-    return Material(
-      color: Colors.transparent,
-      elevation: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: _PlayerColors.gold.withValues(alpha: 0.95),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.14),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: _PlayerColors.gold.withValues(alpha: 0.16),
-              blurRadius: 48,
-              offset: const Offset(0, 8),
-              spreadRadius: -4,
-            ),
-          ],
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              top: -9,
-              right: 26,
-              child: Transform.rotate(
-                angle: math.pi / 4,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    border: Border(
-                      top: BorderSide(
-                        color: _PlayerColors.gold.withValues(alpha: 0.95),
-                        width: 1.5,
-                      ),
-                      left: BorderSide(
-                        color: _PlayerColors.gold.withValues(alpha: 0.95),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'QUICK TIP',
-                    style: GoogleFonts.outfit(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 2.2,
-                      height: 1.2,
-                      color: labelGold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Customize your experience',
-                    style: GoogleFonts.cormorantGaramond(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                      height: 1.12,
-                      letterSpacing: -0.2,
-                      color: _PlayerColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text.rich(
-                    TextSpan(
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: textMuted,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      children: [
-                        const TextSpan(text: 'Tap here to access '),
-                        TextSpan(
-                          text: 'Sleep Mode, Speed, and Loop',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            height: 1.5,
-                            fontWeight: FontWeight.w700,
-                            color: _PlayerColors.ink,
-                          ),
-                        ),
-                        const TextSpan(text: '.'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Pressable(
-                      onTap: onGotIt,
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          color: _PlayerColors.gold,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _PlayerColors.gold.withValues(alpha: 0.32),
-                              blurRadius: 14,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Got it',
-                          style: GoogleFonts.outfit(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -4,7 +4,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
@@ -18,7 +17,6 @@ import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_desire_widget.dart';
-import '/services/onboarding_service.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
 
@@ -60,17 +58,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   late final AnimationController _idleWaveController;
   int _playNonce = 0;
 
-  static const String _newManifestationCoachmarkKeyPrefix =
-      'new_manifestation_coachmark_v1_';
-  bool _showNewManifestationCoachmark = false;
-
-  /// Some native players/CDNs cache audio aggressively by URL.
-  /// Add a cache-busting query param only for non-signed URLs.
   String _cacheBustUrlIfSafe(String url) {
     final u = url.trim();
     if (u.isEmpty) return u;
     final lower = u.toLowerCase();
-    // Avoid mutating signed URLs (e.g. S3/GCS presigned) which include signature query params.
     if (lower.contains('x-amz-signature') ||
         lower.contains('x-amz-credential') ||
         lower.contains('x-amz-algorithm') ||
@@ -166,177 +157,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       if (mounted) safeSetState(() => _model.playbackPosition = p);
     });
     _loadData();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowNewManifestationCoachmark();
-    });
-  }
-
-  String _newManifestationCoachmarkStorageKey() {
-    final user = SupabaseService.currentUser;
-    final userKey = user?.id.toLowerCase() ?? 'guest';
-    return '$_newManifestationCoachmarkKeyPrefix$userKey';
-  }
-
-  Future<void> _maybeShowNewManifestationCoachmark() async {
-    if (_showNewManifestationCoachmark) return;
-    // Show only after user has at least one story so "additional stories" makes sense.
-    final hasStory = await OnboardingService.hasGeneratedFirstStory();
-    if (!hasStory) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool(_newManifestationCoachmarkStorageKey()) ?? false;
-    if (seen) return;
-
-    if (!mounted) return;
-    setState(() => _showNewManifestationCoachmark = true);
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: _AppColors.ink.withValues(alpha: 0.55),
-      builder: (_) => _buildNewManifestationCoachmarkDialog(
-        onGotIt: () async {
-          Navigator.of(context).pop();
-          await _dismissNewManifestationCoachmark();
-        },
-      ),
-    );
-  }
-
-  Widget _buildNewManifestationCoachmarkDialog({
-    required VoidCallback onGotIt,
-  }) {
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              decoration: BoxDecoration(
-                color: _AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _AppColors.gold, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.22),
-                    blurRadius: 36,
-                    offset: const Offset(0, 18),
-                  ),
-                  BoxShadow(
-                    color: _AppColors.gold.withValues(alpha: 0.18),
-                    blurRadius: 60,
-                  ),
-                ],
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    bottom: -10,
-                    left: 0,
-                    right: 0,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Transform.rotate(
-                        angle: math.pi / 4,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: _AppColors.surface,
-                            border: Border(
-                              right: BorderSide(color: _AppColors.gold, width: 1.5),
-                              bottom: BorderSide(color: _AppColors.gold, width: 1.5),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Quick Tip',
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.8,
-                            color: _AppColors.gold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Create more stories anytime',
-                          style: GoogleFonts.cormorantGaramond(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                            height: 1.2,
-                            color: _AppColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap “Add New Manifestation” to create additional stories whenever you want.',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
-                            color: _AppColors.inkSoft,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: Pressable(
-                            onTap: onGotIt,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: _AppColors.gold,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _AppColors.gold.withValues(alpha: 0.25),
-                                    blurRadius: 18,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Got it',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _dismissNewManifestationCoachmark() async {
-    if (!_showNewManifestationCoachmark) return;
-    setState(() => _showNewManifestationCoachmark = false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_newManifestationCoachmarkStorageKey(), true);
   }
 
   Future<void> _loadData() async {
@@ -486,7 +306,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   Future<void> _handleAddNewManifestation() async {
-    await _dismissNewManifestationCoachmark();
     final hasConsent = await AIConsentService.ensureConsent(context);
     if (!hasConsent) {
       if (mounted) {
@@ -502,55 +321,31 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   Widget _buildAddNewManifestationButton() {
-    return AnimatedBuilder(
-      animation: _idleWaveController,
-      builder: (context, child) {
-        final isHighlighted = _showNewManifestationCoachmark;
-        final t = _idleWaveController.value * math.pi * 2;
-        final pulse = (math.sin(t) + 1) / 2; // 0..1
-        final glowAlpha = isHighlighted ? (0.22 + pulse * 0.20) : 0.0;
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isHighlighted
-                ? [
-                    BoxShadow(
-                      color: _AppColors.gold.withValues(alpha: glowAlpha),
-                      blurRadius: 34,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
-          ),
-          child: child,
-        );
-      },
-      child: Pressable(
-        onTap: _handleAddNewManifestation,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(top: 20),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: _AppColors.gold,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add, color: _AppColors.surface, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Add New Manifestation',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _AppColors.surface,
-                ),
+    return Pressable(
+      onTap: _handleAddNewManifestation,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: _AppColors.gold,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add, color: _AppColors.surface, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Add New Manifestation',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _AppColors.surface,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
