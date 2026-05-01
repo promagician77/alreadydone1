@@ -18,7 +18,9 @@ import '/widgets/pressable.dart';
 import '/index.dart';
 import 'player_modals/player_modals.dart';
 import 'player_model.dart';
-import 'player_settings_coachmark.dart';
+import 'coachmark/done_library_coachmark_nav.dart';
+import 'coachmark/player_done_library_coachmark.dart';
+import 'coachmark/player_settings_coachmark.dart';
 export 'player_model.dart';
 
 class _PlayerColors {
@@ -75,6 +77,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     with SingleTickerProviderStateMixin {
   static const String _settingsCoachmarkKeyPrefix =
       'player_settings_coachmark_v1_';
+  static const String _doneLibraryCoachmarkKeyPrefix =
+      'player_done_library_coachmark_v1_';
 
   String _nextResetMessage() {
     final now = DateTime.now();
@@ -217,11 +221,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
   String get _currentThetaTrackName => _thetaTracks[_selectedThetaIndex].$1;
 
   bool _showSettingsCoachmark = false;
+  bool _showDoneLibraryCoachmark = false;
 
   String _settingsCoachmarkStorageKey() {
     final user = SupabaseService.currentUser;
     final userKey = user?.id.toLowerCase() ?? 'guest';
     return '$_settingsCoachmarkKeyPrefix$userKey';
+  }
+
+  String _doneLibraryCoachmarkStorageKey() {
+    final user = SupabaseService.currentUser;
+    final userKey = user?.id.toLowerCase() ?? 'guest';
+    return '$_doneLibraryCoachmarkKeyPrefix$userKey';
   }
 
   Future<void> _maybeShowSettingsCoachmark() async {
@@ -238,11 +249,52 @@ class _PlayerWidgetState extends State<PlayerWidget>
     setState(() => _showSettingsCoachmark = true);
   }
 
+  Future<void> _maybeShowDoneLibraryCoachmark() async {
+    if (!mounted) return;
+    if (_showSettingsCoachmark) return;
+    if (_sleepModeActive) return;
+    if (_isGeneratingVoice || _isDeepening) return;
+    if (_loading || _hasNoStory) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final settingsSeen = prefs.getBool(_settingsCoachmarkStorageKey()) ?? false;
+    if (!settingsSeen) return;
+
+    final key = _doneLibraryCoachmarkStorageKey();
+    final seen = prefs.getBool(key) ?? false;
+    if (seen) return;
+    if (!mounted) return;
+    setState(() => _showDoneLibraryCoachmark = true);
+    doneLibraryCoachmarkVisible.value = true;
+  }
+
+  Future<void> _dismissDoneLibraryCoachmark() async {
+    if (!_showDoneLibraryCoachmark) return;
+    setState(() => _showDoneLibraryCoachmark = false);
+    doneLibraryCoachmarkVisible.value = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_doneLibraryCoachmarkStorageKey(), true);
+  }
+
+  Future<void> _onDoneTabDuringLibraryCoachmark() async {
+    if (!_showDoneLibraryCoachmark) return;
+    await _dismissDoneLibraryCoachmark();
+  }
+
+  void _afterPlayerLoadedForCoachmarks() {
+    if (!mounted || _loading || _hasNoStory) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_maybeShowDoneLibraryCoachmark());
+    });
+  }
+
   Future<void> _dismissSettingsCoachmark() async {
     if (!_showSettingsCoachmark) return;
     setState(() => _showSettingsCoachmark = false);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_settingsCoachmarkStorageKey(), true);
+    if (mounted) await _maybeShowDoneLibraryCoachmark();
   }
 
   // ---------------------------------------------------------------------------
@@ -298,8 +350,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
     _loadStoryData();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowSettingsCoachmark();
+    doneLibraryCoachmarkOnDoneTabDismiss = _onDoneTabDuringLibraryCoachmark;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _maybeShowSettingsCoachmark();
+      if (mounted) await _maybeShowDoneLibraryCoachmark();
     });
   }
 
@@ -326,6 +381,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _loading = false;
         });
         _saveLastPlayed();
+        _afterPlayerLoadedForCoachmarks();
         return;
       }
       List<dynamic>? storiesList;
@@ -391,6 +447,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _voicePlayUrlCache[_voiceCacheKey(currentId, voiceId)] = playUrl;
         }
         _maybeAutoPlayAndActivateSleepMode();
+        _afterPlayerLoadedForCoachmarks();
         return;
         }
       }
@@ -439,6 +496,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           voiceId: _voiceId,
         );
         _maybeAutoPlayAndActivateSleepMode();
+        _afterPlayerLoadedForCoachmarks();
         return;
       }
 
@@ -561,6 +619,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         }
       }
       _saveLastPlayed();
+      _afterPlayerLoadedForCoachmarks();
       if (voiceIdToSet == null && widget.storyId != null && mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _fetchVoiceIdFromStoriesOnce();
@@ -1003,6 +1062,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _audioPlayer.dispose();
     _thetaTrackPlayer.dispose();
     _model.dispose();
+    doneLibraryCoachmarkOnDoneTabDismiss = null;
+    doneLibraryCoachmarkVisible.value = false;
     super.dispose();
   }
 
@@ -1908,6 +1969,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             : _PlayerColors.surface,
         body: Stack(
           key: _playerBodyStackKey,
+          clipBehavior: Clip.none,
           children: [
             if (_sleepModeActive) ...[
               Positioned.fill(
@@ -2037,6 +2099,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
                     await _dismissSettingsCoachmark();
                     if (mounted) _openSettingsModal();
                   },
+                ),
+              )
+            else if (_showDoneLibraryCoachmark)
+              Positioned.fill(
+                child: PlayerDoneLibraryCoachmarkOverlay(
+                  stackKey: _playerBodyStackKey,
+                  doneTabTargetKey: doneLibraryCoachmarkTabKey,
+                  onGotIt: () => _dismissDoneLibraryCoachmark(),
                 ),
               ),
           ],
@@ -2224,15 +2294,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
                             ? [
                                 BoxShadow(
                                   color: _PlayerColors.ink
-                                      .withValues(alpha: 0.12),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 6),
+                                      .withValues(alpha: 0.14),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 5),
+                                  spreadRadius: 0,
+                                ),
+                                BoxShadow(
+                                  color: _PlayerColors.ink
+                                      .withValues(alpha: 0.06),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
                                 ),
                                 BoxShadow(
                                   color: _PlayerColors.gold
                                       .withValues(alpha: glowAlpha),
-                                  blurRadius: 28,
-                                  spreadRadius: 2,
+                                  blurRadius: 32,
+                                  spreadRadius: 1,
                                 ),
                               ]
                             : null,

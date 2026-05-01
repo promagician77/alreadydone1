@@ -4,39 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/widgets/pressable.dart';
+import 'player_settings_coachmark.dart';
 
-abstract final class PlayerSettingsCoachmarkTokens {
-  static const Color bgCard = Color(0xFFFFFDF7);
-  static const Color gold = Color(0xFFB8862F);
-  static const Color text = Color(0xFF1A1612);
-  static const Color textMuted = Color(0xFF7A6F5E);
-  static const Color dim = Color.fromRGBO(20, 15, 10, 0.55);
-}
+const double _kCaretSize = 18;
 
-class PlayerSettingsCoachmarkOverlay extends StatefulWidget {
-  const PlayerSettingsCoachmarkOverlay({
+/// One-time tip pointing at the Done (library) tab; matches [done-library-coachmark.jsx].
+class PlayerDoneLibraryCoachmarkOverlay extends StatefulWidget {
+  const PlayerDoneLibraryCoachmarkOverlay({
     super.key,
     required this.stackKey,
-    required this.settingsTargetKey,
+    required this.doneTabTargetKey,
     required this.onGotIt,
-    required this.onSettingsTap,
   });
 
   final GlobalKey stackKey;
-
-  final GlobalKey settingsTargetKey;
-
+  final GlobalKey doneTabTargetKey;
   final VoidCallback onGotIt;
 
-  final VoidCallback onSettingsTap;
-
   @override
-  State<PlayerSettingsCoachmarkOverlay> createState() =>
-      _PlayerSettingsCoachmarkOverlayState();
+  State<PlayerDoneLibraryCoachmarkOverlay> createState() =>
+      _PlayerDoneLibraryCoachmarkOverlayState();
 }
 
-class _PlayerSettingsCoachmarkOverlayState
-    extends State<PlayerSettingsCoachmarkOverlay> {
+class _PlayerDoneLibraryCoachmarkOverlayState
+    extends State<PlayerDoneLibraryCoachmarkOverlay> {
   Rect? _targetInStack;
 
   @override
@@ -46,14 +37,14 @@ class _PlayerSettingsCoachmarkOverlayState
   }
 
   @override
-  void didUpdateWidget(covariant PlayerSettingsCoachmarkOverlay oldWidget) {
+  void didUpdateWidget(covariant PlayerDoneLibraryCoachmarkOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
   }
 
   void _measure() {
     final stackCtx = widget.stackKey.currentContext;
-    final targetCtx = widget.settingsTargetKey.currentContext;
+    final targetCtx = widget.doneTabTargetKey.currentContext;
     if (stackCtx == null || targetCtx == null) return;
 
     final stackRb = stackCtx.findRenderObject() as RenderBox?;
@@ -77,21 +68,26 @@ class _PlayerSettingsCoachmarkOverlayState
   Widget build(BuildContext context) {
     final hole = _targetInStack;
     final media = MediaQuery.of(context);
-    final horizontalInset = 20.0;
+    const horizontalInset = 20.0;
+    const gapAboveTarget = 12.0;
+    const approxCardHeight = 260.0;
+
     final cardLeft = horizontalInset;
     final cardWidth = media.size.width - horizontalInset * 2;
+    final caretHalf = _kCaretSize / 2;
 
-    double cardTop;
     double arrowRightFromCardRight = 20;
+    double? cardTop;
     if (hole != null) {
-      cardTop = hole.bottom + 12;
       final iconCenterX = hole.center.dx;
       final arrowCenterXFromCardLeft = iconCenterX - cardLeft;
-      arrowRightFromCardRight = cardWidth - arrowCenterXFromCardLeft - 9;
+      arrowRightFromCardRight =
+          cardWidth - arrowCenterXFromCardLeft - caretHalf;
       arrowRightFromCardRight =
           arrowRightFromCardRight.clamp(12.0, cardWidth - 12.0);
-    } else {
-      cardTop = 110;
+
+      final cardBottomY = hole.top - gapAboveTarget;
+      cardTop = (cardBottomY - approxCardHeight).clamp(16.0, double.infinity);
     }
 
     return Stack(
@@ -118,27 +114,16 @@ class _PlayerSettingsCoachmarkOverlayState
               ),
             ),
           ),
-        if (hole != null)
+        if (cardTop != null)
           Positioned(
-            left: hole.left,
-            top: hole.top,
-            width: hole.width,
-            height: hole.height,
-            child: Pressable(
-              onTap: widget.onSettingsTap,
-              borderRadius: BorderRadius.circular(999),
-              child: const SizedBox.expand(),
+            left: cardLeft,
+            right: horizontalInset,
+            top: cardTop,
+            child: _LibraryCoachmarkCard(
+              arrowRightFromCardRight: arrowRightFromCardRight,
+              onGotIt: widget.onGotIt,
             ),
           ),
-        Positioned(
-          left: cardLeft,
-          right: horizontalInset,
-          top: cardTop,
-          child: _CoachmarkCard(
-            arrowRightFromCardRight: arrowRightFromCardRight,
-            onGotIt: widget.onGotIt,
-          ),
-        ),
       ],
     );
   }
@@ -152,10 +137,14 @@ class _DimWithHolePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final full = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-    final pad = 6.0;
-    final radius = math.max(holeRect.width, holeRect.height) / 2 + pad;
+    const pad = 2.0;
     final hole = Path()
-      ..addOval(Rect.fromCircle(center: holeRect.center, radius: radius));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          holeRect.inflate(pad),
+          const Radius.circular(12),
+        ),
+      );
     final cut = Path.combine(PathOperation.difference, full, hole);
     canvas.drawPath(cut, Paint()..color = PlayerSettingsCoachmarkTokens.dim);
   }
@@ -165,13 +154,13 @@ class _DimWithHolePainter extends CustomPainter {
       oldDelegate.holeRect != holeRect;
 }
 
-class _CoachmarkCard extends StatelessWidget {
-  const _CoachmarkCard({
+class _LibraryCoachmarkCard extends StatelessWidget {
+  const _LibraryCoachmarkCard({
     required this.arrowRightFromCardRight,
     required this.onGotIt,
   });
 
-  /// Distance from the **right edge of the card** to the arrow’s horizontal center.
+  /// Distance from the **right** edge of the card to the arrow’s horizontal center.
   final double arrowRightFromCardRight;
   final VoidCallback onGotIt;
 
@@ -185,7 +174,7 @@ class _CoachmarkCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: PlayerSettingsCoachmarkTokens.gold,
-            width: 1,
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
@@ -194,7 +183,7 @@ class _CoachmarkCard extends StatelessWidget {
               offset: const Offset(0, 18),
             ),
             BoxShadow(
-              color: PlayerSettingsCoachmarkTokens.gold.withValues(alpha: 0.18),
+              color: PlayerSettingsCoachmarkTokens.gold.withValues(alpha: 0.2),
               blurRadius: 60,
             ),
           ],
@@ -203,23 +192,23 @@ class _CoachmarkCard extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              top: -9,
+              bottom: -10,
               right: arrowRightFromCardRight,
               child: Transform.rotate(
                 angle: math.pi / 4,
                 child: Container(
-                  width: 18,
-                  height: 18,
+                  width: _kCaretSize,
+                  height: _kCaretSize,
                   decoration: BoxDecoration(
                     color: PlayerSettingsCoachmarkTokens.bgCard,
                     border: Border(
-                      top: BorderSide(
+                      right: BorderSide(
                         color: PlayerSettingsCoachmarkTokens.gold,
-                        width: 1,
+                        width: 1.5,
                       ),
-                      left: BorderSide(
+                      bottom: BorderSide(
                         color: PlayerSettingsCoachmarkTokens.gold,
-                        width: 1,
+                        width: 1.5,
                       ),
                     ),
                   ),
@@ -227,7 +216,7 @@ class _CoachmarkCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,7 +232,7 @@ class _CoachmarkCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Customize your experience',
+                    'Your library lives here',
                     style: GoogleFonts.cormorantGaramond(
                       fontSize: 20,
                       fontWeight: FontWeight.w500,
@@ -252,47 +241,13 @@ class _CoachmarkCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text.rich(
-                    TextSpan(
-                      style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        height: 1.55,
-                        color: PlayerSettingsCoachmarkTokens.textMuted,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      children: [
-                        const TextSpan(text: 'Tap here to access '),
-                        TextSpan(
-                          text: 'Sleep Mode',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
-                            fontWeight: FontWeight.w700,
-                            color: PlayerSettingsCoachmarkTokens.text,
-                          ),
-                        ),
-                        const TextSpan(text: ', '),
-                        TextSpan(
-                          text: 'Speed',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
-                            fontWeight: FontWeight.w700,
-                            color: PlayerSettingsCoachmarkTokens.text,
-                          ),
-                        ),
-                        const TextSpan(text: ', and '),
-                        TextSpan(
-                          text: 'Loop',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
-                            fontWeight: FontWeight.w700,
-                            color: PlayerSettingsCoachmarkTokens.text,
-                          ),
-                        ),
-                        const TextSpan(text: '.'),
-                      ],
+                  Text(
+                    'This is your library where all your manifestations are stored.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      height: 1.55,
+                      color: PlayerSettingsCoachmarkTokens.textMuted,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -309,9 +264,9 @@ class _CoachmarkCard extends StatelessWidget {
                           boxShadow: [
                             BoxShadow(
                               color: PlayerSettingsCoachmarkTokens.gold
-                                  .withValues(alpha: 0.25),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
+                                  .withValues(alpha: 0.35),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -320,7 +275,7 @@ class _CoachmarkCard extends StatelessWidget {
                           'Got it',
                           style: GoogleFonts.outfit(
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
                           ),
                         ),

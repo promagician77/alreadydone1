@@ -24,6 +24,7 @@ import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
 import '/widgets/pressable.dart';
+import '/pages/player/coachmark/done_library_coachmark_nav.dart';
 import 'index.dart';
 
 @pragma('vm:entry-point')
@@ -353,34 +354,70 @@ class _NavBarPageState extends State<NavBarPage> {
     int index,
     int currentIndex,
     bool sleepStyle,
-    VoidCallback? onTap,
-  ) {
+    VoidCallback? onTap, {
+    GlobalKey? libraryCoachmarkKey,
+  }) {
     final selectedColor = sleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
     final unselectedColor = sleepStyle ? Colors.white.withValues(alpha: 0.5) : _NavColors.inkSoft;
     final active = currentIndex == index;
-    final color = active ? selectedColor : unselectedColor;
-    return Pressable(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: color,
+
+    Widget buildCore(bool libraryTipActive) {
+      final activeOrTip = active || libraryTipActive;
+      final color = activeOrTip ? selectedColor : unselectedColor;
+      final labelWeight = (libraryCoachmarkKey != null && libraryTipActive)
+          ? FontWeight.w700
+          : FontWeight.w500;
+      return Pressable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 24, color: color),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: labelWeight,
+                  color: color,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
+
+    if (libraryCoachmarkKey != null) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: doneLibraryCoachmarkVisible,
+        builder: (context, libraryTipActive, _) {
+          Widget inner = buildCore(libraryTipActive);
+          if (libraryTipActive) {
+            inner = Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDF3DF),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFB8862F).withValues(alpha: 0.45),
+                    blurRadius: 22,
+                    spreadRadius: 0,
+                  ),
+                ],
+              ),
+              child: inner,
+            );
+          }
+          return KeyedSubtree(key: libraryCoachmarkKey, child: inner);
+        },
+      );
+    }
+
+    return buildCore(false);
   }
 
   @override
@@ -403,9 +440,6 @@ class _NavBarPageState extends State<NavBarPage> {
           builder: (context, navLocked, __) {
             final useSleepStyle = isPlayerSleepMode && sleepMode;
             final barColor = useSleepStyle ? _NavColors.sleepSurface : _NavColors.surface;
-            final selectedColor = useSleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
-            final unselectedColor =
-                useSleepStyle ? Colors.white.withValues(alpha: 0.5) : _NavColors.inkSoft;
 
             return Scaffold(
               resizeToAvoidBottomInset: !widget.disableResizeToAvoidBottomInset,
@@ -477,7 +511,13 @@ class _NavBarPageState extends State<NavBarPage> {
                     2,
                     currentIndex,
                     useSleepStyle,
-                    navLocked ? null : () => _onNavTap(2),
+                    navLocked
+                        ? null
+                        : () async {
+                            await doneLibraryCoachmarkOnDoneTabDismiss?.call();
+                            _onNavTap(2);
+                          },
+                    libraryCoachmarkKey: doneLibraryCoachmarkTabKey,
                   ),
                   _buildNavItem(
                     context,
