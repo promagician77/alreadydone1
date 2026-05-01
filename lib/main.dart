@@ -357,8 +357,9 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
   void _onLibraryCoachmarkRequest() {
     if (!libraryCoachmarkRequestNotifier.value) return;
     libraryCoachmarkRequestNotifier.value = false;
-    if (!mounted) return;
-    setState(() => _showDoneLibraryCoachmark = true);
+    if (mounted) {
+      setState(() => _showDoneLibraryCoachmark = true);
+    }
   }
 
   @override
@@ -601,10 +602,11 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Match [PlayerWidget] settings coachmark (cream card, QUICK TIP, tail to Done tab).
     const cardBg = Color(0xFFFFFDF7);
     const textMuted = Color(0xFF7A6F5E);
     const labelGold = Color(0xFFB8862F);
-    final borderGold = _NavColors.gold.withValues(alpha: 0.95);
+    final goldStroke = _NavColors.gold.withValues(alpha: 0.95);
     return Material(
       color: Colors.transparent,
       elevation: 0,
@@ -612,12 +614,13 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: borderGold, width: 1.5),
+          border: Border.all(color: goldStroke, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.14),
               blurRadius: 28,
               offset: const Offset(0, 14),
+              spreadRadius: 0,
             ),
             BoxShadow(
               color: _NavColors.gold.withValues(alpha: 0.16),
@@ -644,8 +647,8 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: cardBg,
                       border: Border(
-                        right: BorderSide(color: borderGold, width: 1.5),
-                        bottom: BorderSide(color: borderGold, width: 1.5),
+                        right: BorderSide(color: goldStroke, width: 1.5),
+                        bottom: BorderSide(color: goldStroke, width: 1.5),
                       ),
                     ),
                   ),
@@ -685,8 +688,8 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
                     style: GoogleFonts.outfit(
                       fontSize: 14,
                       height: 1.5,
-                      fontWeight: FontWeight.w400,
                       color: textMuted,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                   const SizedBox(height: 22),
