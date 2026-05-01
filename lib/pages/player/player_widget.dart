@@ -2292,14 +2292,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Widget _buildPlayerSettingsCoachmark({required VoidCallback onGotIt}) {
-    const cardBg = Color(0xFFFFFDF7); // design: warm cream card
+    const cardBg = Color(0xFFFFFDF7); // warm cream (matches design mock)
+    // Reference typography tokens (player-settings-coachmark / HTML)
+    const textMuted = Color(0xFF7A6F5E);
+    const labelGold = Color(0xFFB8862F);
     return Material(
       color: Colors.transparent,
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
           color: cardBg,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: _PlayerColors.gold.withValues(alpha: 0.95),
             width: 1.5,
@@ -2347,7 +2350,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2356,47 +2359,39 @@ class _PlayerWidgetState extends State<PlayerWidget>
                     'QUICK TIP',
                     style: GoogleFonts.outfit(
                       fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2.0,
-                      color: _PlayerColors.gold,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.2,
+                      height: 1.2,
+                      color: labelGold,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
                     'Customize your experience',
                     style: GoogleFonts.cormorantGaramond(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.w500,
-                      height: 1.15,
+                      height: 1.12,
+                      letterSpacing: -0.2,
                       color: _PlayerColors.ink,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text.rich(
                     TextSpan(
                       style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        height: 1.55,
-                        color: _PlayerColors.inkMid,
+                        fontSize: 14,
+                        height: 1.5,
+                        color: textMuted,
                         fontWeight: FontWeight.w400,
                       ),
                       children: [
                         const TextSpan(text: 'Tap here to access '),
                         TextSpan(
-                          text: 'Sleep Mode, Speed,',
+                          text: 'Sleep Mode, Speed, and Loop',
                           style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
-                            fontWeight: FontWeight.w700,
-                            color: _PlayerColors.ink,
-                          ),
-                        ),
-                        const TextSpan(text: ' and '),
-                        TextSpan(
-                          text: 'Loop',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
+                            fontSize: 14,
+                            height: 1.5,
                             fontWeight: FontWeight.w700,
                             color: _PlayerColors.ink,
                           ),
@@ -2405,22 +2400,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
                   SizedBox(
                     width: double.infinity,
                     child: Pressable(
                       onTap: onGotIt,
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                         decoration: BoxDecoration(
                           color: _PlayerColors.gold,
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: _PlayerColors.gold.withValues(alpha: 0.35),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
+                              color: _PlayerColors.gold.withValues(alpha: 0.32),
+                              blurRadius: 14,
+                              offset: const Offset(0, 5),
                             ),
                           ],
                         ),
@@ -2428,8 +2423,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
                         child: Text(
                           'Got it',
                           style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
                             color: Colors.white,
                           ),
                         ),
