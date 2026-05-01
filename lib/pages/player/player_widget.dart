@@ -2045,26 +2045,43 @@ class _PlayerWidgetState extends State<PlayerWidget>
                       if (_sleepModeActive) return const SizedBox.shrink();
                       final t = _waveformController.value * math.pi * 2;
                       final pulse = (math.sin(t) + 1) / 2; // 0..1
-                      final glowAlpha = 0.22 + pulse * 0.22;
+                      final glowOuter =
+                          0.18 + pulse * 0.12; // soft golden-brown halo
+                      final glowInner = 0.28 + pulse * 0.18;
                       return Container(
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
                           color: _PlayerColors.surface,
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _PlayerColors.stone.withValues(alpha: 0.85),
+                            width: 1,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: _PlayerColors.gold.withValues(alpha: glowAlpha),
-                              blurRadius: 34,
-                              spreadRadius: 3,
+                              color: const Color(0xFF8B6914)
+                                  .withValues(alpha: glowOuter),
+                              blurRadius: 28,
+                              spreadRadius: 4,
+                            ),
+                            BoxShadow(
+                              color: _PlayerColors.gold.withValues(alpha: glowInner),
+                              blurRadius: 20,
+                              spreadRadius: 0,
+                            ),
+                            BoxShadow(
+                              color: _PlayerColors.gold.withValues(alpha: 0.12 + pulse * 0.08),
+                              blurRadius: 40,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
                         alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.settings,
+                        child: Icon(
+                          Icons.settings_outlined,
                           size: 24,
-                          color: _PlayerColors.inkSoft,
+                          color: _PlayerColors.ink,
                         ),
                       );
                     },
@@ -2073,10 +2090,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
             if (_showSettingsCoachmark)
               Positioned(
-                // Keep this below the header so it doesn't cover the gear icon.
-                top: 160,
+                // Below header; extra right inset shifts card left so the tail aims at the gear.
+                top: 148,
                 left: 20,
-                right: 20,
+                right: 52,
                 child: _buildPlayerSettingsCoachmark(
                   onGotIt: () => _dismissSettingsCoachmark(),
                 ),
@@ -2257,11 +2274,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
                     child: Padding(
                       padding: const EdgeInsets.all(10),
                       child: Icon(
-                        Icons.settings,
+                        Icons.settings_outlined,
                         size: 24,
                         color: _sleepModeActive
                             ? Colors.white.withValues(alpha: 0.7)
-                            : _PlayerColors.inkSoft,
+                            : _PlayerColors.ink,
                       ),
                     ),
                   ),
@@ -2275,22 +2292,30 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Widget _buildPlayerSettingsCoachmark({required VoidCallback onGotIt}) {
+    const cardBg = Color(0xFFFFFDF7); // design: warm cream card
     return Material(
       color: Colors.transparent,
+      elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: _PlayerColors.surface,
+          color: cardBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _PlayerColors.gold, width: 1.5),
+          border: Border.all(
+            color: _PlayerColors.gold.withValues(alpha: 0.95),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
-              blurRadius: 36,
-              offset: const Offset(0, 18),
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+              spreadRadius: 0,
             ),
             BoxShadow(
-              color: _PlayerColors.gold.withValues(alpha: 0.18),
-              blurRadius: 60,
+              color: _PlayerColors.gold.withValues(alpha: 0.16),
+              blurRadius: 48,
+              offset: const Offset(0, 8),
+              spreadRadius: -4,
             ),
           ],
         ),
@@ -2298,61 +2323,67 @@ class _PlayerWidgetState extends State<PlayerWidget>
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              top: -10,
-              // Align arrow closer to the settings gear (top-right).
-              right: 34,
+              top: -9,
+              right: 26,
               child: Transform.rotate(
                 angle: math.pi / 4,
                 child: Container(
                   width: 18,
                   height: 18,
                   decoration: BoxDecoration(
-                    color: _PlayerColors.surface,
+                    color: cardBg,
                     border: Border(
-                      top: BorderSide(color: _PlayerColors.gold, width: 1.5),
-                      left: BorderSide(color: _PlayerColors.gold, width: 1.5),
+                      top: BorderSide(
+                        color: _PlayerColors.gold.withValues(alpha: 0.95),
+                        width: 1.5,
+                      ),
+                      left: BorderSide(
+                        color: _PlayerColors.gold.withValues(alpha: 0.95),
+                        width: 1.5,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Quick Tip',
+                    'QUICK TIP',
                     style: GoogleFonts.outfit(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.8,
+                      letterSpacing: 2.0,
                       color: _PlayerColors.gold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     'Customize your experience',
                     style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.w500,
-                      height: 1.2,
+                      height: 1.15,
                       color: _PlayerColors.ink,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text.rich(
                     TextSpan(
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         height: 1.55,
-                        color: _PlayerColors.inkSoft,
+                        color: _PlayerColors.inkMid,
+                        fontWeight: FontWeight.w400,
                       ),
                       children: [
                         const TextSpan(text: 'Tap here to access '),
                         TextSpan(
-                          text: 'Sleep Mode',
+                          text: 'Sleep Mode, Speed,',
                           style: GoogleFonts.outfit(
                             fontSize: 13,
                             height: 1.55,
@@ -2360,17 +2391,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                             color: _PlayerColors.ink,
                           ),
                         ),
-                        const TextSpan(text: ', '),
-                        TextSpan(
-                          text: 'Speed',
-                          style: GoogleFonts.outfit(
-                            fontSize: 13,
-                            height: 1.55,
-                            fontWeight: FontWeight.w700,
-                            color: _PlayerColors.ink,
-                          ),
-                        ),
-                        const TextSpan(text: ', and '),
+                        const TextSpan(text: ' and '),
                         TextSpan(
                           text: 'Loop',
                           style: GoogleFonts.outfit(
@@ -2384,22 +2405,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: Pressable(
                       onTap: onGotIt,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
                           color: _PlayerColors.gold,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: _PlayerColors.gold.withValues(alpha: 0.25),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
+                              color: _PlayerColors.gold.withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -2408,7 +2429,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                           'Got it',
                           style: GoogleFonts.outfit(
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
                           ),
                         ),
