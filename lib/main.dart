@@ -25,7 +25,7 @@ import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
-import '/services/onboarding_service.dart';
+import '/services/library_coachmark_notifier.dart';
 import '/widgets/pressable.dart';
 import 'index.dart';
 
@@ -351,13 +351,19 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
       duration: const Duration(milliseconds: 1800),
     )..repeat();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowDoneLibraryCoachmark();
-    });
+    libraryCoachmarkRequestNotifier.addListener(_onLibraryCoachmarkRequest);
+  }
+
+  void _onLibraryCoachmarkRequest() {
+    if (!libraryCoachmarkRequestNotifier.value) return;
+    libraryCoachmarkRequestNotifier.value = false;
+    if (!mounted) return;
+    setState(() => _showDoneLibraryCoachmark = true);
   }
 
   @override
   void dispose() {
+    libraryCoachmarkRequestNotifier.removeListener(_onLibraryCoachmarkRequest);
     _coachmarkPulseController.dispose();
     super.dispose();
   }
@@ -366,19 +372,6 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
     final user = SupabaseService.currentUser;
     final userKey = user?.id.toLowerCase() ?? 'guest';
     return '$_doneLibraryCoachmarkKeyPrefix$userKey';
-  }
-
-  Future<void> _maybeShowDoneLibraryCoachmark() async {
-    // Only show once the user has actually generated a manifestation.
-    final hasStory = await OnboardingService.hasGeneratedFirstStory();
-    if (!hasStory) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool(_doneLibraryCoachmarkStorageKey()) ?? false;
-    if (seen) return;
-
-    if (!mounted) return;
-    setState(() => _showDoneLibraryCoachmark = true);
   }
 
   Future<void> _dismissDoneLibraryCoachmark() async {
@@ -504,8 +497,7 @@ class _NavBarPageState extends State<NavBarPage> with SingleTickerProviderStateM
     bool useSleepStyle,
     bool navLocked,
   ) {
-    final shouldHighlightDone =
-        _showDoneLibraryCoachmark && !navLocked && currentIndex != 2;
+    final shouldHighlightDone = _showDoneLibraryCoachmark && !navLocked;
     return ColoredBox(
       color: barColor,
       child: SafeArea(
@@ -609,22 +601,29 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const cardBg = Color(0xFFFFFDF7);
+    const textMuted = Color(0xFF7A6F5E);
+    const labelGold = Color(0xFFB8862F);
+    final borderGold = _NavColors.gold.withValues(alpha: 0.95);
     return Material(
       color: Colors.transparent,
+      elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: _NavColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _NavColors.gold, width: 1.5),
+          color: cardBg,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: borderGold, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
-              blurRadius: 36,
-              offset: const Offset(0, 18),
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
             ),
             BoxShadow(
-              color: _NavColors.gold.withValues(alpha: 0.18),
-              blurRadius: 60,
+              color: _NavColors.gold.withValues(alpha: 0.16),
+              blurRadius: 48,
+              offset: const Offset(0, 8),
+              spreadRadius: -4,
             ),
           ],
         ),
@@ -632,24 +631,21 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              bottom: -10,
+              bottom: -9,
               left: 0,
               right: 0,
               child: Align(
                 alignment: Alignment.bottomCenter,
-                child: Transform.translate(
-                  offset: const Offset(20, 0),
-                  child: Transform.rotate(
-                    angle: math.pi / 4,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: _NavColors.surface,
-                        border: Border(
-                          right: BorderSide(color: _NavColors.gold, width: 1.5),
-                          bottom: BorderSide(color: _NavColors.gold, width: 1.5),
-                        ),
+                child: Transform.rotate(
+                  angle: math.pi / 4,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      border: Border(
+                        right: BorderSide(color: borderGold, width: 1.5),
+                        bottom: BorderSide(color: borderGold, width: 1.5),
                       ),
                     ),
                   ),
@@ -657,55 +653,58 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Quick Tip',
+                    'QUICK TIP',
                     style: GoogleFonts.outfit(
                       fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.8,
-                      color: _NavColors.gold,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2.2,
+                      height: 1.2,
+                      color: labelGold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     'Your library lives here',
                     style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20,
+                      fontSize: 24,
                       fontWeight: FontWeight.w500,
-                      height: 1.2,
+                      height: 1.12,
+                      letterSpacing: -0.2,
                       color: _NavColors.ink,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     'This is your library where all your manifestations are stored.',
                     style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      height: 1.55,
-                      color: _NavColors.inkSoft,
+                      fontSize: 14,
+                      height: 1.5,
+                      fontWeight: FontWeight.w400,
+                      color: textMuted,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 22),
                   SizedBox(
                     width: double.infinity,
                     child: Pressable(
                       onTap: onGotIt,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                         decoration: BoxDecoration(
                           color: _NavColors.gold,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: _NavColors.gold.withValues(alpha: 0.25),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
+                              color: _NavColors.gold.withValues(alpha: 0.32),
+                              blurRadius: 14,
+                              offset: const Offset(0, 5),
                             ),
                           ],
                         ),
@@ -713,8 +712,9 @@ class _DoneLibraryCoachmarkCard extends StatelessWidget {
                         child: Text(
                           'Got it',
                           style: GoogleFonts.outfit(
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
                             color: Colors.white,
                           ),
                         ),
