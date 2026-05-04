@@ -60,6 +60,20 @@ class SupabaseService {
   static User? get currentUser => client.auth.currentUser;
   static bool get isAuthenticated => currentUser != null;
 
+  static Future<String?> waitForCurrentUserId({
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
+    final existing = currentUser?.id;
+    if (existing != null && existing.isNotEmpty) return existing;
+    final sw = Stopwatch()..start();
+    while (sw.elapsed < timeout) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      final id = currentUser?.id;
+      if (id != null && id.isNotEmpty) return id;
+    }
+    return currentUser?.id;
+  }
+
   static Future<int?> getCurrentUserTableId() async {
     final email = currentUser?.email;
     if (email == null || email.isEmpty) return null;

@@ -223,16 +223,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
   bool _showSettingsCoachmark = false;
   bool _showDoneLibraryCoachmark = false;
 
-  String _settingsCoachmarkStorageKey() {
-    final user = SupabaseService.currentUser;
-    final userKey = user?.id.toLowerCase() ?? 'guest';
-    return '$_settingsCoachmarkKeyPrefix$userKey';
+  String? _settingsCoachmarkStorageKeyOrNull() {
+    final id = SupabaseService.currentUser?.id;
+    if (id == null || id.isEmpty) return null;
+    return '$_settingsCoachmarkKeyPrefix${id.toLowerCase()}';
   }
 
-  String _doneLibraryCoachmarkStorageKey() {
-    final user = SupabaseService.currentUser;
-    final userKey = user?.id.toLowerCase() ?? 'guest';
-    return '$_doneLibraryCoachmarkKeyPrefix$userKey';
+  String? _doneLibraryCoachmarkStorageKeyOrNull() {
+    final id = SupabaseService.currentUser?.id;
+    if (id == null || id.isEmpty) return null;
+    return '$_doneLibraryCoachmarkKeyPrefix${id.toLowerCase()}';
   }
 
   Future<void> _maybeShowSettingsCoachmark() async {
@@ -241,8 +241,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (_sleepModeActive) return;
     if (_isGeneratingVoice || _isDeepening) return;
 
+    final key = _settingsCoachmarkStorageKeyOrNull();
+    if (key == null) return;
     final prefs = await SharedPreferences.getInstance();
-    final key = _settingsCoachmarkStorageKey();
     final seen = prefs.getBool(key) ?? false;
     if (seen) return;
     if (!mounted) return;
@@ -256,11 +257,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (_isGeneratingVoice || _isDeepening) return;
     if (_loading || _hasNoStory) return;
 
+    final settingsKey = _settingsCoachmarkStorageKeyOrNull();
     final prefs = await SharedPreferences.getInstance();
-    final settingsSeen = prefs.getBool(_settingsCoachmarkStorageKey()) ?? false;
+    final settingsSeen =
+        settingsKey != null ? (prefs.getBool(settingsKey) ?? false) : false;
     if (!settingsSeen) return;
 
-    final key = _doneLibraryCoachmarkStorageKey();
+    final key = _doneLibraryCoachmarkStorageKeyOrNull();
+    if (key == null) return;
     final seen = prefs.getBool(key) ?? false;
     if (seen) return;
     if (!mounted) return;
@@ -272,8 +276,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (!_showDoneLibraryCoachmark) return;
     setState(() => _showDoneLibraryCoachmark = false);
     doneLibraryCoachmarkVisible.value = false;
+    final key = _doneLibraryCoachmarkStorageKeyOrNull();
+    if (key == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_doneLibraryCoachmarkStorageKey(), true);
+    await prefs.setBool(key, true);
   }
 
   Future<void> _onDoneTabDuringLibraryCoachmark() async {
@@ -292,8 +298,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Future<void> _dismissSettingsCoachmark() async {
     if (!_showSettingsCoachmark) return;
     setState(() => _showSettingsCoachmark = false);
+    final key = _settingsCoachmarkStorageKeyOrNull();
+    if (key == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_settingsCoachmarkStorageKey(), true);
+    await prefs.setBool(key, true);
     if (mounted) await _maybeShowDoneLibraryCoachmark();
   }
 
@@ -353,6 +361,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     doneLibraryCoachmarkOnDoneTabDismiss = _onDoneTabDuringLibraryCoachmark;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await SupabaseService.waitForCurrentUserId();
+      if (!mounted) return;
       await _maybeShowSettingsCoachmark();
       if (mounted) await _maybeShowDoneLibraryCoachmark();
     });

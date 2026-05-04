@@ -187,6 +187,8 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
   Future<void> _maybeShowNewManifestationCoachmark() async {
     if (!mounted) return;
+    await SupabaseService.waitForCurrentUserId();
+    if (!mounted) return;
     final show = await NewManifestationCoachmarkPrefs.takePendingShowCoachmark();
     if (!show || !mounted) return;
     setState(() => _showNewManifestationCoachmark = true);

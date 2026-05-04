@@ -15,29 +15,39 @@ class NewManifestationCoachmarkPrefs {
   static const _seenPrefix = 'home_new_manifestation_coachmark_v1_';
   static const _pendingPrefix = 'pending_home_new_manifestation_coachmark_v1_';
 
-  static String _userKey() =>
-      SupabaseService.currentUser?.id.toLowerCase() ?? 'guest';
+  /// Never use `'guest'` — that breaks one-shot tutorials when the session appears late.
+  static String? _userKeyOrNull() {
+    final id = SupabaseService.currentUser?.id;
+    if (id == null || id.isEmpty) return null;
+    return id.toLowerCase();
+  }
 
   static Future<void> setPendingAfterOnboardingComplete() async {
+    final key = _userKeyOrNull();
+    if (key == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('$_pendingPrefix${_userKey()}', true);
+    await prefs.setBool('$_pendingPrefix$key', true);
   }
 
   static Future<bool> takePendingShowCoachmark() async {
+    final key = _userKeyOrNull();
+    if (key == null) return false;
     final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool('$_seenPrefix${_userKey()}') ?? false;
+    final seen = prefs.getBool('$_seenPrefix$key') ?? false;
     if (seen) {
-      await prefs.setBool('$_pendingPrefix${_userKey()}', false);
+      await prefs.setBool('$_pendingPrefix$key', false);
       return false;
     }
-    final pending = prefs.getBool('$_pendingPrefix${_userKey()}') ?? false;
+    final pending = prefs.getBool('$_pendingPrefix$key') ?? false;
     if (!pending) return false;
-    await prefs.setBool('$_pendingPrefix${_userKey()}', false);
+    await prefs.setBool('$_pendingPrefix$key', false);
     return true;
   }
 
   static Future<void> markSeen() async {
+    final key = _userKeyOrNull();
+    if (key == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('$_seenPrefix${_userKey()}', true);
+    await prefs.setBool('$_seenPrefix$key', true);
   }
 }
