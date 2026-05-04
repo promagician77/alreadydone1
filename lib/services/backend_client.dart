@@ -383,9 +383,6 @@ class BackendClient {
     required int storyId,
     String modelId = 'eleven_multilingual_v2',
     String narrationSpeed = 'normal',
-    bool waitUntilPlayUrlReady = false,
-    Duration pollInterval = const Duration(seconds: 2),
-    Duration waitTimeout = const Duration(seconds: 120),
   }) async {
     final response = await client
         .post(
@@ -408,41 +405,85 @@ class BackendClient {
       );
     }
     final decoded = jsonDecode(response.body);
-    final map = decoded is Map<String, dynamic>
-        ? decoded
-        : <String, dynamic>{'url': null, 'content_type': null};
+    return decoded is Map<String, dynamic> ? decoded : {'url': null, 'content_type': null};
+  }
 
-    final urlStr = map['url']?.toString().trim();
-    if (urlStr != null && urlStr.isNotEmpty) {
-      return map;
+  /// Like [voiceGenerateAudio], but after HTTP 202 (async generation) or an empty
+  /// `url`, polls [getStoryPlayUrl] until a play URL exists or [maxWait] elapses.
+  static Future<Map<String, dynamic>> voiceGenerateAudioAwaitReady({
+    required String voiceId,
+    required int storyId,
+    String modelId = 'eleven_multilingual_v2',
+    String narrationSpeed = 'normal',
+    Duration pollInterval = const Duration(seconds: 2),
+    Duration maxWait = const Duration(seconds: 120),
+  }) async {
+    final postResponse = await client
+        .post(
+          resolve('/api/voice/generate_audio'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'voice_id': voiceId,
+            'story_id': storyId,
+            'model_id': modelId,
+            'narration_speed': narrationSpeed,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 90),
+          onTimeout: () => throw Exception('Voice generate audio timeout'),
+        );
+
+    if (postResponse.statusCode >= 400) {
+      throw Exception(
+        'Voice generate audio failed: ${postResponse.statusCode} ${postResponse.body}',
+      );
     }
 
-    if (!waitUntilPlayUrlReady) {
-      return map;
+    Map<String, dynamic>? fromPost;
+    try {
+      final decoded = jsonDecode(postResponse.body);
+      if (decoded is Map<String, dynamic>) {
+        fromPost = decoded;
+      }
+    } catch (_) {}
+
+    final immediateUrl = fromPost?['url']?.toString().trim();
+    if (postResponse.statusCode == 200 &&
+        immediateUrl != null &&
+        immediateUrl.isNotEmpty) {
+      return fromPost!;
     }
 
-    final deadline = DateTime.now().add(waitTimeout);
-    Object? lastErr;
-    await Future<void>.delayed(const Duration(seconds: 1));
+    final deadline = DateTime.now().add(maxWait);
     while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(pollInterval);
       try {
-        final poll = await getStoryPlayUrl(storyId);
-        final playUrl = poll['playUrl']?.toString().trim();
+        final speakRes = await getStoryPlayUrl(storyId);
+        final playUrl = speakRes['playUrl']?.toString().trim();
         if (playUrl != null && playUrl.isNotEmpty) {
-          final out = Map<String, dynamic>.from(map);
-          out['url'] = playUrl;
+          final out = <String, dynamic>{
+            'url': playUrl,
+            'content_type': speakRes['content_type'] ?? 'audio/mpeg',
+          };
+          final pl = fromPost?['play_length'];
+          if (pl != null) {
+            out['play_length'] = pl;
+          }
           return out;
         }
       } catch (e) {
-        lastErr = e;
+        final msg = e.toString();
+        final pending = msg.contains('404') ||
+            msg.contains('no play URL') ||
+            msg.contains('Story not found');
+        if (!pending) {
+          rethrow;
+        }
       }
-      await Future<void>.delayed(pollInterval);
     }
-
     throw Exception(
-      lastErr != null
-          ? 'Timed out waiting for audio URL: $lastErr'
-          : 'Timed out waiting for audio URL',
+      'Timed out waiting for voice audio (${maxWait.inSeconds}s). Please try again.',
     );
   }
 

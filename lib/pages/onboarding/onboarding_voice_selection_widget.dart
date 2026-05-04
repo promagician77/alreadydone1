@@ -313,11 +313,11 @@ class _OnboardingVoiceSelectionWidgetState
       return;
     }
     try {
-      final res = await BackendClient.voiceGenerateAudio(
+      final res = await BackendClient.voiceGenerateAudioAwaitReady(
         voiceId: voiceId,
         storyId: storyId,
-        waitUntilPlayUrlReady: true,
       );
+
       final url = res['url']?.toString().trim();
       if (url == null || url.isEmpty) {
         if (mounted) {
@@ -706,12 +706,21 @@ class _OnboardingVoiceSelectionWidgetState
                 return;
               }
 
-              final res = await BackendClient.voiceGenerateAudio(
+              final res = await BackendClient.voiceGenerateAudioAwaitReady(
                 voiceId: _selectedId,
                 storyId: storyId,
-                waitUntilPlayUrlReady: true,
               );
-              final url = res['url']?.toString();
+              final url = res['url']?.toString().trim();
+              if (url == null || url.isEmpty) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Could not generate audio. Please try again.'),
+                    ),
+                  );
+                }
+                return;
+              }
               OnboardingState.instance.voicePlayUrl = url;
               if (res['play_length'] != null) {
                 OnboardingState.instance.generatedStory ??= <String, dynamic>{};
