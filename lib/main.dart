@@ -333,18 +333,25 @@ class _NavBarPageState extends State<NavBarPage>
   String _currentPageName = 'HomeDashboard';
   late Widget? _currentPage;
 
-  /// Soft pulse on the Done tab only while the library coachmark is visible.
-  late final AnimationController _doneTabPulseController;
+  /// Lazily created so hot reload / listener order never reads an uninitialized
+  /// `late` field. Only used while the library coachmark is visible.
+  AnimationController? _doneTabPulseController;
+
+  AnimationController get _pulseOrCreate {
+    return _doneTabPulseController ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+  }
 
   void _syncDoneTabPulse() {
     if (doneLibraryCoachmarkVisible.value) {
-      if (!_doneTabPulseController.isAnimating) {
-        _doneTabPulseController.repeat(reverse: true);
+      if (!_pulseOrCreate.isAnimating) {
+        _pulseOrCreate.repeat(reverse: true);
       }
     } else {
-      _doneTabPulseController
-        ..stop()
-        ..reset();
+      _doneTabPulseController?.stop();
+      _doneTabPulseController?.reset();
     }
   }
 
@@ -353,10 +360,6 @@ class _NavBarPageState extends State<NavBarPage>
     super.initState();
     _currentPageName = widget.initialPage ?? _currentPageName;
     _currentPage = widget.page;
-    _doneTabPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
     doneLibraryCoachmarkVisible.addListener(_syncDoneTabPulse);
     _syncDoneTabPulse();
   }
@@ -364,7 +367,8 @@ class _NavBarPageState extends State<NavBarPage>
   @override
   void dispose() {
     doneLibraryCoachmarkVisible.removeListener(_syncDoneTabPulse);
-    _doneTabPulseController.dispose();
+    _doneTabPulseController?.dispose();
+    _doneTabPulseController = null;
     super.dispose();
   }
 
@@ -427,9 +431,9 @@ class _NavBarPageState extends State<NavBarPage>
           Widget inner = buildCore(libraryTipActive);
           if (libraryTipActive) {
             inner = AnimatedBuilder(
-              animation: _doneTabPulseController,
+              animation: _pulseOrCreate,
               builder: (context, child) {
-                final t = _doneTabPulseController.value;
+                final t = _pulseOrCreate.value;
                 return DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
