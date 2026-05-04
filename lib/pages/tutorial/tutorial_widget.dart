@@ -284,17 +284,20 @@ class _MockStatusBar extends StatelessWidget {
             color: AuthTheme.gold,
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.outfit(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AuthTheme.ink,
+        if (label.trim().isNotEmpty) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AuthTheme.ink,
+              ),
             ),
           ),
-        ),
+        ] else
+          const Spacer(),
         Container(
           width: 44,
           height: 18,
@@ -1497,7 +1500,7 @@ class _InstructionCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '${step.phaseLabel} · Step ${stepIndex + 1} of $totalSteps',
+                'Step ${stepIndex + 1} of $totalSteps',
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,

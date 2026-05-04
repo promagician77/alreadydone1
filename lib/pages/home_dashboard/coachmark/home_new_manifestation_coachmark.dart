@@ -203,10 +203,10 @@ class _CoachmarkCard extends StatelessWidget {
                       ),
                     ),
                     const TextSpan(
-                      text: ' in the navigation, then scroll down and tap ',
+                      text: ' in the navigation and tap ',
                     ),
                     TextSpan(
-                      text: '+ Add New Manifestation',
+                      text: '+Add New Manifestation',
                       style: GoogleFonts.outfit(
                         fontSize: 15,
                         height: 1.58,
