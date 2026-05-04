@@ -279,7 +279,8 @@ class _DesiresWidgetState extends State<DesiresWidget> {
       }
 
       if (mounted) {
-        context.pushNamed(PlayerWidget.routeName, extra: {
+        // Same as home: avoid stacking two [NavBarPage]s (duplicate GlobalKeys on Home/Done).
+        context.pushReplacementNamed(PlayerWidget.routeName, extra: {
           'storyId': storyId,
           'categoryLabel': categoryLabel,
           'title': title,

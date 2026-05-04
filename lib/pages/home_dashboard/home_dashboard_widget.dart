@@ -583,7 +583,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
 
       if (mounted) {
         final storyText = (story['story'] ?? story['content'])?.toString().trim();
-        context.pushNamed(PlayerWidget.routeName, extra: {
+        context.pushReplacementNamed(PlayerWidget.routeName, extra: {
           'storyId': storyId,
           'categoryLabel': (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
           'title': (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString(),
