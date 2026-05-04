@@ -496,9 +496,7 @@ class _PaywallPreview extends StatelessWidget {
           'Unlimited stories in your voice',
           style: GoogleFonts.outfit(fontSize: 13, color: AuthTheme.inkSoft),
         ),
-        const SizedBox(height: 16),
-        const _PaywallStatsCard(),
-        const SizedBox(height: 14),
+        const SizedBox(height: 22),
         const _PulsingButton(label: 'Start your 3-day free trial today'),
         const SizedBox(height: 14),
         const _PlanCard(
@@ -740,70 +738,6 @@ class _VoiceReadyPreview extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PaywallStatsCard extends StatelessWidget {
-  const _PaywallStatsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    const stats = [
-      ('4.8*', 'RATING'),
-      ('50K+', 'STORIES'),
-      ('12K+', 'USERS'),
-    ];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AuthTheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AuthTheme.stone),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'TRUSTED BY THOUSANDS',
-            style: GoogleFonts.outfit(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
-              color: AuthTheme.ink,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: stats.map((stat) {
-              return Column(
-                children: [
-                  Text(
-                    stat.$1,
-                    style: GoogleFonts.cormorantGaramond(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AuthTheme.gold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    stat.$2,
-                    style: GoogleFonts.outfit(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.0,
-                      color: AuthTheme.inkSoft,
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        ],
-      ),
     );
   }
 }
