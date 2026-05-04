@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -25,6 +26,7 @@ import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
 import '/widgets/pressable.dart';
 import '/pages/player/coachmark/done_library_coachmark_nav.dart';
+import '/pages/home_dashboard/coachmark/new_manifestation_coachmark_nav.dart';
 import 'index.dart';
 
 @pragma('vm:entry-point')
@@ -328,15 +330,43 @@ class NavBarPage extends StatefulWidget {
   _NavBarPageState createState() => _NavBarPageState();
 }
 
-class _NavBarPageState extends State<NavBarPage> {
+class _NavBarPageState extends State<NavBarPage>
+    with SingleTickerProviderStateMixin {
   String _currentPageName = 'HomeDashboard';
   late Widget? _currentPage;
+
+  late final AnimationController _newManifestationNavPulse;
 
   @override
   void initState() {
     super.initState();
     _currentPageName = widget.initialPage ?? _currentPageName;
     _currentPage = widget.page;
+    _newManifestationNavPulse = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    newManifestationCoachmarkVisible.addListener(_syncNewManifestationNavPulse);
+    if (newManifestationCoachmarkVisible.value) {
+      _newManifestationNavPulse.repeat(reverse: true);
+    }
+  }
+
+  void _syncNewManifestationNavPulse() {
+    if (newManifestationCoachmarkVisible.value) {
+      _newManifestationNavPulse.repeat(reverse: true);
+    } else {
+      _newManifestationNavPulse
+        ..stop()
+        ..reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    newManifestationCoachmarkVisible.removeListener(_syncNewManifestationNavPulse);
+    _newManifestationNavPulse.dispose();
+    super.dispose();
   }
 
   void _onNavTap(int index) {
@@ -356,17 +386,19 @@ class _NavBarPageState extends State<NavBarPage> {
     bool sleepStyle,
     VoidCallback? onTap, {
     GlobalKey? libraryCoachmarkKey,
+    GlobalKey? newManifestationHomeKey,
   }) {
     final selectedColor = sleepStyle ? const Color(0xFFC4B5FD) : _NavColors.gold;
     final unselectedColor = sleepStyle ? Colors.white.withValues(alpha: 0.5) : _NavColors.inkSoft;
     final active = currentIndex == index;
 
-    Widget buildCore(bool libraryTipActive) {
-      final activeOrTip = active || libraryTipActive;
+    Widget buildCore(bool tipActive) {
+      final activeOrTip = active || tipActive;
       final color = activeOrTip ? selectedColor : unselectedColor;
-      final labelWeight = (libraryCoachmarkKey != null && libraryTipActive)
-          ? FontWeight.w700
-          : FontWeight.w500;
+      final labelWeight =
+          (tipActive && (libraryCoachmarkKey != null || newManifestationHomeKey != null))
+              ? FontWeight.w700
+              : FontWeight.w500;
       return Pressable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -388,6 +420,44 @@ class _NavBarPageState extends State<NavBarPage> {
             ],
           ),
         ),
+      );
+    }
+
+    if (newManifestationHomeKey != null) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: newManifestationCoachmarkVisible,
+        builder: (context, tipActive, _) {
+          Widget inner = buildCore(tipActive);
+          if (tipActive) {
+            inner = AnimatedBuilder(
+              animation: _newManifestationNavPulse,
+              builder: (context, child) {
+                final t = (math.sin(_newManifestationNavPulse.value * math.pi * 2) +
+                        1) /
+                    2;
+                final spread = 1.0 + t * 3.0;
+                final blur = 22.0 + t * 18.0;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDF3DF),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFB8862F)
+                            .withValues(alpha: 0.35 + 0.35 * t),
+                        blurRadius: blur,
+                        spreadRadius: spread,
+                      ),
+                    ],
+                  ),
+                  child: child,
+                );
+              },
+              child: inner,
+            );
+          }
+          return KeyedSubtree(key: newManifestationHomeKey, child: inner);
+        },
       );
     }
 
@@ -493,7 +563,14 @@ class _NavBarPageState extends State<NavBarPage> {
                     0,
                     currentIndex,
                     useSleepStyle,
-                    navLocked ? null : () => _onNavTap(0),
+                    navLocked
+                        ? null
+                        : () async {
+                            await newManifestationCoachmarkOnHomeTabDuringCoachmark
+                                ?.call();
+                            _onNavTap(0);
+                          },
+                    newManifestationHomeKey: newManifestationCoachmarkHomeTabKey,
                   ),
                   _buildNavItem(
                     context,

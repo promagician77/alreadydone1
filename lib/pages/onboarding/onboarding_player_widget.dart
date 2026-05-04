@@ -7,6 +7,7 @@ import '/pages/player/player_modals/player_modals.dart';
 import '/services/backend_client.dart';
 import '/services/ai_consent_service.dart';
 import '/services/app_toast.dart';
+import '/pages/home_dashboard/coachmark/new_manifestation_coachmark_nav.dart';
 import '/services/onboarding_service.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
@@ -279,6 +280,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       });
     }
     await OnboardingService.setOnboardingCompleted();
+    await NewManifestationCoachmarkPrefs.setPendingAfterOnboardingComplete();
     if (!mounted) return;
     context.go('/');
   }

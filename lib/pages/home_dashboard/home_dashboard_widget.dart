@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
@@ -17,6 +18,8 @@ import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_desire_widget.dart';
+import '/pages/home_dashboard/coachmark/home_new_manifestation_coachmark.dart';
+import '/pages/home_dashboard/coachmark/new_manifestation_coachmark_nav.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
 
@@ -54,8 +57,12 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   late HomeDashboardModel _model;
 
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey _homeBodyStackKey = GlobalKey();
+  final GlobalKey _addManifestationButtonKey = GlobalKey();
   final AudioPlayer _audioPlayer = AudioPlayer();
   late final AnimationController _idleWaveController;
+  late final AnimationController _manifestCoachPulseController;
+  bool _showNewManifestationCoachmark = false;
   int _playNonce = 0;
 
   String _cacheBustUrlIfSafe(String url) {
@@ -123,6 +130,13 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat();
+    _manifestCoachPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    newManifestationCoachmarkVisible.addListener(_syncManifestCoachPulse);
+    newManifestationCoachmarkOnHomeTabDuringCoachmark =
+        _onHomeTabDuringCoachmark;
     _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) safeSetState(() {
         _model.isPlaying = false;
@@ -156,7 +170,39 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     _audioPlayer.onPositionChanged.listen((p) {
       if (mounted) safeSetState(() => _model.playbackPosition = p);
     });
-    _loadData();
+    _loadData().then((_) {
+      if (mounted) unawaited(_maybeShowNewManifestationCoachmark());
+    });
+  }
+
+  void _syncManifestCoachPulse() {
+    if (newManifestationCoachmarkVisible.value) {
+      _manifestCoachPulseController.repeat(reverse: true);
+    } else {
+      _manifestCoachPulseController
+        ..stop()
+        ..reset();
+    }
+  }
+
+  Future<void> _maybeShowNewManifestationCoachmark() async {
+    if (!mounted) return;
+    final show = await NewManifestationCoachmarkPrefs.takePendingShowCoachmark();
+    if (!show || !mounted) return;
+    setState(() => _showNewManifestationCoachmark = true);
+    newManifestationCoachmarkVisible.value = true;
+  }
+
+  Future<void> _dismissNewManifestationCoachmark() async {
+    if (!_showNewManifestationCoachmark) return;
+    setState(() => _showNewManifestationCoachmark = false);
+    newManifestationCoachmarkVisible.value = false;
+    await NewManifestationCoachmarkPrefs.markSeen();
+  }
+
+  Future<void> _onHomeTabDuringCoachmark() async {
+    if (!_showNewManifestationCoachmark) return;
+    await _dismissNewManifestationCoachmark();
   }
 
   Future<void> _loadData() async {
@@ -306,6 +352,9 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   Future<void> _handleAddNewManifestation() async {
+    if (_showNewManifestationCoachmark) {
+      await _dismissNewManifestationCoachmark();
+    }
     final hasConsent = await AIConsentService.ensureConsent(context);
     if (!hasConsent) {
       if (mounted) {
@@ -321,7 +370,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   }
 
   Widget _buildAddNewManifestationButton() {
-    return Pressable(
+    final button = Pressable(
       onTap: _handleAddNewManifestation,
       borderRadius: BorderRadius.circular(10),
       child: Container(
@@ -349,10 +398,46 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         ),
       ),
     );
+
+    return KeyedSubtree(
+      key: _addManifestationButtonKey,
+      child: AnimatedBuilder(
+        animation: _manifestCoachPulseController,
+        builder: (context, child) {
+          if (!_showNewManifestationCoachmark) return child!;
+          final t = (math.sin(_manifestCoachPulseController.value * math.pi * 2) +
+                  1) /
+              2;
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.65 + 0.25 * t),
+                  blurRadius: 30 + 18 * t,
+                  spreadRadius: 1 + 2 * t,
+                ),
+                BoxShadow(
+                  color: _AppColors.gold.withValues(alpha: 0.35 + 0.2 * t),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: child,
+          );
+        },
+        child: button,
+      ),
+    );
   }
 
   @override
   void dispose() {
+    newManifestationCoachmarkVisible.removeListener(_syncManifestCoachPulse);
+    newManifestationCoachmarkOnHomeTabDuringCoachmark = null;
+    newManifestationCoachmarkVisible.value = false;
+    _manifestCoachPulseController.dispose();
     _idleWaveController.dispose();
     _audioPlayer.dispose();
     _model.dispose();
@@ -587,8 +672,12 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: _AppColors.surface,
-        body: SafeArea(
-          top: true,
+        body: Stack(
+          key: _homeBodyStackKey,
+          clipBehavior: Clip.none,
+          children: [
+            SafeArea(
+              top: true,
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
@@ -663,9 +752,19 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                 ),
               ),
             ],
-                              ),
-                            ),
-                          ),
+              ),
+            ),
+            if (_showNewManifestationCoachmark)
+              Positioned.fill(
+                child: HomeNewManifestationCoachmarkOverlay(
+                  stackKey: _homeBodyStackKey,
+                  addButtonTargetKey: _addManifestationButtonKey,
+                  onGotIt: () => unawaited(_dismissNewManifestationCoachmark()),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
