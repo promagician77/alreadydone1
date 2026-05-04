@@ -328,48 +328,15 @@ class NavBarPage extends StatefulWidget {
   _NavBarPageState createState() => _NavBarPageState();
 }
 
-class _NavBarPageState extends State<NavBarPage>
-    with SingleTickerProviderStateMixin {
+class _NavBarPageState extends State<NavBarPage> {
   String _currentPageName = 'HomeDashboard';
   late Widget? _currentPage;
-
-  /// Lazily created so hot reload / listener order never reads an uninitialized
-  /// `late` field. Only used while the library coachmark is visible.
-  AnimationController? _doneTabPulseController;
-
-  AnimationController get _pulseOrCreate {
-    return _doneTabPulseController ??= AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-  }
-
-  void _syncDoneTabPulse() {
-    if (doneLibraryCoachmarkVisible.value) {
-      if (!_pulseOrCreate.isAnimating) {
-        _pulseOrCreate.repeat(reverse: true);
-      }
-    } else {
-      _doneTabPulseController?.stop();
-      _doneTabPulseController?.reset();
-    }
-  }
 
   @override
   void initState() {
     super.initState();
     _currentPageName = widget.initialPage ?? _currentPageName;
     _currentPage = widget.page;
-    doneLibraryCoachmarkVisible.addListener(_syncDoneTabPulse);
-    _syncDoneTabPulse();
-  }
-
-  @override
-  void dispose() {
-    doneLibraryCoachmarkVisible.removeListener(_syncDoneTabPulse);
-    _doneTabPulseController?.dispose();
-    _doneTabPulseController = null;
-    super.dispose();
   }
 
   void _onNavTap(int index) {
@@ -404,7 +371,7 @@ class _NavBarPageState extends State<NavBarPage>
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -430,25 +397,18 @@ class _NavBarPageState extends State<NavBarPage>
         builder: (context, libraryTipActive, _) {
           Widget inner = buildCore(libraryTipActive);
           if (libraryTipActive) {
-            inner = AnimatedBuilder(
-              animation: _pulseOrCreate,
-              builder: (context, child) {
-                final t = _pulseOrCreate.value;
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFB8862F)
-                            .withValues(alpha: 0.28 + t * 0.35),
-                        blurRadius: 14 + t * 18,
-                        spreadRadius: t * 3,
-                      ),
-                    ],
+            inner = Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDF3DF),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFB8862F).withValues(alpha: 0.45),
+                    blurRadius: 22,
+                    spreadRadius: 0,
                   ),
-                  child: child,
-                );
-              },
+                ],
+              ),
               child: inner,
             );
           }
@@ -524,65 +484,49 @@ class _NavBarPageState extends State<NavBarPage>
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Expanded(
-                    child: Center(
-                      child: _buildNavItem(
-                        context,
-                        Icons.home_rounded,
-                        'Home',
-                        0,
-                        currentIndex,
-                        useSleepStyle,
-                        navLocked ? null : () => _onNavTap(0),
-                      ),
-                    ),
+                  _buildNavItem(
+                    context,
+                    Icons.home_rounded,
+                    'Home',
+                    0,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(0),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: _buildNavItem(
-                        context,
-                        Icons.play_arrow,
-                        'Player',
-                        1,
-                        currentIndex,
-                        useSleepStyle,
-                        navLocked ? null : () => _onNavTap(1),
-                      ),
-                    ),
+                  _buildNavItem(
+                    context,
+                    Icons.play_arrow,
+                    'Player',
+                    1,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(1),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: _buildNavItem(
-                        context,
-                        Icons.check,
-                        'Done',
-                        2,
-                        currentIndex,
-                        useSleepStyle,
-                        navLocked
-                            ? null
-                            : () async {
-                                await doneLibraryCoachmarkOnDoneTabDismiss
-                                    ?.call();
-                                _onNavTap(2);
-                              },
-                        libraryCoachmarkKey: doneLibraryCoachmarkTabKey,
-                      ),
-                    ),
+                  _buildNavItem(
+                    context,
+                    Icons.check,
+                    'Done',
+                    2,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked
+                        ? null
+                        : () async {
+                            await doneLibraryCoachmarkOnDoneTabDismiss?.call();
+                            _onNavTap(2);
+                          },
+                    libraryCoachmarkKey: doneLibraryCoachmarkTabKey,
                   ),
-                  Expanded(
-                    child: Center(
-                      child: _buildNavItem(
-                        context,
-                        Icons.density_medium,
-                        'Profile',
-                        3,
-                        currentIndex,
-                        useSleepStyle,
-                        navLocked ? null : () => _onNavTap(3),
-                      ),
-                    ),
+                  _buildNavItem(
+                    context,
+                    Icons.density_medium,
+                    'Profile',
+                    3,
+                    currentIndex,
+                    useSleepStyle,
+                    navLocked ? null : () => _onNavTap(3),
                   ),
                 ],
               ),
