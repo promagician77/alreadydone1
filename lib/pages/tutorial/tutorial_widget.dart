@@ -1497,54 +1497,14 @@ class _InstructionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'Step ${stepIndex + 1} of $totalSteps',
-                style: GoogleFonts.outfit(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                  color: AuthTheme.gold,
-                ),
-              ),
-              if (step.isPaywall) ...[
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AuthTheme.goldPale,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: AuthTheme.gold.withValues(alpha: 0.32),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.lock_rounded,
-                        size: 10,
-                        color: AuthTheme.gold,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'PAYWALL',
-                        style: GoogleFonts.outfit(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          color: AuthTheme.gold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+          Text(
+            'Step ${stepIndex + 1} of $totalSteps',
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+              color: AuthTheme.gold,
+            ),
           ),
           const SizedBox(height: 10),
           Text(

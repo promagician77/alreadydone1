@@ -16,14 +16,12 @@ class TutorialStep {
     required this.body,
     required this.visualType,
     required this.focusLabel,
-    this.isPaywall = false,
   });
 
   final String title;
   final String body;
   final TutorialVisualType visualType;
   final String focusLabel;
-  final bool isPaywall;
 }
 
 const tutorialSteps = <TutorialStep>[
@@ -61,7 +59,6 @@ const tutorialSteps = <TutorialStep>[
         'Start your 3-day free trial. Tap the gold button to unlock unlimited stories in your own voice.',
     visualType: TutorialVisualType.paywall,
     focusLabel: '',
-    isPaywall: true,
   ),
   TutorialStep(
     title: "You're In",
