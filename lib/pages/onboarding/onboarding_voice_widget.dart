@@ -253,7 +253,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
 
     setState(() => _isUploading = true);
     try {
-      await BackendClient.uploadVoiceClone(
+      final uploadResult = await BackendClient.uploadVoiceClone(
         userId: userId,
         name: name,
         audioFile: file,
@@ -262,11 +262,14 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       try { await file.delete(); } catch (_) {}
       OnboardingState.instance.recordingDurationSec = _recordingDurationSeconds;
 
-      // After clone upload, wait for voice_id to appear then generate the speak URL
-      // (this replaces the old "Continue" step on the next screen).
-      final voiceId = await _waitForVoiceId(userId);
+      var voiceId = uploadResult['voice_id']?.toString().trim() ??
+          uploadResult['voiceId']?.toString().trim() ??
+          '';
+      if (voiceId.isEmpty) {
+        voiceId = (await _waitForVoiceId(userId)) ?? '';
+      }
       final storyId = _getGeneratedStoryId();
-      if (voiceId == null || voiceId.isEmpty) {
+      if (voiceId.isEmpty) {
         if (mounted) {
           AppToast.info(
             context,
@@ -325,8 +328,8 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
   }
 
   Future<String?> _waitForVoiceId(int userId) async {
-    // Voice cloning can take a bit; poll profile for up to ~40s.
-    const attempts = 20;
+    // Fallback when clone response omitted voice_id; poll profile up to ~60s.
+    const attempts = 30;
     const delay = Duration(seconds: 2);
     for (int i = 0; i < attempts; i++) {
       try {
