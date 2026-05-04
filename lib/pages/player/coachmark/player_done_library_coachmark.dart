@@ -69,12 +69,13 @@ class _PlayerDoneLibraryCoachmarkOverlayState
     final hole = _targetInStack;
     final media = MediaQuery.of(context);
     const horizontalInset = 20.0;
-    const gapAboveTarget = 12.0;
-    const approxCardHeight = 260.0;
+    /// Space between Done tab top and the caret tip (keep small; was 12 + inflated card height).
+    const gapAboveTarget = 4.0;
+    /// Approximate card+caret height (QUICK TIP + title + body + button + padding); avoids huge vertical gap.
+    const approxCardHeight = 200.0;
 
     final cardLeft = horizontalInset;
     final cardWidth = media.size.width - horizontalInset * 2;
-    final caretHalf = _kCaretSize / 2;
 
     double arrowRightFromCardRight = 20;
     double? cardTop;
@@ -82,7 +83,7 @@ class _PlayerDoneLibraryCoachmarkOverlayState
       final iconCenterX = hole.center.dx;
       final arrowCenterXFromCardLeft = iconCenterX - cardLeft;
       arrowRightFromCardRight =
-          cardWidth - arrowCenterXFromCardLeft - caretHalf;
+          cardWidth - arrowCenterXFromCardLeft - 9;
       arrowRightFromCardRight =
           arrowRightFromCardRight.clamp(12.0, cardWidth - 12.0);
 
@@ -160,7 +161,7 @@ class _LibraryCoachmarkCard extends StatelessWidget {
     required this.onGotIt,
   });
 
-  /// Distance from the **right** edge of the card to the arrow’s horizontal center.
+  /// Distance from the **right edge of the card** to the arrow’s horizontal center.
   final double arrowRightFromCardRight;
   final VoidCallback onGotIt;
 
@@ -174,7 +175,7 @@ class _LibraryCoachmarkCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: PlayerSettingsCoachmarkTokens.gold,
-            width: 1.5,
+            width: 1,
           ),
           boxShadow: [
             BoxShadow(
@@ -183,7 +184,7 @@ class _LibraryCoachmarkCard extends StatelessWidget {
               offset: const Offset(0, 18),
             ),
             BoxShadow(
-              color: PlayerSettingsCoachmarkTokens.gold.withValues(alpha: 0.2),
+              color: PlayerSettingsCoachmarkTokens.gold.withValues(alpha: 0.18),
               blurRadius: 60,
             ),
           ],
@@ -192,7 +193,7 @@ class _LibraryCoachmarkCard extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              bottom: -10,
+              bottom: -9,
               right: arrowRightFromCardRight,
               child: Transform.rotate(
                 angle: math.pi / 4,
@@ -204,11 +205,11 @@ class _LibraryCoachmarkCard extends StatelessWidget {
                     border: Border(
                       right: BorderSide(
                         color: PlayerSettingsCoachmarkTokens.gold,
-                        width: 1.5,
+                        width: 1,
                       ),
                       bottom: BorderSide(
                         color: PlayerSettingsCoachmarkTokens.gold,
-                        width: 1.5,
+                        width: 1,
                       ),
                     ),
                   ),
@@ -216,7 +217,7 @@ class _LibraryCoachmarkCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,9 +265,9 @@ class _LibraryCoachmarkCard extends StatelessWidget {
                           boxShadow: [
                             BoxShadow(
                               color: PlayerSettingsCoachmarkTokens.gold
-                                  .withValues(alpha: 0.35),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
+                                  .withValues(alpha: 0.25),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
@@ -275,7 +276,7 @@ class _LibraryCoachmarkCard extends StatelessWidget {
                           'Got it',
                           style: GoogleFonts.outfit(
                             fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
