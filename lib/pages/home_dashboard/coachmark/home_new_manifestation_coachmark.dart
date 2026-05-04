@@ -137,55 +137,57 @@ class _CoachmarkCard extends StatelessWidget {
       color: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
-          color: PlayerSettingsCoachmarkTokens.bgCard,
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFFFFFDF5),
+          borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: PlayerSettingsCoachmarkTokens.gold,
-            width: 1.5,
+            color: const Color(0xFFD4A34F),
+            width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
-              blurRadius: 36,
-              offset: const Offset(0, 18),
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 40,
+              offset: const Offset(0, 20),
             ),
             BoxShadow(
-              color: PlayerSettingsCoachmarkTokens.gold.withValues(alpha: 0.2),
-              blurRadius: 60,
+              color: PlayerSettingsCoachmarkTokens.gold.withValues(alpha: 0.18),
+              blurRadius: 56,
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'QUICK TIP',
+                textAlign: TextAlign.center,
                 style: GoogleFonts.outfit(
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 1.8,
-                  color: PlayerSettingsCoachmarkTokens.gold,
+                  letterSpacing: 2,
+                  color: const Color(0xFFB8862F),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 'Create new manifestations',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w500,
-                  height: 1.2,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  height: 1.22,
                   color: PlayerSettingsCoachmarkTokens.text,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Text.rich(
                 TextSpan(
                   style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    height: 1.55,
+                    fontSize: 15,
+                    height: 1.58,
                     color: PlayerSettingsCoachmarkTokens.textMuted,
                     fontWeight: FontWeight.w400,
                   ),
@@ -194,8 +196,8 @@ class _CoachmarkCard extends StatelessWidget {
                     TextSpan(
                       text: 'Home',
                       style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        height: 1.55,
+                        fontSize: 15,
+                        height: 1.58,
                         fontWeight: FontWeight.w700,
                         color: PlayerSettingsCoachmarkTokens.text,
                       ),
@@ -206,8 +208,8 @@ class _CoachmarkCard extends StatelessWidget {
                     TextSpan(
                       text: '+ Add New Manifestation',
                       style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        height: 1.55,
+                        fontSize: 15,
+                        height: 1.58,
                         fontWeight: FontWeight.w700,
                         color: PlayerSettingsCoachmarkTokens.text,
                       ),
@@ -215,23 +217,23 @@ class _CoachmarkCard extends StatelessWidget {
                     const TextSpan(text: ' to create a new story.'),
                   ],
                 ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
               SizedBox(
                 width: double.infinity,
                 child: Pressable(
                   onTap: onGotIt,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: PlayerSettingsCoachmarkTokens.gold,
-                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFC5943F),
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: PlayerSettingsCoachmarkTokens.gold
-                              .withValues(alpha: 0.35),
-                          blurRadius: 14,
+                          color: const Color(0xFFB8860B).withValues(alpha: 0.35),
+                          blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
                       ],
@@ -240,7 +242,7 @@ class _CoachmarkCard extends StatelessWidget {
                     child: Text(
                       'Got it',
                       style: GoogleFonts.outfit(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
