@@ -375,7 +375,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       borderRadius: BorderRadius.circular(10),
       child: Container(
         width: double.infinity,
-        margin: const EdgeInsets.only(top: 20),
+        margin: EdgeInsets.zero,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: _AppColors.gold,
@@ -733,9 +733,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                       const SizedBox(height: 12),
                       _buildDesireChips(),
                       const SizedBox(height: 20),
+                      _buildAddNewManifestationButton(),
+                      const SizedBox(height: 20),
 
                       // Recent Stories (last two from API)
-                              Text(
+                      Text(
                         'Recent Stories',
                         style: GoogleFonts.outfit(
                           fontSize: 13,
@@ -745,8 +747,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
                       ),
                       const SizedBox(height: 12),
                       _buildRecentStories(context, recentStories),
-                      const SizedBox(height: 20),
-                      _buildAddNewManifestationButton(),
                     ],
                   ),
                 ),
