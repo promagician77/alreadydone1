@@ -157,9 +157,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  /// User must play the voice at least this many times before Continue is allowed.
-  static const int _minPlayCount = 1;
-  int _playCount = 0;
   bool _isDeepening = false;
 
   String? get _playUrl => _state.voicePlayUrl;
@@ -192,7 +189,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
         setState(() {
           _isPlaying = false;
           _position = Duration.zero;
-          _playCount++;
         });
       }
     });
@@ -239,7 +235,6 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
           );
           if (mounted) setState(() {
             _isPlaying = true;
-            _playCount++;
           });
         } else {
           await _audioPlayer.resume();
@@ -696,57 +691,24 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_playCount < _minPlayCount)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: AuthTheme.gold,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: _completeOnboarding,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      alignment: Alignment.center,
                       child: Text(
-                        'Play the story at least $_minPlayCount time${_minPlayCount == 1 ? '' : 's'} to continue',
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: AuthTheme.inkSoft,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Material(
-                      color: _playCount >= _minPlayCount
-                          ? AuthTheme.gold
-                          : AuthTheme.stone,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        onTap: _playCount >= _minPlayCount
-                            ? _completeOnboarding
-                            : () {
-                                if (mounted) {
-                                  AppToast.info(
-                                    context,
-                                    'Please play the story at least $_minPlayCount time${_minPlayCount == 1 ? '' : 's'} before continuing.',
-                                  );
-                                }
-                              },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          alignment: Alignment.center,
-                          child: Text(
-                            'Continue',
-                            style: AuthTheme.primaryButtonStyle.copyWith(
-                              color: _playCount >= _minPlayCount
-                                  ? null
-                                  : AuthTheme.inkSoft,
-                            ),
-                          ),
-                        ),
+                        'Continue',
+                        style: AuthTheme.primaryButtonStyle,
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ],
