@@ -50,7 +50,8 @@ class VoiceRecordingService {
       }
     } catch (_) {}
 
-    // mic + useLegacy:false (AudioRecord). Enable noiseSuppress to reduce wind; some devices need it.
+    // noiseSuppress:false — AGC+NR can leave speech so quiet that backend RMS checks fail (400).
+    // autoGain:true still helps level; users should record on a real device (Simulator audio is often silent).
     final config = RecordConfig(
       encoder: AudioEncoder.aacLc,
       sampleRate: 44100,
@@ -58,7 +59,7 @@ class VoiceRecordingService {
       bitRate: 128000,
       autoGain: true,
       echoCancel: false,
-      noiseSuppress: true,
+      noiseSuppress: false,
       device: device,
       androidConfig: const AndroidRecordConfig(
         audioSource: AndroidAudioSource.mic,

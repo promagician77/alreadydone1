@@ -611,7 +611,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       size: circleSize,
       progress: isComplete ? 1.0 : (isRecording ? progress : 0),
       timerText: isComplete
-          ? '0:00'
+          ? _formatDuration(_recordingDurationSeconds)
           : (isRecording
               ? _formatDuration(_recordingDurationSeconds - _elapsedSeconds)
               : '0:30'),
