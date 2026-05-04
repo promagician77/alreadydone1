@@ -287,11 +287,18 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
         return;
       }
 
-      final res = await BackendClient.voiceGenerateAudio(
+      final res = await BackendClient.voiceGenerateAudioAwaitReady(
         voiceId: voiceId,
         storyId: storyId,
       );
-      final url = res['url']?.toString();
+      final url = res['url']?.toString().trim();
+      if (url == null || url.isEmpty) {
+        if (mounted) {
+          AppToast.error(context, 'Could not generate audio. Please try again.');
+          setState(() => _isUploading = false);
+        }
+        return;
+      }
       OnboardingState.instance.voicePlayUrl = url;
       if (res['play_length'] != null) {
         OnboardingState.instance.generatedStory ??= <String, dynamic>{};
