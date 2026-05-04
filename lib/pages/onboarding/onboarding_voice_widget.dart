@@ -287,6 +287,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       final res = await BackendClient.voiceGenerateAudio(
         voiceId: voiceId,
         storyId: storyId,
+        waitUntilPlayUrlReady: true,
       );
       final url = res['url']?.toString();
       OnboardingState.instance.voicePlayUrl = url;

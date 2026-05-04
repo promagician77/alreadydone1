@@ -378,14 +378,14 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {'url': null};
   }
 
-  /// POST api/voice/generate_audio - generate story audio (TTS), store, return URL.
-  /// Request: voice_id, story_id, model_id (default eleven_multilingual_v2), narration_speed (default normal).
-  /// Returns { "url": public_url, "content_type": content_type }. Use url for playback.
   static Future<Map<String, dynamic>> voiceGenerateAudio({
     required String voiceId,
     required int storyId,
     String modelId = 'eleven_multilingual_v2',
     String narrationSpeed = 'normal',
+    bool waitUntilPlayUrlReady = false,
+    Duration pollInterval = const Duration(seconds: 2),
+    Duration waitTimeout = const Duration(seconds: 120),
   }) async {
     final response = await client
         .post(
@@ -408,7 +408,42 @@ class BackendClient {
       );
     }
     final decoded = jsonDecode(response.body);
-    return decoded is Map<String, dynamic> ? decoded : {'url': null, 'content_type': null};
+    final map = decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{'url': null, 'content_type': null};
+
+    final urlStr = map['url']?.toString().trim();
+    if (urlStr != null && urlStr.isNotEmpty) {
+      return map;
+    }
+
+    if (!waitUntilPlayUrlReady) {
+      return map;
+    }
+
+    final deadline = DateTime.now().add(waitTimeout);
+    Object? lastErr;
+    await Future<void>.delayed(const Duration(seconds: 1));
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final poll = await getStoryPlayUrl(storyId);
+        final playUrl = poll['playUrl']?.toString().trim();
+        if (playUrl != null && playUrl.isNotEmpty) {
+          final out = Map<String, dynamic>.from(map);
+          out['url'] = playUrl;
+          return out;
+        }
+      } catch (e) {
+        lastErr = e;
+      }
+      await Future<void>.delayed(pollInterval);
+    }
+
+    throw Exception(
+      lastErr != null
+          ? 'Timed out waiting for audio URL: $lastErr'
+          : 'Timed out waiting for audio URL',
+    );
   }
 
   static Future<Map<String, dynamic>> getStoryPlayUrl(int storyId) async {

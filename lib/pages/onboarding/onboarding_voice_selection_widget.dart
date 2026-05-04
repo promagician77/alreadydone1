@@ -76,8 +76,6 @@ class _OnboardingVoiceSelectionWidgetState
     return 'My Voice';
   }
 
-  /// Gate voice generation behind an active/trial subscription.
-  /// If not subscribed, sends the user to the paywall and returns false.
   Future<bool> _ensureSubscribedForVoiceGeneration() async {
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) {
@@ -92,7 +90,6 @@ class _OnboardingVoiceSelectionWidgetState
           ?.toString()
           .toLowerCase()
           .trim();
-      // Treat "trial" as subscribed; legacy "trialing" is no longer used.
       isSubscribed = status == 'active' || status == 'trial';
     } catch (_) {
       isSubscribed = false;
@@ -271,8 +268,6 @@ class _OnboardingVoiceSelectionWidgetState
     setState(() => _selectedId = 'my_voice');
   }
 
-  /// If the user has a cloned voice (`voice_id`), generate audio with it.
-  /// Otherwise, go to the recording page to create the cloned voice first.
   Future<void> _handleContinueMyVoice() async {
     final hasConsent = await AIConsentService.ensureConsent(context);
     if (!hasConsent) {
@@ -286,8 +281,6 @@ class _OnboardingVoiceSelectionWidgetState
       return;
     }
 
-    // First, ensure the user has an active/trial subscription.
-    // If not, they are redirected to the subscription paywall (same as other voices).
     if (!await _ensureSubscribedForVoiceGeneration()) return;
 
     final userId = await SupabaseService.getCurrentUserTableId();
@@ -300,7 +293,6 @@ class _OnboardingVoiceSelectionWidgetState
     } catch (_) {}
 
     if (voiceId == null || voiceId.isEmpty) {
-      // Subscribed but no cloned voice yet – go to the recording flow.
       if (mounted) context.go(OnboardingVoiceWidget.routePath);
       return;
     }
@@ -324,6 +316,7 @@ class _OnboardingVoiceSelectionWidgetState
       final res = await BackendClient.voiceGenerateAudio(
         voiceId: voiceId,
         storyId: storyId,
+        waitUntilPlayUrlReady: true,
       );
       final url = res['url']?.toString().trim();
       if (url == null || url.isEmpty) {
@@ -341,6 +334,7 @@ class _OnboardingVoiceSelectionWidgetState
       }
       OnboardingState.instance.selectedVoiceName = 'My Voice';
       OnboardingState.instance.selectedVoiceId = voiceId;
+      
       if (mounted) context.go(OnboardingPlayerWidget.routePath);
     } catch (e) {
       if (mounted) {
@@ -715,6 +709,7 @@ class _OnboardingVoiceSelectionWidgetState
               final res = await BackendClient.voiceGenerateAudio(
                 voiceId: _selectedId,
                 storyId: storyId,
+                waitUntilPlayUrlReady: true,
               );
               final url = res['url']?.toString();
               OnboardingState.instance.voicePlayUrl = url;
