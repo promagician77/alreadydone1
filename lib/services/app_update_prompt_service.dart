@@ -66,16 +66,46 @@ class AppUpdatePromptService {
 
   static String? _storeUrlForPlatform(MobileAppUpdatePayload p) {
     if (Platform.isIOS) {
-      final u = p.iosStoreUrl;
+      final u = p.iosStoreUrl?.trim();
       if (u != null && u.isNotEmpty) return u;
       return null;
     }
     if (Platform.isAndroid) {
-      final u = p.androidStoreUrl;
+      final u = p.androidStoreUrl?.trim();
       if (u != null && u.isNotEmpty) return u;
       return 'https://play.google.com/store/apps/details?id=$_androidPackageId';
     }
     return null;
+  }
+
+  /// Prefer App Store app via itms-apps; plain https often opens Safari and can fail on some iOS versions.
+  static Uri? _iosLaunchUriForStoreUrl(String storeUrl) {
+    final raw = storeUrl.trim();
+    final parsed = Uri.tryParse(raw);
+    if (parsed == null || !parsed.hasScheme) return null;
+
+    final host = parsed.host.toLowerCase();
+    if (host.contains('apps.apple.com') || host.contains('itunes.apple.com')) {
+      final idMatch = RegExp(r'/id(\d+)').firstMatch(parsed.path);
+      if (idMatch != null) {
+        final id = idMatch.group(1)!;
+        return Uri.parse('itms-apps://apps.apple.com/app/id$id');
+      }
+    }
+    if (parsed.scheme == 'itms-apps' || parsed.scheme == 'itms') {
+      return parsed;
+    }
+    return parsed;
+  }
+
+  static Future<bool> _launchStoreUri(Uri uri) async {
+    if (Platform.isIOS) {
+      if (await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication)) {
+        return true;
+      }
+      return launchUrl(uri, mode: LaunchMode.platformDefault);
+    }
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   static Future<void> _showDialog({
@@ -128,9 +158,21 @@ class AppUpdatePromptService {
                   }
                   return;
                 }
-                final uri = Uri.parse(storeUrl);
                 try {
-                  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  final Uri? uri = Platform.isIOS
+                      ? _iosLaunchUriForStoreUrl(storeUrl)
+                      : Uri.tryParse(storeUrl.trim());
+                  if (uri == null || !uri.hasScheme) {
+                    debugPrint('AppUpdatePrompt: invalid store URL: $storeUrl');
+                    if (dialogContext.mounted) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Store link is invalid.')),
+                      );
+                    }
+                    return;
+                  }
+                  debugPrint('AppUpdatePrompt: launching $uri');
+                  final ok = await _launchStoreUri(uri);
                   if (!ok && dialogContext.mounted) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(content: Text('Could not open the store.')),

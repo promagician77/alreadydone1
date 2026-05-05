@@ -11,6 +11,8 @@ import '/services/server_toast.dart';
 class BackendClient {
   BackendClient._();
 
+  static bool _isAsciiQuote(int c) => c == 0x22 || c == 0x27;
+
   static String _baseUrl = _defaultBaseUrl;
 
   static const String _defaultBaseUrl = 'http://10.0.2.2:8000';
@@ -22,6 +24,21 @@ class BackendClient {
   static String get baseUrl => _baseUrl;
 
   static http.Client get client => http.Client();
+
+  /// Trim JSON string fields; strip accidental outer quotes from .env / copy-paste.
+  static String? _jsonOptionalString(dynamic value) {
+    if (value == null) return null;
+    var s = value.toString().trim();
+    if (s.isEmpty || s == 'null') return null;
+    if (s.length >= 2) {
+      final a = s.codeUnitAt(0);
+      final b = s.codeUnitAt(s.length - 1);
+      if (_isAsciiQuote(a) && _isAsciiQuote(b)) {
+        s = s.substring(1, s.length - 1).trim();
+      }
+    }
+    return s.isEmpty ? null : s;
+  }
 
   static Uri resolve(String path) {
     final p = path.startsWith('/') ? path : '/$path';
@@ -57,10 +74,10 @@ class BackendClient {
       if (latestInt == null || latestInt <= 0) return null;
       return MobileAppUpdatePayload(
         latestBuild: latestInt,
-        latestVersion: decoded['latest_version'] as String?,
-        message: decoded['message'] as String?,
-        iosStoreUrl: decoded['ios_store_url'] as String?,
-        androidStoreUrl: decoded['android_store_url'] as String?,
+        latestVersion: _jsonOptionalString(decoded['latest_version']),
+        message: _jsonOptionalString(decoded['message']),
+        iosStoreUrl: _jsonOptionalString(decoded['ios_store_url']),
+        androidStoreUrl: _jsonOptionalString(decoded['android_store_url']),
       );
     } catch (e) {
       debugPrint('fetchMobileAppUpdateInfo: $e');
