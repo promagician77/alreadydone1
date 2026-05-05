@@ -27,6 +27,9 @@ class AppUpdatePromptService {
   static const _defaultBody =
       'A new version of Already Done is available. Update for the latest improvements.';
 
+  static OverlayEntry? _overlayEntry;
+  static bool get _isShowing => _overlayEntry != null;
+
   static Future<void> checkAndMaybeShow() async {
     if (kIsWeb) return;
 
@@ -156,8 +159,13 @@ class AppUpdatePromptService {
     required String currentVersion,
     required int currentBuild,
   }) async {
-    final ctx = appNavigatorKey.currentContext;
-    if (ctx == null || !ctx.mounted) return;
+    if (_isShowing) return;
+
+    final overlayState = appNavigatorKey.currentState?.overlay;
+    final overlayContext = overlayState?.context;
+    if (overlayState == null || overlayContext == null || !overlayContext.mounted) {
+      return;
+    }
 
     final storeUrl = _storeUrlForPlatform(payload);
     final extra = payload.message?.trim();
@@ -171,125 +179,145 @@ class AppUpdatePromptService {
             'Yours: $currentVersion (build $currentBuild)'
         : 'Latest build: ${payload.latestBuild}\nYours: $currentBuild';
 
-    await showGeneralDialog<void>(
-      context: ctx,
-      barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(ctx).modalBarrierDismissLabel,
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 260),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
+    // Use an OverlayEntry so navigation (e.g. splash -> login redirect) doesn't dismiss it.
+    final controller = AnimationController(
+      vsync: overlayState,
+      duration: const Duration(milliseconds: 260),
+      reverseDuration: const Duration(milliseconds: 200),
+    );
+    final curved = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
 
-        Future<void> onLater() async {
-          final now = DateTime.now().millisecondsSinceEpoch;
-          await prefs.setInt(_kDismissedLatestBuild, payload.latestBuild);
-          await prefs.setInt(_kSnoozeUntilMs, now + _snooze.inMilliseconds);
-          if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+    void close() {
+      final entry = _overlayEntry;
+      if (entry == null) return;
+      unawaited(() async {
+        try {
+          await controller.reverse();
+        } catch (_) {}
+        controller.dispose();
+        entry.remove();
+        _overlayEntry = null;
+      }());
+    }
+
+    Future<void> onLater() async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setInt(_kDismissedLatestBuild, payload.latestBuild);
+      await prefs.setInt(_kSnoozeUntilMs, now + _snooze.inMilliseconds);
+      close();
+    }
+
+    Future<void> onUpdate() async {
+      if (storeUrl == null) {
+        final ctx = appNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              backgroundColor: AuthTheme.ink,
+              content: Text(
+                'Store link is not available yet.',
+                style: GoogleFonts.outfit(color: AuthTheme.surface),
+              ),
+            ),
+          );
         }
-
-        Future<void> onUpdate() async {
-          if (storeUrl == null) {
-            if (dialogContext.mounted) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                SnackBar(
-                  backgroundColor: AuthTheme.ink,
-                  content: Text(
-                    'Store link is not available yet.',
-                    style: GoogleFonts.outfit(color: AuthTheme.surface),
-                  ),
-                ),
-              );
-            }
-            return;
-          }
-          try {
-            final ok = Platform.isIOS
-                ? await _launchStoreUriIos(storeUrl)
-                : await _launchStoreUriAndroid(storeUrl);
-            if (!ok) {
-              debugPrint('AppUpdatePrompt: all launch attempts failed for $storeUrl');
-              if (dialogContext.mounted) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AuthTheme.ink,
-                    content: Text(
-                      'Could not open the store.',
-                      style: GoogleFonts.outfit(color: AuthTheme.surface),
-                    ),
-                  ),
-                );
-              }
-            }
-          } catch (e) {
-            debugPrint('AppUpdatePrompt launchUrl: $e');
-            if (dialogContext.mounted) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                SnackBar(
-                  backgroundColor: AuthTheme.ink,
-                  content: Text(
-                    'Could not open the store.',
-                    style: GoogleFonts.outfit(color: AuthTheme.surface),
-                  ),
-                ),
-              );
-            }
-          }
-        }
-
-        return FadeTransition(
-          opacity: curved,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-                },
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    color: AuthTheme.ink.withValues(alpha: 0.42),
-                  ),
+        return;
+      }
+      try {
+        final ok = Platform.isIOS
+            ? await _launchStoreUriIos(storeUrl)
+            : await _launchStoreUriAndroid(storeUrl);
+        if (!ok) {
+          debugPrint('AppUpdatePrompt: all launch attempts failed for $storeUrl');
+          final ctx = appNavigatorKey.currentContext;
+          if (ctx != null && ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(
+                backgroundColor: AuthTheme.ink,
+                content: Text(
+                  'Could not open the store.',
+                  style: GoogleFonts.outfit(color: AuthTheme.surface),
                 ),
               ),
-              Center(
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
-                  child: GestureDetector(
-                    onTap: () {},
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 360),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.all(Radius.circular(24)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AuthTheme.gold.withValues(alpha: 0.22),
-                                blurRadius: 36,
-                                spreadRadius: -6,
-                                offset: const Offset(0, 10),
-                              ),
-                              BoxShadow(
-                                color: AuthTheme.ink.withValues(alpha: 0.14),
-                                blurRadius: 48,
-                                offset: const Offset(0, 20),
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('AppUpdatePrompt launchUrl: $e');
+        final ctx = appNavigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              backgroundColor: AuthTheme.ink,
+              content: Text(
+                'Could not open the store.',
+                style: GoogleFonts.outfit(color: AuthTheme.surface),
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Material(
+          type: MaterialType.transparency,
+          child: FadeTransition(
+            opacity: curved,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: close,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      color: AuthTheme.ink.withValues(alpha: 0.42),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
+                    child: GestureDetector(
+                      onTap: () {},
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 32,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 360),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(24)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AuthTheme.gold.withValues(alpha: 0.22),
+                                  blurRadius: 36,
+                                  spreadRadius: -6,
+                                  offset: const Offset(0, 10),
+                                ),
+                                BoxShadow(
+                                  color: AuthTheme.ink.withValues(alpha: 0.14),
+                                  blurRadius: 48,
+                                  offset: const Offset(0, 20),
+                                ),
+                              ],
+                            ),
                             child: Container(
                               padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
                               decoration: BoxDecoration(
-                                borderRadius:
-                                    const BorderRadius.all(Radius.circular(24)),
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(24),
+                                ),
                                 color: AuthTheme.surface,
                                 border: Border.all(
                                   color: AuthTheme.gold.withValues(alpha: 0.45),
@@ -305,8 +333,8 @@ class AppUpdatePromptService {
                                       shape: BoxShape.circle,
                                       color: AuthTheme.goldPale,
                                       border: Border.all(
-                                        color:
-                                            AuthTheme.gold.withValues(alpha: 0.28),
+                                        color: AuthTheme.gold
+                                            .withValues(alpha: 0.28),
                                       ),
                                       boxShadow: [
                                         BoxShadow(
@@ -433,11 +461,14 @@ class AppUpdatePromptService {
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
+
+    overlayState.insert(_overlayEntry!);
+    controller.forward();
   }
 }
