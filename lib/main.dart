@@ -20,6 +20,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '/env_loader.dart';
 import '/services/app_toast.dart';
 import '/services/server_toast.dart';
+import '/services/app_update_prompt_service.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
@@ -106,6 +107,12 @@ Future<void> _initializeAppDeferred() async {
     }
   } catch (e) {
     debugPrint('Backend check failed: $e');
+  }
+
+  try {
+    await AppUpdatePromptService.checkAndMaybeShow();
+  } catch (e) {
+    debugPrint('Update prompt check failed: $e');
   }
 
   if (!kIsWeb && firebaseInitialized) {

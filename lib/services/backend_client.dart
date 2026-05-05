@@ -40,6 +40,34 @@ class BackendClient {
     }
   }
 
+  static Future<MobileAppUpdatePayload?> fetchMobileAppUpdateInfo() async {
+    try {
+      final response = await client.get(resolve('/api/mobile-app/update')).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => throw Exception('timeout'),
+      );
+      if (response.statusCode != 200) return null;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded['enabled'] != true) return null;
+      final latest = decoded['latest_build'];
+      final latestInt = latest is int
+          ? latest
+          : (latest is num ? latest.toInt() : int.tryParse('$latest'));
+      if (latestInt == null || latestInt <= 0) return null;
+      return MobileAppUpdatePayload(
+        latestBuild: latestInt,
+        latestVersion: decoded['latest_version'] as String?,
+        message: decoded['message'] as String?,
+        iosStoreUrl: decoded['ios_store_url'] as String?,
+        androidStoreUrl: decoded['android_store_url'] as String?,
+      );
+    } catch (e) {
+      debugPrint('fetchMobileAppUpdateInfo: $e');
+      return null;
+    }
+  }
+
   static Never _throwServerNap([Object? e]) {
     ServerToast.show();
     throw Exception(ServerToast.message);
@@ -645,4 +673,20 @@ class BackendClient {
     final decoded = jsonDecode(response.body);
     return decoded is Map<String, dynamic> ? decoded : {};
   }
+}
+
+class MobileAppUpdatePayload {
+  const MobileAppUpdatePayload({
+    required this.latestBuild,
+    this.latestVersion,
+    this.message,
+    this.iosStoreUrl,
+    this.androidStoreUrl,
+  });
+
+  final int latestBuild;
+  final String? latestVersion;
+  final String? message;
+  final String? iosStoreUrl;
+  final String? androidStoreUrl;
 }
