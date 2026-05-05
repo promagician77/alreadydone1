@@ -81,33 +81,72 @@ class AppUpdatePromptService {
     return null;
   }
 
-  /// Prefer App Store app via itms-apps; plain https often opens Safari and can fail on some iOS versions.
-  static Uri? _iosLaunchUriForStoreUrl(String storeUrl) {
-    final raw = storeUrl.trim();
-    final parsed = Uri.tryParse(raw);
-    if (parsed == null || !parsed.hasScheme) return null;
+  /// iOS: try App Store app (`itms-apps`) first, then HTTPS (Safari). Simulator has no App Store — HTTPS fallback is required.
+  static Future<bool> _launchStoreUriIos(String storeUrl) async {
+    final trimmed = storeUrl.trim();
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed == null || !parsed.hasScheme) {
+      debugPrint('AppUpdatePrompt: iOS invalid store URL');
+      return false;
+    }
 
-    final host = parsed.host.toLowerCase();
-    if (host.contains('apps.apple.com') || host.contains('itunes.apple.com')) {
+    Uri? itmsUri;
+    late Uri httpsUri;
+
+    if (parsed.scheme == 'https' || parsed.scheme == 'http') {
+      httpsUri = parsed;
+      final host = parsed.host.toLowerCase();
+      if (host.contains('apps.apple.com') || host.contains('itunes.apple.com')) {
+        final idMatch = RegExp(r'/id(\d+)').firstMatch(parsed.path);
+        if (idMatch != null) {
+          itmsUri = Uri.parse('itms-apps://apps.apple.com/app/id${idMatch.group(1)}');
+        }
+      }
+    } else if (parsed.scheme == 'itms-apps' || parsed.scheme == 'itms') {
+      itmsUri = parsed;
       final idMatch = RegExp(r'/id(\d+)').firstMatch(parsed.path);
-      if (idMatch != null) {
-        final id = idMatch.group(1)!;
-        return Uri.parse('itms-apps://apps.apple.com/app/id$id');
+      httpsUri = idMatch != null
+          ? Uri.parse('https://apps.apple.com/app/id${idMatch.group(1)}')
+          : Uri.parse(trimmed.replaceFirst(RegExp(r'^itms-apps'), 'https'));
+    } else {
+      httpsUri = parsed;
+    }
+
+    Future<bool> tryOpen(Uri u, LaunchMode mode) async {
+      try {
+        final ok = await launchUrl(u, mode: mode);
+        if (ok) {
+          debugPrint('AppUpdatePrompt: opened $u ($mode)');
+        }
+        return ok;
+      } catch (e) {
+        debugPrint('AppUpdatePrompt: launch error $u ($mode): $e');
+        return false;
       }
     }
-    if (parsed.scheme == 'itms-apps' || parsed.scheme == 'itms') {
-      return parsed;
-    }
-    return parsed;
-  }
 
-  static Future<bool> _launchStoreUri(Uri uri) async {
-    if (Platform.isIOS) {
-      if (await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication)) {
+    if (itmsUri != null) {
+      if (await tryOpen(itmsUri, LaunchMode.externalNonBrowserApplication)) {
         return true;
       }
-      return launchUrl(uri, mode: LaunchMode.platformDefault);
+      if (await tryOpen(itmsUri, LaunchMode.platformDefault)) {
+        return true;
+      }
+      debugPrint('AppUpdatePrompt: itms failed (normal on Simulator), trying https $httpsUri');
     }
+
+    if (await tryOpen(httpsUri, LaunchMode.platformDefault)) {
+      return true;
+    }
+    if (await tryOpen(httpsUri, LaunchMode.externalApplication)) {
+      return true;
+    }
+    return false;
+  }
+
+  static Future<bool> _launchStoreUriAndroid(String storeUrl) async {
+    final uri = Uri.tryParse(storeUrl.trim());
+    if (uri == null || !uri.hasScheme) return false;
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
@@ -168,36 +207,22 @@ class AppUpdatePromptService {
             return;
           }
           try {
-            final Uri? uri = Platform.isIOS
-                ? _iosLaunchUriForStoreUrl(storeUrl)
-                : Uri.tryParse(storeUrl.trim());
-            if (uri == null || !uri.hasScheme) {
-              debugPrint('AppUpdatePrompt: invalid store URL: $storeUrl');
+            final ok = Platform.isIOS
+                ? await _launchStoreUriIos(storeUrl)
+                : await _launchStoreUriAndroid(storeUrl);
+            if (!ok) {
+              debugPrint('AppUpdatePrompt: all launch attempts failed for $storeUrl');
               if (dialogContext.mounted) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
                   SnackBar(
                     backgroundColor: AuthTheme.ink,
                     content: Text(
-                      'Store link is invalid.',
+                      'Could not open the store.',
                       style: GoogleFonts.outfit(color: AuthTheme.surface),
                     ),
                   ),
                 );
               }
-              return;
-            }
-            debugPrint('AppUpdatePrompt: launching $uri');
-            final ok = await _launchStoreUri(uri);
-            if (!ok && dialogContext.mounted) {
-              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                SnackBar(
-                  backgroundColor: AuthTheme.ink,
-                  content: Text(
-                    'Could not open the store.',
-                    style: GoogleFonts.outfit(color: AuthTheme.surface),
-                  ),
-                ),
-              );
             }
           } catch (e) {
             debugPrint('AppUpdatePrompt launchUrl: $e');
