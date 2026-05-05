@@ -132,8 +132,6 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       const SizedBox(height: 24),
                       _buildHero(),
                       const SizedBox(height: 24),
-                      _buildSocialProof(),
-                      const SizedBox(height: 24),
                       _buildTrialBadge(),
                       const SizedBox(height: 20),
                       if (!_model.subscriptionStateLoaded)
@@ -216,64 +214,6 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           'Unlimited stories in your voice',
           style: AuthTheme.welcomeSubStyle.copyWith(fontSize: 13, height: 1.5),
           textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSocialProof() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AuthTheme.warmWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AuthTheme.stone),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'TRUSTED BY THOUSANDS',
-            style: GoogleFonts.outfit(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AuthTheme.inkMid,
-              letterSpacing: 1,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _statItem('4.8★', 'RATING'),
-              _statItem('50K+', 'STORIES'),
-              _statItem('12K+', 'USERS'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AuthTheme.gold,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontSize: 9,
-            color: AuthTheme.inkSoft,
-            letterSpacing: 0.5,
-          ),
         ),
       ],
     );
