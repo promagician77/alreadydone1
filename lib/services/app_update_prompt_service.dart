@@ -3,11 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '/flutter_flow/nav/nav.dart';
+import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
 
 /// Soft, dismissible "new version available" dialog driven by backend
@@ -124,19 +126,48 @@ class AppUpdatePromptService {
             'Yours: $currentVersion (build $currentBuild)'
         : '\n\nLatest build: ${payload.latestBuild}\nYours: $currentBuild';
 
+    final bodyText =
+        '${extra != null && extra.isNotEmpty ? '$extra\n\n' : ''}$_defaultBody$versionLine';
+
     await showDialog<void>(
       context: ctx,
       barrierDismissible: true,
+      barrierColor: AuthTheme.ink.withValues(alpha: 0.45),
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Update available'),
-          content: SingleChildScrollView(
-            child: Text(
-              '${extra != null && extra.isNotEmpty ? '$extra\n\n' : ''}$_defaultBody$versionLine',
+          backgroundColor: AuthTheme.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+            side: BorderSide(color: AuthTheme.stone),
+          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          title: Text(
+            'Update available',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AuthTheme.ink,
             ),
           ),
+          content: SingleChildScrollView(
+            child: Text(
+              bodyText,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                height: 1.5,
+                color: AuthTheme.inkSoft,
+              ),
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          actionsAlignment: MainAxisAlignment.end,
           actions: [
             TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: AuthTheme.inkSoft,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
               onPressed: () async {
                 final now = DateTime.now().millisecondsSinceEpoch;
                 await prefs.setInt(_kDismissedLatestBuild, payload.latestBuild);
@@ -146,14 +177,36 @@ class AppUpdatePromptService {
                 );
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
-              child: const Text('Later'),
+              child: Text(
+                'Later',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AuthTheme.gold,
+                foregroundColor: AuthTheme.surface,
+                disabledBackgroundColor: AuthTheme.stoneMid,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               onPressed: () async {
                 if (storeUrl == null) {
                   if (dialogContext.mounted) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      const SnackBar(content: Text('Store link is not available yet.')),
+                      SnackBar(
+                        backgroundColor: AuthTheme.ink,
+                        content: Text(
+                          'Store link is not available yet.',
+                          style: GoogleFonts.outfit(color: AuthTheme.surface),
+                        ),
+                      ),
                     );
                   }
                   return;
@@ -166,7 +219,13 @@ class AppUpdatePromptService {
                     debugPrint('AppUpdatePrompt: invalid store URL: $storeUrl');
                     if (dialogContext.mounted) {
                       ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('Store link is invalid.')),
+                        SnackBar(
+                          backgroundColor: AuthTheme.ink,
+                          content: Text(
+                            'Store link is invalid.',
+                            style: GoogleFonts.outfit(color: AuthTheme.surface),
+                          ),
+                        ),
                       );
                     }
                     return;
@@ -175,19 +234,37 @@ class AppUpdatePromptService {
                   final ok = await _launchStoreUri(uri);
                   if (!ok && dialogContext.mounted) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      const SnackBar(content: Text('Could not open the store.')),
+                      SnackBar(
+                        backgroundColor: AuthTheme.ink,
+                        content: Text(
+                          'Could not open the store.',
+                          style: GoogleFonts.outfit(color: AuthTheme.surface),
+                        ),
+                      ),
                     );
                   }
                 } catch (e) {
                   debugPrint('AppUpdatePrompt launchUrl: $e');
                   if (dialogContext.mounted) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      const SnackBar(content: Text('Could not open the store.')),
+                      SnackBar(
+                        backgroundColor: AuthTheme.ink,
+                        content: Text(
+                          'Could not open the store.',
+                          style: GoogleFonts.outfit(color: AuthTheme.surface),
+                        ),
+                      ),
                     );
                   }
                 }
               },
-              child: const Text('Update'),
+              child: Text(
+                'Update',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
             ),
           ],
         );
