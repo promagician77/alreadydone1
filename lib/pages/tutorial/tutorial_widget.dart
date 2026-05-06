@@ -501,7 +501,7 @@ class _PaywallPreview extends StatelessWidget {
         const SizedBox(height: 14),
         const _PlanCard(
           title: 'Monthly',
-          price: r'$29.99',
+          price: r'$14.99',
           period: '/month',
           selected: true,
           note: 'Save 30% vs weekly plan',
@@ -509,7 +509,7 @@ class _PaywallPreview extends StatelessWidget {
         const SizedBox(height: 10),
         const _PlanCard(
           title: 'Weekly',
-          price: r'$9.99',
+          price: r'$4.99',
           period: '/week',
         ),
       ],

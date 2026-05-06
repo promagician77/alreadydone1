@@ -274,7 +274,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         children: [
           _buildPricingCard(
             plan: 'Monthly',
-            price: '\$29.99',
+            price: '\$14.99',
             period: '/month',
             savings: 'Save 30% vs weekly plan',
             breakdown: 'Billed monthly · Cancel anytime',
@@ -291,7 +291,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           const SizedBox(height: 10),
           _buildPricingCard(
             plan: 'Weekly',
-            price: '\$9.99',
+            price: '\$4.99',
             period: '/week',
             breakdown: 'Billed weekly · Cancel anytime',
             features: [
@@ -314,7 +314,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         children: [
           _buildPricingCard(
             plan: 'Weekly',
-            price: '\$9.99',
+            price: '\$4.99',
             period: '/week',
             breakdown: 'Billed weekly · Cancel anytime',
             features: [
@@ -331,7 +331,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           const SizedBox(height: 10),
           _buildPricingCard(
             plan: 'Monthly',
-            price: '\$29.99',
+            price: '\$14.99',
             period: '/month',
             savings: 'Save 30% vs weekly plan',
             breakdown: 'Billed monthly · Cancel anytime',
@@ -353,7 +353,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       children: [
         _buildPricingCard(
           plan: 'Monthly',
-          price: '\$29.99',
+          price: '\$14.99',
           period: '/month',
           savings: 'BEST VALUE',
           breakdown: 'Billed monthly · Cancel anytime',
@@ -370,7 +370,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         const SizedBox(height: 10),
         _buildPricingCard(
           plan: 'Weekly',
-          price: '\$9.99',
+          price: '\$4.99',
           period: '/week',
           breakdown: 'Billed weekly · Cancel anytime',
           features: [
@@ -954,7 +954,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         children: [
           const TextSpan(
             text:
-                'Free for 3 days, then \$9.99/week or \$29.99/month. Cancel anytime in settings. By continuing, you agree to our ',
+                'Free for 3 days, then \$4.99/week or \$14.99/month. Cancel anytime in settings. By continuing, you agree to our ',
           ),
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,

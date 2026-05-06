@@ -222,7 +222,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       children: [
         _buildPricingCard(
           plan: 'Monthly',
-          price: '\$29.99',
+          price: '\$14.99',
           period: '/month',
           isRecommended: true,
           savingsLabel: 'Save 30% vs weekly plan',
@@ -238,7 +238,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         const SizedBox(height: 12),
         _buildPricingCard(
           plan: 'Weekly',
-          price: '\$9.99',
+          price: '\$4.99',
           period: '/week',
           isRecommended: false,
           savingsLabel: null,
@@ -703,7 +703,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Widget _buildSecondaryText() {
     return Text(
-      'Free for 3 days, then \$9.99/week or \$29.99/month.\nCancel anytime in settings.',
+      'Free for 3 days, then \$4.99/week or \$14.99/month.\nCancel anytime in settings.',
       style: GoogleFonts.outfit(
         fontSize: 11,
         color: AuthTheme.inkSoft,

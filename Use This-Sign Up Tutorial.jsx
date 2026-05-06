@@ -587,7 +587,7 @@ export default function AlreadyDoneTutorial() {
                 </div>
                 <div style={{ fontSize: '13px', color: c.text, fontFamily: c.sans, fontWeight: 700 }}>Monthly</div>
                 <div style={{ marginTop: '2px', fontSize: '24px', color: c.text, fontFamily: c.sans, fontWeight: 800 }}>
-                  $29.99 <span style={{ fontSize: '12px', color: c.textMuted, fontWeight: 500 }}>/month</span>
+                  $14.99 <span style={{ fontSize: '12px', color: c.textMuted, fontWeight: 500 }}>/month</span>
                 </div>
                 <div style={{ marginTop: '6px', display: 'inline-block', padding: '3px 8px', background: '#d4ead0', borderRadius: '6px', fontSize: '10px', color: c.green, fontFamily: c.sans, fontWeight: 600 }}>
                   Save 30% vs weekly plan
@@ -603,7 +603,7 @@ export default function AlreadyDoneTutorial() {
                   <div>
                     <div style={{ fontSize: '13px', color: c.text, fontFamily: c.sans, fontWeight: 700 }}>Weekly</div>
                     <div style={{ marginTop: '2px', fontSize: '20px', color: c.text, fontFamily: c.sans, fontWeight: 800 }}>
-                      $9.99 <span style={{ fontSize: '11px', color: c.textMuted, fontWeight: 500 }}>/week</span>
+                      $4.99 <span style={{ fontSize: '11px', color: c.textMuted, fontWeight: 500 }}>/week</span>
                     </div>
                   </div>
                   <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `1.5px solid ${c.border}` }} />
