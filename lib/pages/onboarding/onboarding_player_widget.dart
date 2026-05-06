@@ -406,7 +406,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       dynamic newPlayLength;
       if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
         try {
-          final audioRes = await BackendClient.voiceGenerateAudio(
+          final audioRes = await BackendClient.voiceGenerateAudioAwaitReady(
             voiceId: voiceIdToUse,
             storyId: storyIdToUse,
           );
@@ -414,7 +414,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
           if (url != null && url.isNotEmpty) newAudioUrl = url;
           newPlayLength = audioRes['play_length'];
         } catch (_) {
-          // If audio generation fails, keep existing audio; user can still read the deepened story.
+          // If audio generation fails or times out, keep existing audio; user can still read the deepened story.
         }
       }
 
