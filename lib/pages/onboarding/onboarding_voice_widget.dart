@@ -15,6 +15,7 @@ import '/services/ai_consent_service.dart';
 import '/widgets/pressable.dart';
 import 'onboarding_state.dart';
 import 'onboarding_player_widget.dart';
+import 'onboarding_splash_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
 import 'celebration_overlay.dart';
 import 'recording_circle.dart';
@@ -158,6 +159,20 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
     _pulseAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    final shouldAutoUpload = _state.autoUploadVoiceCloneOnNextEntry;
+    _state.autoUploadVoiceCloneOnNextEntry = false;
+    final savedPath = _state.recordedVoiceFilePath;
+    if (shouldAutoUpload && savedPath != null && savedPath.isNotEmpty) {
+      final saved = File(savedPath);
+      if (saved.existsSync()) {
+        _recordedFile = saved;
+        _isComplete = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _uploadAndContinue();
+        });
+      }
+    }
   }
 
   @override
@@ -216,6 +231,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       setState(() => _isRecording = false);
       return;
     }
+    _state.recordedVoiceFilePath = file.path;
     if (mounted) {
       setState(() {
         _isRecording = false;
@@ -247,6 +263,24 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       AppToast.error(context, 'Please sign in to upload your voice.');
       return;
     }
+
+    bool isSubscribed = false;
+    try {
+      final profile = await BackendClient.getUserProfile(userId);
+      final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
+          ?.toString()
+          .toLowerCase()
+          .trim();
+      isSubscribed = status == 'active' || status == 'trial';
+    } catch (_) {}
+    if (!isSubscribed) {
+      if (!mounted) return;
+      _state.autoUploadVoiceCloneOnNextEntry = true;
+      final returnTo = Uri.encodeComponent(OnboardingVoiceWidget.routePath);
+      context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+      return;
+    }
+
     final name = _state.firstNameController.text.trim().isNotEmpty
         ? _state.firstNameController.text.trim()
         : 'My Voice';
@@ -260,6 +294,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
         gender: null,
       );
       try { await file.delete(); } catch (_) {}
+      _state.recordedVoiceFilePath = null;
       OnboardingState.instance.recordingDurationSec = _recordingDurationSeconds;
 
       var voiceId = uploadResult['voice_id']?.toString().trim() ??
@@ -317,6 +352,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       );
     } catch (e) {
       try { await file.delete(); } catch (_) {}
+      _state.recordedVoiceFilePath = null;
       if (mounted) {
         setState(() => _isUploading = false);
         AppToast.error(
@@ -358,6 +394,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       try { _recordedFile!.delete(); } catch (_) {}
       _recordedFile = null;
     }
+    _state.recordedVoiceFilePath = null;
     setState(() {
       _isComplete = false;
       _elapsedSeconds = 0;

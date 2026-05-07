@@ -28,6 +28,10 @@ class OnboardingState {
 
   String? selectedVoiceId;
 
+  String? recordedVoiceFilePath;
+
+  bool autoUploadVoiceCloneOnNextEntry = false;
+
   static const List<String> energyWords = ['Powerful', 'Peaceful', 'Abundant', 'Grateful', 'Confident'];
   static const List<String> categories = ['Love', 'Money', 'Career/Business', 'Health', 'Home'];
 
@@ -78,6 +82,8 @@ class OnboardingState {
     voicePlayUrl = null;
     selectedVoiceName = null;
     selectedVoiceId = null;
+    recordedVoiceFilePath = null;
+    autoUploadVoiceCloneOnNextEntry = false;
   }
 
   /// Persist current form values and the reached step path to SharedPreferences.

@@ -281,10 +281,11 @@ class _OnboardingVoiceSelectionWidgetState
       return;
     }
 
-    if (!await _ensureSubscribedForVoiceGeneration()) return;
-
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null || !mounted) return;
+    if (userId == null || !mounted) {
+      if (mounted) context.go('/login?welcomeBack=true');
+      return;
+    }
 
     String? voiceId;
     try {
@@ -296,6 +297,9 @@ class _OnboardingVoiceSelectionWidgetState
       if (mounted) context.go(OnboardingVoiceWidget.routePath);
       return;
     }
+
+    if (!await _ensureSubscribedForVoiceGeneration()) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
     final story = OnboardingState.instance.generatedStory;
