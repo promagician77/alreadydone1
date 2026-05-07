@@ -287,7 +287,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     const categories = [
       ('♡', 'Love'),
       (r'$', 'Money'),
-      ('✦', 'Career'),
+      ('✦', 'Career/Business'),
       ('🌿', 'Health'),
       ('🏠', 'Home'),
     ];

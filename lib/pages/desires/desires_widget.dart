@@ -121,7 +121,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
         desireCategories = [
           {'id': '1', 'name': 'Love'},
           {'id': '2', 'name': 'Money'},
-          {'id': '3', 'name': 'Career'},
+          {'id': '3', 'name': 'Career/Business'},
           {'id': '4', 'name': 'Health'},
         ];
       }
@@ -228,7 +228,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
         _desireCategories = [
           {'id': '1', 'name': 'Love'},
           {'id': '2', 'name': 'Money'},
-          {'id': '3', 'name': 'Career'},
+          {'id': '3', 'name': 'Career/Business'},
           {'id': '4', 'name': 'Health'},
         ];
         _categories = _mockCategories();

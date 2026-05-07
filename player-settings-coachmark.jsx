@@ -47,7 +47,7 @@ export default function PlayerSettingsCoachmark() {
             {/* Header: category + gear */}
             <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ fontSize: '11px', color: c.coral, fontFamily: c.sans, fontWeight: 700, letterSpacing: '0.18em' }}>
-                CAREER · ALREADY DONE
+                CAREER/BUSINESS · ALREADY DONE
               </div>
               {/* Gear icon - the target */}
               <div

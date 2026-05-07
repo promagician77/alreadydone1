@@ -17,7 +17,7 @@ export default function AlreadyDoneTutorial() {
     {
       screen: 'category',
       title: 'Choose a Category',
-      body: 'Pick the area of life you want to manifest. Love, Money, Career, Health, or Home.',
+      body: 'Pick the area of life you want to manifest. Love, Money, Career/Business, Health, or Home.',
       target: 'categories',
       cardPosition: 'bottom',
       arrowDirection: 'up',
@@ -398,7 +398,7 @@ export default function AlreadyDoneTutorial() {
                     {[
                       { Icon: Heart, label: 'Love', selected: true },
                       { Icon: DollarSign, label: 'Money', selected: false },
-                      { Icon: Sparkles, label: 'Career', selected: false },
+                      { Icon: Sparkles, label: 'Career/Business', selected: false },
                       { emoji: '🌿', label: 'Health', selected: false },
                       { emoji: '🏠', label: 'Home', selected: false },
                     ].map((item, i) => (

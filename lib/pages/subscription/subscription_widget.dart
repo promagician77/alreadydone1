@@ -1009,7 +1009,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       ('🌙', 'Sleep Mode',
           'Slower pacing, theta waves, fade to silence for bedtime manifestation'),
       ('⚡', 'Unlimited Stories',
-          'Create as many manifestations as you want—love, money, career, health, all of it'),
+          'Create as many manifestations as you want—love, money, career/business, health, all of it'),
     ];
     return Column(
       children: items.asMap().entries.map((e) {

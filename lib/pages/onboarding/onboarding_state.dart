@@ -29,7 +29,7 @@ class OnboardingState {
   String? selectedVoiceId;
 
   static const List<String> energyWords = ['Powerful', 'Peaceful', 'Abundant', 'Grateful', 'Confident'];
-  static const List<String> categories = ['Love', 'Money', 'Career', 'Health', 'Home'];
+  static const List<String> categories = ['Love', 'Money', 'Career/Business', 'Health', 'Home'];
 
   Map<String, dynamic> toStoryRequestBody(int? userTableId, {String? timezone}) {
     final firstName = firstNameController.text.trim();
