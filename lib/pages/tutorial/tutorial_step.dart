@@ -54,13 +54,6 @@ const tutorialSteps = <TutorialStep>[
     focusLabel: 'Create Button',
   ),
   TutorialStep(
-    title: 'Unlock Your Voice',
-    body:
-        'Start your 3-day free trial. Tap the gold button to unlock unlimited stories in your own voice.',
-    visualType: TutorialVisualType.paywall,
-    focusLabel: '',
-  ),
-  TutorialStep(
     title: "Voice Selection",
     body:
         'Now choose the voice that will narrate your manifestations. Your own voice is most powerful.',
@@ -87,6 +80,13 @@ const tutorialSteps = <TutorialStep>[
         'Your recording is ready. Tap the gold button to create your custom voice. Takes 30 to 45 seconds.',
     visualType: TutorialVisualType.voiceClone,
     focusLabel: 'Clone Button',
+  ),
+  TutorialStep(
+    title: 'Unlock Your Voice',
+    body:
+        'Start your 3-day free trial. Tap the gold button to unlock unlimited stories in your own voice.',
+    visualType: TutorialVisualType.paywall,
+    focusLabel: '',
   ),
   TutorialStep(
     title: "It's Already Done",
