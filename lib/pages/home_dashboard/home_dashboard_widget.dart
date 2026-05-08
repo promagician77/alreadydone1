@@ -16,6 +16,8 @@ import '/services/ai_consent_service.dart';
 import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
+import '/services/rating_prompt_controller.dart';
+import '/services/profile_day_streak.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_desire_widget.dart';
 import '/pages/home_dashboard/coachmark/home_new_manifestation_coachmark.dart';
@@ -143,6 +145,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         _model.playingStoryId = null;
         _model.playbackPosition = Duration.zero;
       });
+      unawaited(RatingPromptController.evaluateAfterPlaybackComplete());
     });
     _audioPlayer.onDurationChanged.listen((d) {
       final sid = _model.playingStoryId;
@@ -299,17 +302,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       if (!mounted) return;
       final name = (profile['name'] as String? ?? '').toString().trim();
       final voiceId = profile['voice_id']?.toString() ?? profile['voice_Id']?.toString() ?? '';
-      final rawStreak = profile['day_streak'];
-      int dayStreak;
-      if (rawStreak is int) {
-        dayStreak = rawStreak;
-      } else if (rawStreak is num) {
-        // Handle double/decimal values like 1.0 from backend.
-        dayStreak = rawStreak.round();
-      } else {
-        final s = rawStreak?.toString().trim() ?? '0';
-        dayStreak = int.tryParse(s) ?? int.tryParse(double.tryParse(s)?.round().toString() ?? '0') ?? 0;
-      }
+      final dayStreak = parseDayStreak(profile['day_streak']);
       final rcStatus = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
           ?.toString()
           .trim()

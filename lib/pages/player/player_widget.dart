@@ -13,6 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
 import '/services/ai_consent_service.dart';
 import '/services/app_toast.dart';
+import '/services/rating_prompt_controller.dart';
 import '/services/supabase_service.dart';
 import '/widgets/pressable.dart';
 import '/index.dart';
@@ -335,6 +336,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _applyMixContext();
 
     _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) async {
+      final wasSleepMode = _sleepModeActive;
       if (!_disposed && mounted) {
         _stopThetaBackground();
         setState(() {
@@ -344,6 +346,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
         if (_sleepModeActive) {
           _endSleepSession();
         }
+        unawaited(
+          RatingPromptController.evaluateAfterPlaybackComplete(
+            skipForSleepSession: wasSleepMode,
+          ),
+        );
       }
     });
     _durationChangedSub = _audioPlayer.onDurationChanged.listen((d) {
