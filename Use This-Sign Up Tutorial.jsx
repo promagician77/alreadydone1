@@ -52,7 +52,7 @@ export default function AlreadyDoneTutorial() {
   const postFlowSteps = [
     {
       screen: 'voice-select',
-      title: "You're In",
+      title: "Voice Selection",
       body: "Now choose the voice that will narrate your manifestations. Your own voice is most powerful.",
       target: null,
       cardPosition: 'center',

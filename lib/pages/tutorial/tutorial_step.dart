@@ -61,7 +61,7 @@ const tutorialSteps = <TutorialStep>[
     focusLabel: '',
   ),
   TutorialStep(
-    title: "You're In",
+    title: "Voice Selection",
     body:
         'Now choose the voice that will narrate your manifestations. Your own voice is most powerful.',
     visualType: TutorialVisualType.voiceSelect,
