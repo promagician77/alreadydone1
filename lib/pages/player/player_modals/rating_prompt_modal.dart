@@ -213,7 +213,11 @@ class _RatingPromptPageState extends State<_RatingPromptPage>
                                   padding: const EdgeInsets.symmetric(horizontal: 3),
                                   child: Transform.scale(
                                     scale: _starScales[i].value,
-                                    child: const Text('⭐', style: TextStyle(fontSize: 28)),
+                                    child: const Icon(
+                                      Icons.star_rounded,
+                                      size: 28,
+                                      color: _R.gold,
+                                    ),
                                   ),
                                 );
                               },
