@@ -66,7 +66,6 @@ Future<void> _initializeAppCritical() async {
   debugPrint('✅ AuthListener initialized successfully');
 }
 
-/// Slow init (Firebase, RevenueCat, backend check, FCM). Run after first frame to avoid blocking splash.
 Future<void> _initializeAppDeferred() async {
   debugPrint('🔍 Deferred: Firebase...');
   bool firebaseInitialized = false;
@@ -136,7 +135,7 @@ void main() async {
   }, (error, stack) {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');
-    // Keep the app running; show a friendly toast instead of an error screen.
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ServerToast.show();
     });
