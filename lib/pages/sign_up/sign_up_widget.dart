@@ -141,7 +141,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                       _input(
                         controller: _model.passwordTextController,
                         focusNode: _model.passwordFocusNode,
-                        hint: 'At least 8 characters',
+                        hint: '8+ chars, upper/lower, number, symbol',
                         obscureText: true,
                       ),
                       const SizedBox(height: 16),
@@ -171,6 +171,25 @@ class _SignUpWidgetState extends State<SignUpWidget> {
   }
 
   Widget _label(String text) => Text(text, style: AuthTheme.labelStyle);
+
+  String? _getPasswordValidationError(String password) {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Password must include at least one uppercase letter.';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
+      return 'Password must include at least one lowercase letter.';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
+      return 'Password must include at least one number.';
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>_\-\\/\[\];`~+=]').hasMatch(password)) {
+      return 'Password must include at least one special character.';
+    }
+    return null;
+  }
 
   void _onFullNameChanged(String value) {
     final next = _capitalizeNameWordStarts(value);
@@ -296,8 +315,9 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       return;
     }
 
-    if (password.length < 8) {
-      AppToast.info(context, 'Password must be at least 8 characters');
+    final passwordError = _getPasswordValidationError(password);
+    if (passwordError != null) {
+      AppToast.info(context, passwordError);
       return;
     }
 
