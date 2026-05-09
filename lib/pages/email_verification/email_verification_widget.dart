@@ -127,6 +127,29 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: _model.isLoading
+                              ? null
+                              : () => context.go(
+                                    widget.isEmailChange
+                                        ? '/profile'
+                                        : '/signUp',
+                                  ),
+                          child: Text(
+                            widget.isEmailChange
+                                ? 'Back to profile'
+                                : 'Back to sign up',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AuthTheme.gold,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
