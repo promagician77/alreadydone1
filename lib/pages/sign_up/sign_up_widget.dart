@@ -145,6 +145,15 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                         obscureText: true,
                       ),
                       const SizedBox(height: 16),
+                      _label('Confirm Password'),
+                      const SizedBox(height: 6),
+                      _input(
+                        controller: _model.confirmPasswordTextController,
+                        focusNode: _model.confirmPasswordFocusNode,
+                        hint: 'Re-enter your password',
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 16),
                       _termsCheckbox(),
                       const SizedBox(height: 8),
                       _primaryButton('Create Account', _handleSignUp),
@@ -309,8 +318,12 @@ class _SignUpWidgetState extends State<SignUpWidget> {
     final name = _model.nameTextController.text.trim();
     final email = _model.emailTextController.text.trim();
     final password = _model.passwordTextController.text;
+    final confirmPassword = _model.confirmPasswordTextController.text;
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
       AppToast.info(context, 'Please fill in all fields');
       return;
     }
@@ -318,6 +331,11 @@ class _SignUpWidgetState extends State<SignUpWidget> {
     final passwordError = _getPasswordValidationError(password);
     if (passwordError != null) {
       AppToast.info(context, passwordError);
+      return;
+    }
+
+    if (password != confirmPassword) {
+      AppToast.info(context, 'Passwords do not match.');
       return;
     }
 
