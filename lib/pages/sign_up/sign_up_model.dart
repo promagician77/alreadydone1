@@ -13,6 +13,8 @@ class SignUpModel extends FlutterFlowModel<SignUpWidget> {
   final confirmPasswordTextController = TextEditingController();
   bool termsAccepted = false;
   bool isLoading = false;
+  bool obscurePassword = true;
+  bool obscureConfirmPassword = true;
 
   @override
   void initState(BuildContext context) {}

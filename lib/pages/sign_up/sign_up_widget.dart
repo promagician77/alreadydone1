@@ -142,7 +142,10 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                         controller: _model.passwordTextController,
                         focusNode: _model.passwordFocusNode,
                         hint: '8+ chars, upper/lower, number, symbol',
-                        obscureText: true,
+                        obscureText: _model.obscurePassword,
+                        onObscuredToggle: () => setState(
+                          () => _model.obscurePassword = !_model.obscurePassword,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _label('Confirm Password'),
@@ -151,7 +154,11 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                         controller: _model.confirmPasswordTextController,
                         focusNode: _model.confirmPasswordFocusNode,
                         hint: 'Re-enter your password',
-                        obscureText: true,
+                        obscureText: _model.obscureConfirmPassword,
+                        onObscuredToggle: () => setState(
+                          () => _model.obscureConfirmPassword =
+                              !_model.obscureConfirmPassword,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _termsCheckbox(),
@@ -220,6 +227,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
     bool obscureText = false,
     TextCapitalization textCapitalization = TextCapitalization.none,
     ValueChanged<String>? onChanged,
+    VoidCallback? onObscuredToggle,
   }) {
     return TextFormField(
       controller: controller,
@@ -238,6 +246,17 @@ class _SignUpWidgetState extends State<SignUpWidget> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AuthTheme.stone)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AuthTheme.gold)),
+        suffixIcon: onObscuredToggle == null
+            ? null
+            : IconButton(
+                tooltip: obscureText ? 'Show password' : 'Hide password',
+                icon: Icon(
+                  obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: AuthTheme.inkMid,
+                  size: 22,
+                ),
+                onPressed: onObscuredToggle,
+              ),
       ),
     );
   }
