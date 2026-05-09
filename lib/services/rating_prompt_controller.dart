@@ -29,7 +29,9 @@ class RatingPromptController {
     bool skipForSleepSession = false,
     RatingPromptMoment moment = RatingPromptMoment.storyPlaybackComplete,
   }) async {
-    if (kIsWeb) return;
+    // Keep web disabled in normal flow, but allow explicit debug forcing
+    // so QA can test modal behavior on localhost/web builds.
+    if (kIsWeb && _debugForcedDaysSinceStart == null) return;
     if (skipForSleepSession) return;
     if (moment != RatingPromptMoment.storyPlaybackComplete &&
         moment != RatingPromptMoment.deepenPlaybackComplete) {
