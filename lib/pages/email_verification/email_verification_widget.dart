@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
@@ -33,14 +34,20 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
   late EmailVerificationModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
+  void _onCodeFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     _model = createModel(context, () => EmailVerificationModel());
+    _model.codeFocusNode.addListener(_onCodeFocusChanged);
   }
 
   @override
   void dispose() {
+    _model.codeFocusNode.removeListener(_onCodeFocusChanged);
     _model.dispose();
     super.dispose();
   }
@@ -133,37 +140,108 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
 
   Widget _label(String text) => Text(text, style: AuthTheme.labelStyle);
 
+  static const int _codeDigitCount = 8;
+  static const double _codeBoxGap = 8;
+
+  int _activeCodeSlot(String text, TextSelection selection, bool hasFocus) {
+    if (!hasFocus || !selection.isValid) return 0;
+    final o = selection.baseOffset;
+    if (o >= text.length) {
+      return text.length.clamp(0, _codeDigitCount - 1);
+    }
+    return o.clamp(0, _codeDigitCount - 1);
+  }
+
+  void _focusCodeSlot(int slotIndex) {
+    _model.codeFocusNode.requestFocus();
+    final t = _model.codeTextController.text;
+    final offset = slotIndex > t.length ? t.length : slotIndex;
+    _model.codeTextController.selection = TextSelection.collapsed(offset: offset);
+    setState(() {});
+  }
+
   Widget _codeInput() {
-    return TextFormField(
-      controller: _model.codeTextController,
-      focusNode: _model.codeFocusNode,
-      keyboardType: TextInputType.number,
-      maxLength: 8,
-      style: AuthTheme.bodyStyle.copyWith(
-        letterSpacing: 4,
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ),
-      decoration: InputDecoration(
-        counterText: '',
-        hintText: '••••••••',
-        hintStyle: AuthTheme.placeholderStyle,
-        filled: true,
-        fillColor: AuthTheme.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AuthTheme.stone),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AuthTheme.gold),
-        ),
-      ),
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _model.codeTextController,
+      builder: (context, value, _) {
+        final text = value.text;
+        final selection = value.selection;
+        final hasFocus = _model.codeFocusNode.hasFocus;
+        final activeSlot = _activeCodeSlot(text, selection, hasFocus);
+
+        return SizedBox(
+          height: 52,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: TextField(
+                  controller: _model.codeTextController,
+                  focusNode: _model.codeFocusNode,
+                  keyboardType: TextInputType.number,
+                  maxLength: _codeDigitCount,
+                  style: AuthTheme.bodyStyle.copyWith(
+                    color: Colors.transparent,
+                    height: 1.2,
+                  ),
+                  cursorColor: Colors.transparent,
+                  showCursor: false,
+                  enableInteractiveSelection: false,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    counterText: '',
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  autofillHints: const [AutofillHints.oneTimeCode],
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: List.generate(_codeDigitCount, (i) {
+                  final char = i < text.length ? text[i] : '';
+                  final isActive = hasFocus && activeSlot == i;
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: i < _codeDigitCount - 1 ? _codeBoxGap : 0,
+                      ),
+                      child: GestureDetector(
+                        onTap: () => _focusCodeSlot(i),
+                        behavior: HitTestBehavior.opaque,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          curve: Curves.easeOut,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AuthTheme.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isActive ? AuthTheme.gold : AuthTheme.stone,
+                              width: isActive ? 2 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            char,
+                            style: AuthTheme.bodyStyle.copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
