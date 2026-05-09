@@ -19,6 +19,11 @@ class RatingPromptController {
 
   static bool _evaluating = false;
   static bool _dialogOpen = false;
+  static int? _debugForcedDaysSinceStart;
+
+  static void setDebugForcedDaysSinceStart(int? days) {
+    _debugForcedDaysSinceStart = days;
+  }
 
   static Future<void> evaluateAfterPlaybackComplete({
     bool skipForSleepSession = false,
@@ -71,6 +76,9 @@ class RatingPromptController {
   }
 
   static int _daysSinceStartFromProfile(Map<String, dynamic> profile) {
+    final forced = _debugForcedDaysSinceStart;
+    if (forced != null && forced >= 0) return forced;
+
     int readInt(dynamic v) {
       if (v is int) return v;
       if (v is num) return v.toInt();
