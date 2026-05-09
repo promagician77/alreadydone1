@@ -9,6 +9,8 @@ class SignUpModel extends FlutterFlowModel<SignUpWidget> {
   final emailTextController = TextEditingController();
   final passwordFocusNode = FocusNode();
   final passwordTextController = TextEditingController();
+  final confirmPasswordFocusNode = FocusNode();
+  final confirmPasswordTextController = TextEditingController();
   bool termsAccepted = false;
   bool isLoading = false;
 
@@ -23,5 +25,7 @@ class SignUpModel extends FlutterFlowModel<SignUpWidget> {
     emailTextController.dispose();
     passwordFocusNode.dispose();
     passwordTextController.dispose();
+    confirmPasswordFocusNode.dispose();
+    confirmPasswordTextController.dispose();
   }
 }
