@@ -98,7 +98,10 @@ class _LoginWidgetState extends State<LoginWidget> {
                         controller: _model.passwordTextController,
                         focusNode: _model.passwordFocusNode,
                         hint: 'Enter your password',
-                        obscureText: true,
+                        obscureText: _model.obscurePassword,
+                        onObscuredToggle: () => setState(
+                          () => _model.obscurePassword = !_model.obscurePassword,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const SizedBox(height: 16),
@@ -133,6 +136,7 @@ class _LoginWidgetState extends State<LoginWidget> {
     required String hint,
     TextInputType? keyboardType,
     bool obscureText = false,
+    VoidCallback? onObscuredToggle,
   }) {
     return TextFormField(
       controller: controller,
@@ -149,6 +153,17 @@ class _LoginWidgetState extends State<LoginWidget> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AuthTheme.stone)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AuthTheme.gold)),
+        suffixIcon: onObscuredToggle == null
+            ? null
+            : IconButton(
+                tooltip: obscureText ? 'Show password' : 'Hide password',
+                icon: Icon(
+                  obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: AuthTheme.inkMid,
+                  size: 22,
+                ),
+                onPressed: onObscuredToggle,
+              ),
       ),
     );
   }
