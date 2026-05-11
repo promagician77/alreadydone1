@@ -313,6 +313,14 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                 email: widget.email);
           } catch (_) {}
         }
+        if (!widget.isEmailChange) {
+          try {
+            await SupabaseService.ensureUserProfileFromAuth();
+          } catch (_) {}
+          try {
+            await SupabaseService.upsertDeviceInfoForCurrentUser();
+          } catch (_) {}
+        }
         if (mounted) {
           AppToast.success(
             context,
