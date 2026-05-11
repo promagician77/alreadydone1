@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '/pages/onboarding/onboarding_state.dart';
 import '/services/onboarding_service.dart';
@@ -27,6 +30,10 @@ class EmailAlreadyRegisteredException implements Exception {
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
+
+  static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
+  static const Uuid _uuid = Uuid();
+  static const String _deviceIdPrefsKey = 'device_id';
 
   /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
   /// auth state listener) cannot both observe "no row" and insert duplicates.
@@ -219,6 +226,89 @@ class SupabaseService {
         }
       } catch (_) {}
     });
+  }
+
+  /// Returns a stable, per-device identifier when available.
+  ///
+  /// - iOS: `identifierForVendor`
+  /// - Else: app-scoped UUID stored in SharedPreferences
+  static Future<String?> getDeviceId() async {
+    final platformId = await _tryGetPlatformDeviceId();
+    if (platformId != null && platformId.isNotEmpty) return platformId;
+    return await _getOrCreateAppScopedDeviceId();
+  }
+
+  static Future<String?> _tryGetPlatformDeviceId() async {
+    if (kIsWeb) return null;
+    try {
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android: {
+          // device_info_plus versions vary; rely on fields that exist broadly.
+          // If you want ANDROID_ID specifically, we can add a small platform channel later.
+          final info = await _deviceInfo.androidInfo;
+          final picked = (info.fingerprint).trim().isNotEmpty
+              ? info.fingerprint.trim()
+              : (info.id).trim();
+          return picked.isEmpty ? null : picked;
+        }
+        case TargetPlatform.iOS:
+          final info = await _deviceInfo.iosInfo;
+          final id = info.identifierForVendor;
+          return (id ?? '').trim().isEmpty ? null : id!.trim();
+        default:
+          return null;
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<String?> _getOrCreateAppScopedDeviceId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final existing = (prefs.getString(_deviceIdPrefsKey) ?? '').trim();
+      if (existing.isNotEmpty) return existing;
+      final created = _uuid.v4();
+      await prefs.setString(_deviceIdPrefsKey, created);
+      return created;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Best-effort: upserts one `device_info` row for the current user.
+  ///
+  /// Uses `Users.id` (int) as `device_info.user_id`.
+  static Future<void> upsertDeviceInfoForCurrentUser() async {
+    final userId = await getCurrentUserTableId();
+    if (userId == null) return;
+
+    final deviceId = await getDeviceId();
+    if (deviceId == null || deviceId.isEmpty) return;
+
+    final payload = {'user_id': userId, 'device_id': deviceId};
+
+    try {
+      // Prefer a true upsert when a unique constraint exists on user_id.
+      await client.from('device_info').upsert(payload, onConflict: 'user_id');
+      return;
+    } catch (_) {
+      // Fall through: some environments may not have onConflict/unique constraint set.
+    }
+
+    try {
+      final existing = await client
+          .from('device_info')
+          .select('id')
+          .eq('user_id', userId)
+          .limit(1);
+      final rows = existing is List ? List<dynamic>.from(existing) : <dynamic>[];
+      if (rows.isEmpty) {
+        await client.from('device_info').insert(payload);
+      } else {
+        await client.from('device_info').update({'device_id': deviceId}).eq('user_id', userId);
+      }
+    } catch (_) {}
   }
 
   /// Returns true when [name] looks like an auto-generated placeholder
