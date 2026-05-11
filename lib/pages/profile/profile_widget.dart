@@ -27,6 +27,8 @@ class _ProfileColors {
   static const gold = Color(0xFFB8861E);
   static const goldPale = Color(0xFFFBF4E6);
   static const logoutRed = Color(0xFFDC2626);
+  static const dangerSurface = Color(0xFFFEF2F2);
+  static const dangerBorder = Color(0xFFFECACA);
 }
 
 class ProfileWidget extends StatefulWidget {
@@ -963,54 +965,104 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     return Padding(
       padding: const EdgeInsets.only(top: 40),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
             width: double.infinity,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: _ProfileColors.stone)),
             ),
             padding: const EdgeInsets.only(top: 24),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextButton(
-                  onPressed: _isClosingAccount ? null : _confirmCloseAccount,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    foregroundColor: _ProfileColors.logoutRed,
-                  ),
-                  child: Text(
-                    'Close My Account',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _ProfileColors.logoutRed,
+                Pressable(
+                  onTap: _isClosingAccount ? null : _confirmCloseAccount,
+                  borderRadius: BorderRadius.circular(12),
+                  splashColor: _ProfileColors.logoutRed.withValues(alpha: 0.12),
+                  highlightColor: _ProfileColors.logoutRed.withValues(alpha: 0.06),
+                  backgroundColor: _ProfileColors.dangerSurface,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: _ProfileColors.dangerSurface,
+                      border: Border.all(color: _ProfileColors.dangerBorder, width: 1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person_off_outlined,
+                          size: 20,
+                          color: _ProfileColors.logoutRed.withValues(
+                            alpha: _isClosingAccount ? 0.45 : 1,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Close My Account',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
+                            color: _ProfileColors.logoutRed.withValues(
+                              alpha: _isClosingAccount ? 0.45 : 1,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: _logout,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    foregroundColor: _ProfileColors.logoutRed,
-                  ),
-                  child: Text(
-                    'Log Out',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _ProfileColors.logoutRed,
+                const SizedBox(height: 10),
+                Pressable(
+                  onTap: _logout,
+                  borderRadius: BorderRadius.circular(12),
+                  splashColor: _ProfileColors.stoneMid.withValues(alpha: 0.65),
+                  highlightColor: _ProfileColors.stone.withValues(alpha: 0.95),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: _ProfileColors.surface,
+                      border: Border.all(color: _ProfileColors.stone),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.logout_rounded,
+                          size: 20,
+                          color: _ProfileColors.inkMid,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Log Out',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
+                            color: _ProfileColors.ink,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Version 1.0.0',
-            style: GoogleFonts.outfit(
-              fontSize: 10,
-              color: _ProfileColors.inkSoft,
+          const SizedBox(height: 20),
+          Center(
+            child: Text(
+              'Version 1.0.0',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                color: _ProfileColors.inkSoft,
+              ),
             ),
           ),
         ],
