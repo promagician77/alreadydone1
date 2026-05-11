@@ -3,7 +3,6 @@ import '/flutter_flow/nav/nav.dart';
 import '/constants/legal_urls.dart';
 import '/pages/onboarding/onboarding_voice_widget.dart';
 import '/pages/subscription/subscription_widget.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/app_toast.dart';
@@ -567,41 +566,11 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     );
   }
 
-  String? _profilePhotoUrl() {
-    final meta = SupabaseService.currentUser?.userMetadata;
-    if (meta != null) {
-      for (final key in ['avatar_url', 'picture', 'image', 'avatar']) {
-        final v = meta[key]?.toString().trim();
-        if (v != null && v.isNotEmpty) {
-          return v;
-        }
-      }
-    }
-    final p = _model.profileData?['avatar_url']?.toString().trim();
-    if (p != null && p.isNotEmpty) {
-      return p;
-    }
-    return null;
-  }
-
-  String _initialsFromName(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
-    if (parts.isEmpty) {
-      return '?';
-    }
-    if (parts.length == 1) {
-      final s = parts[0];
-      return s.length >= 2 ? s.substring(0, 2).toUpperCase() : s.toUpperCase();
-    }
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-
   Widget _buildProfileTopSection({
     required String displayName,
     required String dreamLocation,
     required String energyWord,
   }) {
-    final photoUrl = _profilePhotoUrl();
     final complete = _model.profileData?['complete']?.toString() ?? '0';
     final dayStreak = _model.profileData?['day_streak']?.toString() ?? '0';
     final active = _model.profileData?['active']?.toString() ?? '0';
@@ -610,137 +579,130 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       padding: const EdgeInsets.only(top: 8),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
         decoration: BoxDecoration(
-          color: _ProfileColors.surface,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _ProfileColors.stone.withValues(alpha: 0.65)),
           boxShadow: [
             BoxShadow(
-              color: _ProfileColors.ink.withValues(alpha: 0.07),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
+              color: _ProfileColors.gold.withValues(alpha: 0.22),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
             ),
             BoxShadow(
-              color: _ProfileColors.ink.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: _ProfileColors.ink.withValues(alpha: 0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _buildProfileAvatar(photoUrl, displayName),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: _ProfileColors.ink,
-                          height: 1.2,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _profileMetaChip(dreamLocation, Icons.location_on_outlined),
-                          _profileMetaChip(energyWord, Icons.bolt_rounded),
-                        ],
-                      ),
-                    ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFFFFF9F3),
+                        _ProfileColors.goldPale,
+                        const Color(0xFFF7ECD8),
+                        _ProfileColors.warmWhite,
+                      ],
+                      stops: const [0.0, 0.35, 0.72, 1.0],
+                    ),
                   ),
                 ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              child: Divider(
-                height: 1,
-                thickness: 1,
-                color: _ProfileColors.stone.withValues(alpha: 0.9),
               ),
-            ),
-            Row(
-              children: [
-                Expanded(child: _modernStatTile(complete, 'COMPLETE')),
-                const SizedBox(width: 10),
-                Expanded(child: _modernStatTile(dayStreak, 'DAY STREAK')),
-                const SizedBox(width: 10),
-                Expanded(child: _modernStatTile(active, 'ACTIVE')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileAvatar(String? url, String name) {
-    const size = 80.0;
-    final initials = _initialsFromName(name);
-    final radius = BorderRadius.circular(20);
-
-    Widget image;
-    if (url != null && url.isNotEmpty) {
-      image = CachedNetworkImage(
-        imageUrl: url,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => _avatarFallback(initials, size),
-        errorWidget: (_, __, ___) => _avatarFallback(initials, size),
-      );
-    } else {
-      image = _avatarFallback(initials, size);
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(
-          color: _ProfileColors.gold.withValues(alpha: 0.45),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _ProfileColors.gold.withValues(alpha: 0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+              Positioned(
+                right: -36,
+                top: -44,
+                child: Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _ProfileColors.gold.withValues(alpha: 0.14),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: -48,
+                bottom: -28,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _ProfileColors.surface.withValues(alpha: 0.85),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                height: 3,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _ProfileColors.gold.withValues(alpha: 0),
+                        _ProfileColors.gold.withValues(alpha: 0.55),
+                        _ProfileColors.gold.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      displayName,
+                      style: GoogleFonts.outfit(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                        color: _ProfileColors.ink,
+                        height: 1.15,
+                        letterSpacing: -0.35,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _profileMetaChip(dreamLocation, Icons.location_on_outlined),
+                        _profileMetaChip(energyWord, Icons.bolt_rounded),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      child: Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.white.withValues(alpha: 0.65),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(child: _modernStatTile(complete, 'COMPLETE')),
+                        const SizedBox(width: 10),
+                        Expanded(child: _modernStatTile(dayStreak, 'DAY STREAK')),
+                        const SizedBox(width: 10),
+                        Expanded(child: _modernStatTile(active, 'ACTIVE')),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: image,
-    );
-  }
-
-  Widget _avatarFallback(String initials, double size) {
-    return Container(
-      width: size,
-      height: size,
-      color: _ProfileColors.goldPale,
-      alignment: Alignment.center,
-      child: Text(
-        initials,
-        style: GoogleFonts.outfit(
-          fontSize: size * 0.28,
-          fontWeight: FontWeight.w700,
-          color: _ProfileColors.gold,
-          letterSpacing: 0.5,
         ),
       ),
     );
@@ -752,9 +714,9 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       constraints: const BoxConstraints(maxWidth: 220),
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
-        color: _ProfileColors.warmWhite,
+        color: Colors.white.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: _ProfileColors.stone.withValues(alpha: 0.85)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
       ),
       child: Row(
         children: [
