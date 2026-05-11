@@ -3,6 +3,7 @@ import '/flutter_flow/nav/nav.dart';
 import '/constants/legal_urls.dart';
 import '/pages/onboarding/onboarding_voice_widget.dart';
 import '/pages/subscription/subscription_widget.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/app_toast.dart';
@@ -381,9 +382,11 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                            _buildHeader(displayName, dreamLocation, energyWord),
-                            const SizedBox(height: 24),
-                            _buildStats(),
+                            _buildProfileTopSection(
+                              displayName: displayName,
+                              dreamLocation: dreamLocation,
+                              energyWord: energyWord,
+                            ),
                             const SizedBox(height: 24),
                             _buildSettingsSection('VOICE', items: [
                               ('Re-record My Voice', '→', () => _handleReRecordVoice()),
@@ -564,72 +567,253 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     );
   }
 
-  Widget _buildHeader(String name, String dreamLocation, String energyWord) {
+  String? _profilePhotoUrl() {
+    final meta = SupabaseService.currentUser?.userMetadata;
+    if (meta != null) {
+      for (final key in ['avatar_url', 'picture', 'image', 'avatar']) {
+        final v = meta[key]?.toString().trim();
+        if (v != null && v.isNotEmpty) {
+          return v;
+        }
+      }
+    }
+    final p = _model.profileData?['avatar_url']?.toString().trim();
+    if (p != null && p.isNotEmpty) {
+      return p;
+    }
+    return null;
+  }
+
+  String _initialsFromName(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) {
+      return '?';
+    }
+    if (parts.length == 1) {
+      final s = parts[0];
+      return s.length >= 2 ? s.substring(0, 2).toUpperCase() : s.toUpperCase();
+    }
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  Widget _buildProfileTopSection({
+    required String displayName,
+    required String dreamLocation,
+    required String energyWord,
+  }) {
+    final photoUrl = _profilePhotoUrl();
+    final complete = _model.profileData?['complete']?.toString() ?? '0';
+    final dayStreak = _model.profileData?['day_streak']?.toString() ?? '0';
+    final active = _model.profileData?['active']?.toString() ?? '0';
+
     return Padding(
-      padding: const EdgeInsets.only(top: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            name,
-            style: GoogleFonts.cormorantGaramond(
-              fontSize: 26,
-              fontWeight: FontWeight.w400,
-              color: _ProfileColors.ink,
-              height: 1.2,
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+        decoration: BoxDecoration(
+          color: _ProfileColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _ProfileColors.stone.withValues(alpha: 0.65)),
+          boxShadow: [
+            BoxShadow(
+              color: _ProfileColors.ink.withValues(alpha: 0.07),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
             ),
+            BoxShadow(
+              color: _ProfileColors.ink.withValues(alpha: 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildProfileAvatar(photoUrl, displayName),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: _ProfileColors.ink,
+                          height: 1.2,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _profileMetaChip(dreamLocation, Icons.location_on_outlined),
+                          _profileMetaChip(energyWord, Icons.bolt_rounded),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: _ProfileColors.stone.withValues(alpha: 0.9),
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(child: _modernStatTile(complete, 'COMPLETE')),
+                const SizedBox(width: 10),
+                Expanded(child: _modernStatTile(dayStreak, 'DAY STREAK')),
+                const SizedBox(width: 10),
+                Expanded(child: _modernStatTile(active, 'ACTIVE')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileAvatar(String? url, String name) {
+    const size = 80.0;
+    final initials = _initialsFromName(name);
+    final radius = BorderRadius.circular(20);
+
+    Widget image;
+    if (url != null && url.isNotEmpty) {
+      image = CachedNetworkImage(
+        imageUrl: url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => _avatarFallback(initials, size),
+        errorWidget: (_, __, ___) => _avatarFallback(initials, size),
+      );
+    } else {
+      image = _avatarFallback(initials, size);
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        border: Border.all(
+          color: _ProfileColors.gold.withValues(alpha: 0.45),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _ProfileColors.gold.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '$dreamLocation · $energyWord',
-            style: GoogleFonts.outfit(fontSize: 12, color: _ProfileColors.inkSoft),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: image,
+    );
+  }
+
+  Widget _avatarFallback(String initials, double size) {
+    return Container(
+      width: size,
+      height: size,
+      color: _ProfileColors.goldPale,
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: GoogleFonts.outfit(
+          fontSize: size * 0.28,
+          fontWeight: FontWeight.w700,
+          color: _ProfileColors.gold,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _profileMetaChip(String text, IconData icon) {
+    final display = text.trim().isEmpty ? '—' : text;
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: _ProfileColors.warmWhite,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _ProfileColors.stone.withValues(alpha: 0.85)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: _ProfileColors.gold),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              display,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: _ProfileColors.inkMid,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStats() {
-    final complete = _model.profileData?['complete']?.toString() ?? '0';
-    final dayStreak = _model.profileData?['day_streak']?.toString() ?? '0';
-    final active = _model.profileData?['active']?.toString() ?? '0';
-    return Row(
-      children: [
-        Expanded(child: _statCard(complete, 'COMPLETE')),
-        const SizedBox(width: 12),
-        Expanded(child: _statCard(dayStreak, 'DAY STREAK')),
-        const SizedBox(width: 12),
-        Expanded(child: _statCard(active, 'ACTIVE')),
-      ],
-    );
-  }
-
-  Widget _statCard(String value, String label) {
+  Widget _modernStatTile(String value, String label) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
       decoration: BoxDecoration(
-        color: _ProfileColors.surface,
-        border: Border.all(color: _ProfileColors.stone),
-        borderRadius: BorderRadius.circular(12),
+        color: _ProfileColors.warmWhite,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _ProfileColors.ink.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Text(
             value,
             style: GoogleFonts.outfit(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
+              fontSize: 23,
+              fontWeight: FontWeight.w800,
               color: _ProfileColors.gold,
+              height: 1,
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 7),
           Text(
             label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
             style: GoogleFonts.outfit(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
               color: _ProfileColors.inkSoft,
-              letterSpacing: 1,
+              letterSpacing: 0.6,
+              height: 1.15,
             ),
           ),
         ],
@@ -1033,7 +1217,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.logout_rounded,
                           size: 20,
                           color: _ProfileColors.inkMid,
