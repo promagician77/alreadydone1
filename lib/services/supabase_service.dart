@@ -228,10 +228,6 @@ class SupabaseService {
     });
   }
 
-  /// Returns a stable, per-device identifier when available.
-  ///
-  /// - iOS: `identifierForVendor`
-  /// - Else: app-scoped UUID stored in SharedPreferences
   static Future<String?> getDeviceId() async {
     final platformId = await _tryGetPlatformDeviceId();
     if (platformId != null && platformId.isNotEmpty) return platformId;
@@ -243,8 +239,6 @@ class SupabaseService {
     try {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android: {
-          // device_info_plus versions vary; rely on fields that exist broadly.
-          // If you want ANDROID_ID specifically, we can add a small platform channel later.
           final info = await _deviceInfo.androidInfo;
           final picked = (info.fingerprint).trim().isNotEmpty
               ? info.fingerprint.trim()
@@ -276,9 +270,6 @@ class SupabaseService {
     }
   }
 
-  /// Best-effort: upserts one `device_info` row for the current user.
-  ///
-  /// Uses `Users.id` (int) as `device_info.user_id`.
   static Future<void> upsertDeviceInfoForCurrentUser() async {
     final userId = await getCurrentUserTableId();
     if (userId == null) return;
@@ -289,11 +280,10 @@ class SupabaseService {
     final payload = {'user_id': userId, 'device_id': deviceId};
 
     try {
-      // Prefer a true upsert when a unique constraint exists on user_id.
       await client.from('device_info').upsert(payload, onConflict: 'user_id');
       return;
     } catch (_) {
-      // Fall through: some environments may not have onConflict/unique constraint set.
+      debugPrint('SupabaseService.upsertDeviceInfoForCurrentUser: $_');
     }
 
     try {
@@ -311,17 +301,12 @@ class SupabaseService {
     } catch (_) {}
   }
 
-  /// Returns true when [name] looks like an auto-generated placeholder
-  /// (empty, or an email-prefix: no spaces, only letters/digits/dots/underscores/hyphens).
   static bool _isPlaceholderName(String name) {
     if (name.isEmpty) return true;
-    // A real display name almost always contains a space or mixed-case letters.
-    // An email prefix never contains spaces and is typically all-lowercase + digits.
     final emailPrefixPattern = RegExp(r'^[a-zA-Z0-9._\-]+$');
     return emailPrefixPattern.hasMatch(name) && !name.contains(' ');
   }
 
-  /// Picks the best available name from the provided candidates.
   static String _pickBestName({
     String? override,
     String? fullNameMeta,

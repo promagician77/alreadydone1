@@ -367,9 +367,9 @@ class _SignUpWidgetState extends State<SignUpWidget> {
         fullName: name,
       );
 
+      debugPrint('Sign up response: $response');
+
       if (response.user != null && mounted) {
-        // Best-effort: ensure Users row exists, then sync timezone.
-        // Do not block the OTP flow.
         Future<void>(() async {
           try {
             await SupabaseService.ensureUserProfileFromAuth(overrideName: name);
