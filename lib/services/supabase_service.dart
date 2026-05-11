@@ -287,6 +287,23 @@ class SupabaseService {
     }
   }
 
+  /// Returns true if [deviceId] already exists in `device_info`.
+  static Future<bool> doesDeviceIdExistInDeviceInfo(String deviceId) async {
+    final normalized = deviceId.trim();
+    if (normalized.isEmpty) return false;
+    try {
+      final result = await client
+          .from('device_info')
+          .select('id')
+          .eq('device_id', normalized)
+          .limit(1);
+      final rows = result is List ? List<dynamic>.from(result) : <dynamic>[];
+      return rows.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> upsertDeviceInfoForCurrentUser({String? emailHint}) async {
     final userId = await getCurrentUserTableId(emailHint: emailHint);
     if (userId == null) return;
