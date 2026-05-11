@@ -8,10 +8,8 @@ import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform,
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 
 import '/pages/onboarding/onboarding_state.dart';
 import '/services/onboarding_service.dart';
@@ -32,8 +30,6 @@ class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
   static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
-  static const Uuid _uuid = Uuid();
-  static const String _deviceIdPrefsKey = 'device_id';
 
   /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
   /// auth state listener) cannot both observe "no row" and insert duplicates.
@@ -81,8 +77,25 @@ class SupabaseService {
     return currentUser?.id;
   }
 
-  static Future<int?> getCurrentUserTableId() async {
-    final email = currentUser?.email;
+  static Future<String?> _waitForCurrentUserEmail({
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
+    final existing = currentUser?.email?.trim();
+    if (existing != null && existing.isNotEmpty) return existing;
+    final sw = Stopwatch()..start();
+    while (sw.elapsed < timeout) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      final email = currentUser?.email?.trim();
+      if (email != null && email.isNotEmpty) return email;
+    }
+    return currentUser?.email?.trim();
+  }
+
+  static Future<int?> getCurrentUserTableId({String? emailHint}) async {
+    final hinted = emailHint?.trim();
+    final email = (hinted != null && hinted.isNotEmpty)
+        ? hinted
+        : await _waitForCurrentUserEmail();
     if (email == null || email.isEmpty) return null;
     try {
       final result = await client.from('Users').select('id').eq('email', email) as dynamic;
@@ -229,9 +242,7 @@ class SupabaseService {
   }
 
   static Future<String?> getDeviceId() async {
-    final platformId = await _tryGetPlatformDeviceId();
-    if (platformId != null && platformId.isNotEmpty) return platformId;
-    return await _getOrCreateAppScopedDeviceId();
+    return await _tryGetPlatformDeviceId();
   }
 
   static Future<String?> _tryGetPlatformDeviceId() async {
@@ -240,9 +251,9 @@ class SupabaseService {
       switch (defaultTargetPlatform) {
         case TargetPlatform.android: {
           final info = await _deviceInfo.androidInfo;
-          final picked = (info.fingerprint).trim().isNotEmpty
-              ? info.fingerprint.trim()
-              : (info.id).trim();
+          final map = info.data;
+          final androidId = (map['androidId'] as String?)?.trim() ?? '';
+          final picked = androidId.isNotEmpty ? androidId : info.id.trim();
           return picked.isEmpty ? null : picked;
         }
         case TargetPlatform.iOS:
@@ -257,21 +268,26 @@ class SupabaseService {
     }
   }
 
-  static Future<String?> _getOrCreateAppScopedDeviceId() async {
+  static Future<bool> doesDeviceIdExistInDeviceInfo(String deviceId) async {
+    final normalized = deviceId.trim();
+    debugPrint('SupabaseService.doesDeviceIdExistInDeviceInfo: $normalized');
+    if (normalized.isEmpty) return false;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final existing = (prefs.getString(_deviceIdPrefsKey) ?? '').trim();
-      if (existing.isNotEmpty) return existing;
-      final created = _uuid.v4();
-      await prefs.setString(_deviceIdPrefsKey, created);
-      return created;
+      final result = await client
+          .from('device_info')
+          .select('id')
+          .eq('device_id', normalized)
+          .limit(1);
+      debugPrint('SupabaseService.doesDeviceIdExistInDeviceInfo result: $result');
+      final rows = result is List ? List<dynamic>.from(result) : <dynamic>[];
+      return rows.isNotEmpty;
     } catch (_) {
-      return null;
+      return false;
     }
   }
 
-  static Future<void> upsertDeviceInfoForCurrentUser() async {
-    final userId = await getCurrentUserTableId();
+  static Future<void> upsertDeviceInfoForCurrentUser({String? emailHint}) async {
+    final userId = await getCurrentUserTableId(emailHint: emailHint);
     if (userId == null) return;
 
     final deviceId = await getDeviceId();

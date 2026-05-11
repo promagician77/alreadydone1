@@ -27,6 +27,7 @@ import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
 import '/widgets/pressable.dart';
 import '/pages/player/coachmark/done_library_coachmark_nav.dart';
+import '/widgets/swipe_delete_tutorial_dialog.dart';
 import '/pages/home_dashboard/coachmark/new_manifestation_coachmark_nav.dart';
 import 'index.dart';
 
@@ -599,6 +600,9 @@ class _NavBarPageState extends State<NavBarPage>
                         : () async {
                             await doneLibraryCoachmarkOnDoneTabDismiss?.call();
                             _onNavTap(2);
+                            await SwipeDeleteTutorial.maybeShowAfterDoneNavTap(
+                              context,
+                            );
                           },
                     libraryCoachmarkKey: doneLibraryCoachmarkTabKey,
                   ),

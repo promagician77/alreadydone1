@@ -358,6 +358,22 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       return;
     }
 
+    final currentDeviceId = await SupabaseService.getDeviceId();
+    debugPrint('Current device id: $currentDeviceId');
+    if (currentDeviceId != null && currentDeviceId.isNotEmpty) {
+      final alreadyRegistered =
+          await SupabaseService.doesDeviceIdExistInDeviceInfo(currentDeviceId);
+      if (alreadyRegistered) {
+        if (mounted) {
+          AppToast.info(
+            context,
+            'This device is already registered. Please log in instead.',
+          );
+        }
+        return;
+      }
+    }
+
     setState(() => _model.isLoading = true);
 
     try {

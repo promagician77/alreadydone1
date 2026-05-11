@@ -318,7 +318,9 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
             await SupabaseService.ensureUserProfileFromAuth();
           } catch (_) {}
           try {
-            await SupabaseService.upsertDeviceInfoForCurrentUser();
+            await SupabaseService.upsertDeviceInfoForCurrentUser(
+              emailHint: response.user?.email ?? widget.email,
+            );
           } catch (_) {}
         }
         if (mounted) {
