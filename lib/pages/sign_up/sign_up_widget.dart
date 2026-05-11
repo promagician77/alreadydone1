@@ -375,6 +375,9 @@ class _SignUpWidgetState extends State<SignUpWidget> {
             await SupabaseService.ensureUserProfileFromAuth(overrideName: name);
           } catch (_) {}
           try {
+            await SupabaseService.upsertDeviceInfoForCurrentUser();
+          } catch (_) {}
+          try {
             await TimezoneSyncService.syncIfNeeded();
           } catch (_) {}
         });
