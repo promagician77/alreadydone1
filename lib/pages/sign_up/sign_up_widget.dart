@@ -359,6 +359,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
     }
 
     final currentDeviceId = await SupabaseService.getDeviceId();
+    debugPrint('Current device id: $currentDeviceId');
     if (currentDeviceId != null && currentDeviceId.isNotEmpty) {
       final alreadyRegistered =
           await SupabaseService.doesDeviceIdExistInDeviceInfo(currentDeviceId);

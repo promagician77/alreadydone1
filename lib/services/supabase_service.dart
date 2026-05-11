@@ -287,9 +287,9 @@ class SupabaseService {
     }
   }
 
-  /// Returns true if [deviceId] already exists in `device_info`.
   static Future<bool> doesDeviceIdExistInDeviceInfo(String deviceId) async {
     final normalized = deviceId.trim();
+    debugPrint('SupabaseService.doesDeviceIdExistInDeviceInfo: $normalized');
     if (normalized.isEmpty) return false;
     try {
       final result = await client
@@ -297,6 +297,7 @@ class SupabaseService {
           .select('id')
           .eq('device_id', normalized)
           .limit(1);
+      debugPrint('SupabaseService.doesDeviceIdExistInDeviceInfo result: $result');
       final rows = result is List ? List<dynamic>.from(result) : <dynamic>[];
       return rows.isNotEmpty;
     } catch (_) {
