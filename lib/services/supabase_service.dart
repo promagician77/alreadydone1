@@ -81,8 +81,25 @@ class SupabaseService {
     return currentUser?.id;
   }
 
-  static Future<int?> getCurrentUserTableId() async {
-    final email = currentUser?.email;
+  static Future<String?> _waitForCurrentUserEmail({
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
+    final existing = currentUser?.email?.trim();
+    if (existing != null && existing.isNotEmpty) return existing;
+    final sw = Stopwatch()..start();
+    while (sw.elapsed < timeout) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      final email = currentUser?.email?.trim();
+      if (email != null && email.isNotEmpty) return email;
+    }
+    return currentUser?.email?.trim();
+  }
+
+  static Future<int?> getCurrentUserTableId({String? emailHint}) async {
+    final hinted = emailHint?.trim();
+    final email = (hinted != null && hinted.isNotEmpty)
+        ? hinted
+        : await _waitForCurrentUserEmail();
     if (email == null || email.isEmpty) return null;
     try {
       final result = await client.from('Users').select('id').eq('email', email) as dynamic;
@@ -270,8 +287,8 @@ class SupabaseService {
     }
   }
 
-  static Future<void> upsertDeviceInfoForCurrentUser() async {
-    final userId = await getCurrentUserTableId();
+  static Future<void> upsertDeviceInfoForCurrentUser({String? emailHint}) async {
+    final userId = await getCurrentUserTableId(emailHint: emailHint);
     if (userId == null) return;
 
     final deviceId = await getDeviceId();
