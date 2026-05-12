@@ -13,8 +13,6 @@ import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
 
-/// Soft, dismissible "new version available" dialog driven by backend
-/// [GET /api/mobile-app/update].
 class AppUpdatePromptService {
   AppUpdatePromptService._();
 
@@ -38,6 +36,7 @@ class AppUpdatePromptService {
     try {
       final pkg = await PackageInfo.fromPlatform();
       currentBuild = int.tryParse(pkg.buildNumber) ?? 0;
+      debugPrint('AppUpdatePrompt: currentBuild: $currentBuild');
       currentVersion = pkg.version;
     } catch (e) {
       debugPrint('AppUpdatePrompt: PackageInfo failed: $e');
@@ -45,6 +44,8 @@ class AppUpdatePromptService {
     }
 
     final payload = await BackendClient.fetchMobileAppUpdateInfo();
+    debugPrint('AppUpdatePrompt: payload: $payload');
+
     if (payload == null) return;
     if (currentBuild >= payload.latestBuild) return;
 
