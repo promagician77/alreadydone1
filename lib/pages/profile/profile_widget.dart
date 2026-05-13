@@ -130,8 +130,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
   Future<void> _closeAccount() async {
     if (_isClosingAccount) return;
     final authUser = SupabaseService.currentUser;
-    final session = SupabaseService.client.auth.currentSession;
-    final accessToken = session?.accessToken ?? '';
+    final accessToken = await SupabaseService.getValidAccessToken() ?? '';
     if (authUser == null || accessToken.isEmpty) {
       if (mounted) AppToast.error(context, 'You must be signed in');
       return;
