@@ -67,14 +67,20 @@ class BackendClient {
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) return null;
       if (decoded['enabled'] != true) return null;
-      final latest = decoded['latest_build'];
-      final latestInt = latest is int
-          ? latest
-          : (latest is num ? latest.toInt() : int.tryParse('$latest'));
-      if (latestInt == null || latestInt <= 0) return null;
+      final latestRaw = decoded['latest_build'];
+      final latestInt = latestRaw is int
+          ? latestRaw
+          : (latestRaw is num
+              ? latestRaw.toInt()
+              : int.tryParse('$latestRaw') ?? 0);
+      final latestVersion = _jsonOptionalString(decoded['latest_version']);
+      final hasVersion =
+          latestVersion != null && latestVersion.trim().isNotEmpty;
+      if (!hasVersion && latestInt <= 0) return null;
       return MobileAppUpdatePayload(
         latestBuild: latestInt,
-        latestVersion: _jsonOptionalString(decoded['latest_version']),
+        latestVersion: latestVersion,
+        latestVersionPlus: _jsonOptionalString(decoded['latest_version_plus']),
         message: _jsonOptionalString(decoded['message']),
         iosStoreUrl: _jsonOptionalString(decoded['ios_store_url']),
         androidStoreUrl: _jsonOptionalString(decoded['android_store_url']),
@@ -696,6 +702,7 @@ class MobileAppUpdatePayload {
   const MobileAppUpdatePayload({
     required this.latestBuild,
     this.latestVersion,
+    this.latestVersionPlus,
     this.message,
     this.iosStoreUrl,
     this.androidStoreUrl,
@@ -703,6 +710,8 @@ class MobileAppUpdatePayload {
 
   final int latestBuild;
   final String? latestVersion;
+  /// Canonical display from backend, e.g. `1.0.8+2`.
+  final String? latestVersionPlus;
   final String? message;
   final String? iosStoreUrl;
   final String? androidStoreUrl;

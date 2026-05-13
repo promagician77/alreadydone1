@@ -73,6 +73,8 @@ class AppStateNotifier extends ChangeNotifier {
   /// Auth state: we keep users logged in indefinitely (no expiration). Session is persisted
   /// by Supabase; sign-out only on user action (profile) or auth error (e.g. invalid refresh token).
   void initAuthListener() {
+    // Ensure token refresh is wired before we start relying on auth state.
+    SupabaseService.wireUpTokenAutoRefresh();
     final sub = SupabaseService.authStateChanges.listen((state) async {
       final isSignedIn = state.event == AuthChangeEvent.signedIn ||
           state.event == AuthChangeEvent.initialSession;
@@ -92,6 +94,8 @@ class AppStateNotifier extends ChangeNotifier {
           );
         }
       } else {
+        // If session is cleared, stop any pending token refresh.
+        SupabaseService.stopTokenAutoRefresh();
         if (RevenueCatService.instance.isSupported) {
           RevenueCatService.logFlow('Auth', 'signedOut — logOut');
           await RevenueCatService.instance.logOut();
