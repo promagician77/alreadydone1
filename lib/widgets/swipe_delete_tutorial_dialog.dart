@@ -208,19 +208,9 @@ class _SwipeDeleteTutorialOverlayState extends State<_SwipeDeleteTutorialOverlay
                             height: 1.55,
                           ),
                           children: [
-                            const TextSpan(text: 'Swipe any story '),
-                            TextSpan(
-                              text: 'left',
-                              style: GoogleFonts.outfit(
-                                fontSize: 15,
-                                height: 1.55,
-                                fontWeight: FontWeight.w700,
-                                color: _DoneTokens.ink,
-                              ),
-                            ),
                             const TextSpan(
                               text:
-                                  ' on Done to enter delete mode — this matches your library rows.',
+                                  'To delete a story from your library (:heavy_check_mark:Done), swipe left.',
                             ),
                           ],
                         ),
