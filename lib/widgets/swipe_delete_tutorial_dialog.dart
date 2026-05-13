@@ -207,37 +207,10 @@ class _SwipeDeleteTutorialOverlayState extends State<_SwipeDeleteTutorialOverlay
                             color: _DoneTokens.inkMid,
                             height: 1.55,
                           ),
-                          children: [
-                            const TextSpan(
-                              text: 'To delete a story from your library (',
-                            ),
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.baseline,
-                              baseline: TextBaseline.alphabetic,
-                              child: Transform.translate(
-                                offset: const Offset(0, 1),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.check_circle,
-                                      size: 15,
-                                      color: _DoneTokens.gold,
-                                    ),
-                                    Text(
-                                      ' Done',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 15,
-                                        color: _DoneTokens.inkMid,
-                                        height: 1.55,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const TextSpan(
-                              text: '), swipe left.',
+                          children: const [
+                            TextSpan(
+                              text:
+                                  'To delete a story from your library, swipe left and click on the trash icon.',
                             ),
                           ],
                         ),
