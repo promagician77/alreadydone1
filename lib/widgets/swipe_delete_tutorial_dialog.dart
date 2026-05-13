@@ -209,8 +209,21 @@ class _SwipeDeleteTutorialOverlayState extends State<_SwipeDeleteTutorialOverlay
                           ),
                           children: [
                             const TextSpan(
-                              text:
-                                  'To delete a story from your library (✅Done), swipe left.',
+                              text: 'To delete a story from your library (',
+                            ),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 1),
+                                child: Icon(
+                                  Icons.check_circle,
+                                  size: 16,
+                                  color: _DoneTokens.gold,
+                                ),
+                              ),
+                            ),
+                            const TextSpan(
+                              text: 'Done), swipe left.',
                             ),
                           ],
                         ),
