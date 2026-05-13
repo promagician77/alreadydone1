@@ -35,6 +35,7 @@ class AppUpdatePromptService {
     late final String currentVersion;
     try {
       final pkg = await PackageInfo.fromPlatform();
+      debugPrint('AppUpdatePrompt: pkg: $pkg');
       currentBuild = int.tryParse(pkg.buildNumber) ?? 0;
       debugPrint('AppUpdatePrompt: currentBuild: $currentBuild');
       currentVersion = pkg.version;
@@ -45,6 +46,7 @@ class AppUpdatePromptService {
 
     final payload = await BackendClient.fetchMobileAppUpdateInfo();
     debugPrint('AppUpdatePrompt: payload: $payload');
+    debugPrint("payload.latestBuild: ${payload?.latestBuild}");
 
     if (payload == null) return;
     if (currentBuild >= payload.latestBuild) return;
