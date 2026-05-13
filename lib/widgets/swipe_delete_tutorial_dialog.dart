@@ -216,15 +216,28 @@ class _SwipeDeleteTutorialOverlayState extends State<_SwipeDeleteTutorialOverlay
                               baseline: TextBaseline.alphabetic,
                               child: Transform.translate(
                                 offset: const Offset(0, 1),
-                                child: const Icon(
-                                  Icons.check_circle,
-                                  size: 15,
-                                  color: _DoneTokens.gold,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      size: 15,
+                                      color: _DoneTokens.gold,
+                                    ),
+                                    Text(
+                                      ' Done',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 15,
+                                        color: _DoneTokens.inkMid,
+                                        height: 1.55,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                             const TextSpan(
-                              text: '\u00A0Done), swipe left.',
+                              text: '), swipe left.',
                             ),
                           ],
                         ),
