@@ -12,12 +12,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/backend_client.dart';
+import '/utils/app_release_compare.dart';
 
 class AppUpdatePromptService {
   AppUpdatePromptService._();
 
   static const _kSnoozeUntilMs = 'app_update_snooze_until_ms';
   static const _kDismissedLatestBuild = 'app_update_dismissed_latest_build';
+  static const _kDismissedFingerprint = 'app_update_dismissed_fingerprint';
   static const _androidPackageId = 'com.mycompany.alreadyapp';
 
   static const Duration _snooze = Duration(days: 3);
@@ -46,13 +48,19 @@ class AppUpdatePromptService {
 
     final payload = await BackendClient.fetchMobileAppUpdateInfo();
     debugPrint('AppUpdatePrompt: payload: $payload');
-    debugPrint("payload.latestBuild: ${payload?.latestBuild}");
 
     if (payload == null) return;
-    if (currentBuild >= payload.latestBuild) return;
+    if (!isRemoteAppReleaseNewer(
+      latestVersion: payload.latestVersion,
+      latestBuild: payload.latestBuild,
+      currentVersion: currentVersion,
+      currentBuild: currentBuild,
+    )) {
+      return;
+    }
 
     final prefs = await SharedPreferences.getInstance();
-    if (!_shouldShowAfterSnooze(prefs, payload.latestBuild)) return;
+    if (!_shouldShowAfterSnooze(prefs, payload)) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_showDialog(
@@ -64,13 +72,46 @@ class AppUpdatePromptService {
     });
   }
 
-  static bool _shouldShowAfterSnooze(SharedPreferences prefs, int latestBuild) {
-    final dismissedFor = prefs.getInt(_kDismissedLatestBuild) ?? -1;
+  static bool _shouldShowAfterSnooze(
+    SharedPreferences prefs,
+    MobileAppUpdatePayload payload,
+  ) {
     final snoozeUntil = prefs.getInt(_kSnoozeUntilMs) ?? 0;
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (latestBuild > dismissedFor) return true;
     if (now >= snoozeUntil) return true;
-    return false;
+
+    final lv = payload.latestVersion?.trim();
+    final hasSemver = lv != null && lv.isNotEmpty;
+    if (hasSemver) {
+      final sig = prefs.getString(_kDismissedFingerprint);
+      if (sig != null && sig.isNotEmpty) {
+        return isRemoteNewerThanFingerprint(
+          latestVersion: payload.latestVersion,
+          latestBuild: payload.latestBuild,
+          dismissedFingerprint: sig,
+        );
+      }
+      final legacy = prefs.getInt(_kDismissedLatestBuild);
+      if (legacy != null) {
+        return payload.latestBuild > legacy;
+      }
+      return true;
+    }
+
+    final dismissedFor = prefs.getInt(_kDismissedLatestBuild) ?? -1;
+    return payload.latestBuild > dismissedFor;
+  }
+
+  /// Stored when the user taps Later (must match backend ordering: version then build).
+  static String _dismissFingerprint(MobileAppUpdatePayload p) {
+    final plus = p.latestVersionPlus?.trim();
+    if (plus != null && plus.isNotEmpty) return plus;
+    final v = p.latestVersion?.trim();
+    if (v != null && v.isNotEmpty) {
+      if (p.latestBuild > 0) return '$v+${p.latestBuild}';
+      return v;
+    }
+    return '';
   }
 
   static String? _storeUrlForPlatform(MobileAppUpdatePayload p) {
@@ -176,10 +217,20 @@ class AppUpdatePromptService {
     final intro = (extra != null && extra.isNotEmpty)
         ? '$extra\n\n$_defaultBody'
         : _defaultBody;
+    final latestLabel = (payload.latestVersionPlus != null &&
+            payload.latestVersionPlus!.trim().isNotEmpty)
+        ? payload.latestVersionPlus!.trim()
+        : (payload.latestVersion != null && payload.latestVersion!.isNotEmpty)
+            ? (payload.latestBuild > 0
+                ? '${payload.latestVersion}+${payload.latestBuild}'
+                : payload.latestVersion!)
+            : 'build ${payload.latestBuild}';
+    final yoursLabel = currentBuild > 0
+        ? '$currentVersion+$currentBuild'
+        : currentVersion;
     final versionSummary = (payload.latestVersion != null &&
             payload.latestVersion!.isNotEmpty)
-        ? 'Latest: ${payload.latestVersion} (build ${payload.latestBuild})\n'
-            'Yours: $currentVersion (build $currentBuild)'
+        ? 'Latest: $latestLabel\nYours: $yoursLabel'
         : 'Latest build: ${payload.latestBuild}\nYours: $currentBuild';
 
     // Use an OverlayEntry so navigation (e.g. splash -> login redirect) doesn't dismiss it.
@@ -209,7 +260,14 @@ class AppUpdatePromptService {
 
     Future<void> onLater() async {
       final now = DateTime.now().millisecondsSinceEpoch;
-      await prefs.setInt(_kDismissedLatestBuild, payload.latestBuild);
+      final fp = _dismissFingerprint(payload);
+      if (fp.isNotEmpty) {
+        await prefs.setString(_kDismissedFingerprint, fp);
+        await prefs.remove(_kDismissedLatestBuild);
+      } else {
+        await prefs.setInt(_kDismissedLatestBuild, payload.latestBuild);
+        await prefs.remove(_kDismissedFingerprint);
+      }
       await prefs.setInt(_kSnoozeUntilMs, now + _snooze.inMilliseconds);
       close();
     }
