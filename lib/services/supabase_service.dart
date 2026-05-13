@@ -39,8 +39,6 @@ class SupabaseService {
   static const Duration _refreshLeeway = Duration(minutes: 2);
   static const Duration _minRefreshDelay = Duration(seconds: 15);
 
-  /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
-  /// auth state listener) cannot both observe "no row" and insert duplicates.
   static Future<void> _ensureUserProfileChain = Future<void>.value();
 
   static Future<void> _runEnsureUserProfileSerialized(
@@ -67,7 +65,6 @@ class SupabaseService {
       debug: false,
     );
 
-    // Start token refresh scheduling after initialization.
     _startAuthAutoRefresh();
   }
 
@@ -627,7 +624,10 @@ class SupabaseService {
 
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
-  /// Handle auth callback from magic link (e.g. email change confirmation).
+  static void wireUpTokenAutoRefresh() => _startAuthAutoRefresh();
+
+  static void stopTokenAutoRefresh() => _stopAuthAutoRefresh();
+
   static Future<String?> handleAuthCallbackUrl(String url) async {
     final uri = Uri.parse(url);
     if (!uri.toString().contains('auth/callback')) return null;
@@ -644,9 +644,13 @@ class SupabaseService {
     return client.auth.currentUser?.email;
   }
 
-  /// Ensures the current session is valid and refreshed if it's near expiry.
-  ///
-  /// Safe to call often (e.g. before backend requests).
+  static Future<String?> getValidAccessToken({
+    Duration minTtl = const Duration(minutes: 5),
+  }) async {
+    await ensureFreshSession(minTtl: minTtl);
+    return client.auth.currentSession?.accessToken;
+  }
+
   static Future<void> ensureFreshSession({
     Duration minTtl = const Duration(minutes: 5),
   }) async {
@@ -665,18 +669,13 @@ class SupabaseService {
   static DateTime? _sessionExpiresAt(Session session) {
     final raw = session.expiresAt;
     if (raw == null) return null;
-    // Supabase Dart uses seconds-since-epoch for expiresAt.
     return DateTime.fromMillisecondsSinceEpoch(raw * 1000);
   }
 
   static void _startAuthAutoRefresh() {
-    // Avoid duplicate listeners/timers (initialize can be called in tests).
     _stopAuthAutoRefresh();
-
-    // Schedule immediately based on the current session.
     _scheduleNextRefresh(client.auth.currentSession);
 
-    // Reschedule whenever the session changes.
     _authRefreshSub = client.auth.onAuthStateChange.listen((state) {
       _scheduleNextRefresh(state.session);
     });
@@ -706,18 +705,13 @@ class SupabaseService {
       try {
         await _refreshSerialized();
       } catch (_) {
-        // Best-effort. If refresh fails (e.g. revoked refresh token),
-        // subsequent calls will surface auth errors and UI should re-auth.
       } finally {
-        // If refresh succeeded, onAuthStateChange will reschedule.
-        // If it failed, try again later while session remains present.
         _scheduleNextRefresh(client.auth.currentSession);
       }
     });
   }
 
   static Future<void> _refreshSerialized() {
-    // Deduplicate concurrent refresh attempts.
     _refreshChain = _refreshChain.then((_) async {
       final session = client.auth.currentSession;
       if (session == null) return;
