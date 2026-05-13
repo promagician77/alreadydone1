@@ -210,7 +210,7 @@ class _SwipeDeleteTutorialOverlayState extends State<_SwipeDeleteTutorialOverlay
                           children: [
                             const TextSpan(
                               text:
-                                  'To delete a story from your library (:heavy_check_mark:Done), swipe left.',
+                                  'To delete a story from your library (✅Done), swipe left.',
                             ),
                           ],
                         ),
