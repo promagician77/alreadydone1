@@ -290,6 +290,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       ('✦', 'Career/Business'),
       ('🌿', 'Health'),
       ('🏠', 'Home'),
+      ('🌱', 'Personal Development'),
     ];
     return Scaffold(
       backgroundColor: AuthTheme.warmWhite,
