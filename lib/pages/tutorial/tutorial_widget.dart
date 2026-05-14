@@ -403,7 +403,7 @@ class _CategoryPreview extends StatelessWidget {
               _CategoryTile(icon: Icons.home_rounded, label: 'Home'),
               _CategoryTile(
                   icon: Icons.self_improvement_rounded,
-                  label: 'Personal Development'),
+                  label: 'Personal Growth'),
             ],
           ),
         ),

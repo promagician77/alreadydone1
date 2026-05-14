@@ -39,7 +39,7 @@ class OnboardingState {
     'Career/Business',
     'Health',
     'Home',
-    'Personal Development',
+    'Personal Growth',
   ];
 
   Map<String, dynamic> toStoryRequestBody(int? userTableId, {String? timezone}) {
