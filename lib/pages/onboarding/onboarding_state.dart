@@ -33,7 +33,14 @@ class OnboardingState {
   bool autoUploadVoiceCloneOnNextEntry = false;
 
   static const List<String> energyWords = ['Powerful', 'Peaceful', 'Abundant', 'Grateful', 'Confident'];
-  static const List<String> categories = ['Love', 'Money', 'Career/Business', 'Health', 'Home'];
+  static const List<String> categories = [
+    'Love',
+    'Money',
+    'Career/Business',
+    'Health',
+    'Home',
+    'Personal Growth',
+  ];
 
   Map<String, dynamic> toStoryRequestBody(int? userTableId, {String? timezone}) {
     final firstName = firstNameController.text.trim();
@@ -116,7 +123,9 @@ class OnboardingState {
     if (lovedOne.isNotEmpty) inst.lovedOneController.text = lovedOne;
     if (desireDescription.isNotEmpty) inst.desireDescriptionController.text = desireDescription;
     if (data['selectedEnergyWord'] is int) inst.selectedEnergyWord = data['selectedEnergyWord'] as int;
-    if (data['selectedCategory'] is int) inst.selectedCategory = data['selectedCategory'] as int;
+    if (data['selectedCategory'] is int) {
+      inst.selectedCategory = (data['selectedCategory'] as int).clamp(0, categories.length - 1);
+    }
     return step;
   }
 

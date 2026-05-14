@@ -123,6 +123,8 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           {'id': '2', 'name': 'Money'},
           {'id': '3', 'name': 'Career/Business'},
           {'id': '4', 'name': 'Health'},
+          {'id': '5', 'name': 'Home'},
+          {'id': '6', 'name': 'Personal Growth'},
         ];
       }
 
@@ -230,6 +232,8 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           {'id': '2', 'name': 'Money'},
           {'id': '3', 'name': 'Career/Business'},
           {'id': '4', 'name': 'Health'},
+          {'id': '5', 'name': 'Home'},
+          {'id': '6', 'name': 'Personal Growth'},
         ];
         _categories = _mockCategories();
         _headerCategory = 'Love · Already Complete';

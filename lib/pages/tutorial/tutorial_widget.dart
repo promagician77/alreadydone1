@@ -391,7 +391,7 @@ class _CategoryPreview extends StatelessWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
-            childAspectRatio: 1.75,
+            childAspectRatio: 1.65,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: const [
@@ -400,6 +400,10 @@ class _CategoryPreview extends StatelessWidget {
               _CategoryTile(icon: Icons.attach_money_rounded, label: 'Money'),
               _CategoryTile(icon: Icons.work_rounded, label: 'Career/Business'),
               _CategoryTile(icon: Icons.spa_rounded, label: 'Health'),
+              _CategoryTile(icon: Icons.home_rounded, label: 'Home'),
+              _CategoryTile(
+                  icon: Icons.self_improvement_rounded,
+                  label: 'Personal Growth'),
             ],
           ),
         ),

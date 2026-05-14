@@ -285,11 +285,12 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   @override
   Widget build(BuildContext context) {
     const categories = [
-      ('♡', 'Love'),
-      (r'$', 'Money'),
-      ('✦', 'Career/Business'),
-      ('🌿', 'Health'),
+      ('❤️', 'Love'),
+      ('💰', 'Money'),
+      ('💼', 'Career/Business'),
+      ('🌟', 'Health'),
       ('🏠', 'Home'),
+      ('✨', 'Personal Growth'),
     ];
     return Scaffold(
       backgroundColor: AuthTheme.warmWhite,

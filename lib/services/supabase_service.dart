@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -13,12 +12,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '/pages/onboarding/onboarding_state.dart';
 import '/services/onboarding_service.dart';
+import '/services/persistent_device_id_service.dart';
 
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
 const String oauthRedirectUrl = 'alreadydone://alreadydone.app/auth/callback';
-
-/// Thrown when sign-up is attempted with an email that is already registered.
+  
 class EmailAlreadyRegisteredException implements Exception {
   const EmailAlreadyRegisteredException();
   @override
@@ -31,14 +30,8 @@ class SupabaseService {
 
   static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
 
-  static Timer? _refreshTimer;
-  static StreamSubscription<AuthState>? _authRefreshSub;
-  static Future<void> _refreshChain = Future<void>.value();
-
-  // Refresh a bit before expiry to avoid 401s during requests.
-  static const Duration _refreshLeeway = Duration(minutes: 2);
-  static const Duration _minRefreshDelay = Duration(seconds: 15);
-
+  /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
+  /// auth state listener) cannot both observe "no row" and insert duplicates.
   static Future<void> _ensureUserProfileChain = Future<void>.value();
 
   static Future<void> _runEnsureUserProfileSerialized(
@@ -63,6 +56,10 @@ class SupabaseService {
       url: url,
       anonKey: anonKey,
       debug: false,
+      authOptions: const FlutterAuthClientOptions(
+        autoRefreshToken: true,
+        detectSessionInUri: true,
+      ),
     );
 
     _startAuthAutoRefresh();
@@ -219,7 +216,6 @@ class SupabaseService {
       );
 
       try {
-        // Avoid maybeSingle() — duplicate legacy rows would throw; limit(1) is safe.
         final result = await client
             .from('Users')
             .select('id, name')
@@ -231,7 +227,6 @@ class SupabaseService {
             : Map<String, dynamic>.from(rows.first as Map);
 
         if (existing != null) {
-          // Only overwrite if the stored name is blank or an email-prefix placeholder.
           final storedName = (existing['name'] as String?)?.trim() ?? '';
           if (_isPlaceholderName(storedName)) {
             await client
@@ -257,17 +252,10 @@ class SupabaseService {
     if (kIsWeb) return null;
     try {
       switch (defaultTargetPlatform) {
-        case TargetPlatform.android: {
-          final info = await _deviceInfo.androidInfo;
-          final map = info.data;
-          final androidId = (map['androidId'] as String?)?.trim() ?? '';
-          final picked = androidId.isNotEmpty ? androidId : info.id.trim();
-          return picked.isEmpty ? null : picked;
-        }
+        case TargetPlatform.android:
+          return PersistentDeviceIdService.getAndroidPersistentDeviceId();
         case TargetPlatform.iOS:
-          final info = await _deviceInfo.iosInfo;
-          final id = info.identifierForVendor;
-          return (id ?? '').trim().isEmpty ? null : id!.trim();
+          return PersistentDeviceIdService.getIosPersistentDeviceId();
         default:
           return null;
       }
@@ -443,17 +431,12 @@ class SupabaseService {
         throw Exception('Apple Sign-In: no identity token');
       }
 
-      // Step 1 — authenticate with Supabase.
       await client.auth.signInWithIdToken(
         provider: OAuthProvider.apple,
         idToken: idToken,
         nonce: rawNonce,
       );
 
-      // Step 2 — build the full name from the Apple credential.
-      // Apple only returns givenName / familyName on the FIRST sign-in.
-      // On subsequent logins both will be null — ensureUserProfileFromAuth
-      // will then skip overwriting an already-valid stored name.
       String? fullName;
       if ((credential.givenName?.isNotEmpty ?? false) ||
           (credential.familyName?.isNotEmpty ?? false)) {
@@ -465,19 +448,14 @@ class SupabaseService {
         if (fullName.isEmpty) fullName = null;
       }
 
-      // Step 3 — update Supabase auth metadata (best-effort, non-blocking for DB write).
       if (fullName != null) {
         await client.auth.updateUser(
           UserAttributes(data: {'full_name': fullName}),
         );
       }
 
-      // Step 4 — upsert the Users table row with the real name, not the email prefix.
-      // We pass fullName as overrideName so the DB write uses it directly,
-      // independent of whether the metadata update above has propagated yet.
       await ensureUserProfileFromAuth(overrideName: fullName);
 
-      // Step 5 — prefill onboarding first name.
       _prefillOnboardingFirstName(
         firstName: credential.givenName,
         fullName: fullName ??
@@ -585,14 +563,11 @@ class SupabaseService {
       );
       debugPrint('$_tag Supabase signInWithIdToken SUCCESS. Session: ${client.auth.currentSession != null}');
 
-      // Upsert Users table with the real Google display name as override,
-      // avoiding any race condition with metadata propagation.
       final displayName = googleUser.displayName?.trim();
       await ensureUserProfileFromAuth(
         overrideName: (displayName != null && displayName.isNotEmpty) ? displayName : null,
       );
 
-      // Prefill onboarding first name from Google display name / user metadata.
       _prefillOnboardingFirstName(
         fullName: googleUser.displayName ??
             (client.auth.currentUser?.userMetadata?['full_name'] as String?) ??
@@ -624,23 +599,28 @@ class SupabaseService {
 
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
-  static void wireUpTokenAutoRefresh() => _startAuthAutoRefresh();
-
-  static void stopTokenAutoRefresh() => _stopAuthAutoRefresh();
-
+  /// Handle auth callback from magic link (e.g. email change confirmation).
   static Future<String?> handleAuthCallbackUrl(String url) async {
     final uri = Uri.parse(url);
     if (!uri.toString().contains('auth/callback')) return null;
 
-    String? refreshToken;
-    final fragment = uri.fragment;
-    if (fragment.isNotEmpty) {
-      final params = Uri.splitQueryString(fragment);
-      refreshToken = params['refresh_token'];
-    }
-    if (refreshToken == null || refreshToken.isEmpty) return null;
+    final hasPkceCode = uri.queryParameters.containsKey('code');
+    final fragmentParams = uri.fragment.isNotEmpty
+        ? Uri.splitQueryString(uri.fragment)
+        : const <String, String>{};
+    final hasImplicitTokens = fragmentParams.containsKey('access_token') ||
+        fragmentParams.containsKey('refresh_token');
 
-    await client.auth.setSession(refreshToken);
+    if (hasPkceCode || hasImplicitTokens) {
+      try {
+        await client.auth.getSessionFromUrl(uri);
+      } on AuthException catch (_) {
+        if (client.auth.currentSession == null && client.auth.currentUser == null) {
+          return null;
+        }
+      }
+    }
+
     return client.auth.currentUser?.email;
   }
 
