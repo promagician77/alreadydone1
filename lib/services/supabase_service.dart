@@ -62,6 +62,27 @@ class SupabaseService {
   static User? get currentUser => client.auth.currentUser;
   static bool get isAuthenticated => currentUser != null;
 
+  static void wireUpTokenAutoRefresh() {
+    client.auth.startAutoRefresh();
+  }
+
+  static void stopTokenAutoRefresh() {
+    client.auth.stopAutoRefresh();
+  }
+
+  static Future<String?> getValidAccessToken() async {
+    final session = client.auth.currentSession;
+    if (session == null) return null;
+    if (session.isExpired) {
+      try {
+        await client.auth.refreshSession();
+      } catch (_) {
+        return null;
+      }
+    }
+    return client.auth.currentSession?.accessToken;
+  }
+
   static Future<String?> waitForCurrentUserId({
     Duration timeout = const Duration(seconds: 2),
   }) async {
