@@ -17,8 +17,7 @@ import '/services/persistent_device_id_service.dart';
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
 const String oauthRedirectUrl = 'alreadydone://alreadydone.app/auth/callback';
-
-/// Thrown when sign-up is attempted with an email that is already registered.
+  
 class EmailAlreadyRegisteredException implements Exception {
   const EmailAlreadyRegisteredException();
   @override
@@ -29,8 +28,6 @@ class EmailAlreadyRegisteredException implements Exception {
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
-  /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
-  /// auth state listener) cannot both observe "no row" and insert duplicates.
   static Future<void> _ensureUserProfileChain = Future<void>.value();
 
   static Future<void> _runEnsureUserProfileSerialized(
@@ -55,6 +52,10 @@ class SupabaseService {
       url: url,
       anonKey: anonKey,
       debug: false,
+      authOptions: const FlutterAuthClientOptions(
+        autoRefreshToken: true,
+        detectSessionInUri: true,
+      ),
     );
   }
 
@@ -209,7 +210,6 @@ class SupabaseService {
       );
 
       try {
-        // Avoid maybeSingle() — duplicate legacy rows would throw; limit(1) is safe.
         final result = await client
             .from('Users')
             .select('id, name')
@@ -221,7 +221,6 @@ class SupabaseService {
             : Map<String, dynamic>.from(rows.first as Map);
 
         if (existing != null) {
-          // Only overwrite if the stored name is blank or an email-prefix placeholder.
           final storedName = (existing['name'] as String?)?.trim() ?? '';
           if (_isPlaceholderName(storedName)) {
             await client
@@ -425,17 +424,12 @@ class SupabaseService {
         throw Exception('Apple Sign-In: no identity token');
       }
 
-      // Step 1 — authenticate with Supabase.
       await client.auth.signInWithIdToken(
         provider: OAuthProvider.apple,
         idToken: idToken,
         nonce: rawNonce,
       );
 
-      // Step 2 — build the full name from the Apple credential.
-      // Apple only returns givenName / familyName on the FIRST sign-in.
-      // On subsequent logins both will be null — ensureUserProfileFromAuth
-      // will then skip overwriting an already-valid stored name.
       String? fullName;
       if ((credential.givenName?.isNotEmpty ?? false) ||
           (credential.familyName?.isNotEmpty ?? false)) {
@@ -447,19 +441,14 @@ class SupabaseService {
         if (fullName.isEmpty) fullName = null;
       }
 
-      // Step 3 — update Supabase auth metadata (best-effort, non-blocking for DB write).
       if (fullName != null) {
         await client.auth.updateUser(
           UserAttributes(data: {'full_name': fullName}),
         );
       }
 
-      // Step 4 — upsert the Users table row with the real name, not the email prefix.
-      // We pass fullName as overrideName so the DB write uses it directly,
-      // independent of whether the metadata update above has propagated yet.
       await ensureUserProfileFromAuth(overrideName: fullName);
 
-      // Step 5 — prefill onboarding first name.
       _prefillOnboardingFirstName(
         firstName: credential.givenName,
         fullName: fullName ??
@@ -567,14 +556,11 @@ class SupabaseService {
       );
       debugPrint('$_tag Supabase signInWithIdToken SUCCESS. Session: ${client.auth.currentSession != null}');
 
-      // Upsert Users table with the real Google display name as override,
-      // avoiding any race condition with metadata propagation.
       final displayName = googleUser.displayName?.trim();
       await ensureUserProfileFromAuth(
         overrideName: (displayName != null && displayName.isNotEmpty) ? displayName : null,
       );
 
-      // Prefill onboarding first name from Google display name / user metadata.
       _prefillOnboardingFirstName(
         fullName: googleUser.displayName ??
             (client.auth.currentUser?.userMetadata?['full_name'] as String?) ??
@@ -606,20 +592,34 @@ class SupabaseService {
 
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
-  /// Handle auth callback from magic link (e.g. email change confirmation).
+  /// Resolves OAuth / magic-link / email-confirm callbacks into a persisted session.
+  ///
+  /// Supabase returns **access_token**, **refresh_token**, and **expires_in** (PKCE:
+  /// `?code=…`; implicit flow: hash fragment). [GoTrueClient.getSessionFromUrl]
+  /// applies all of them so [Session.expiresIn] / JWT `exp` and auto-refresh behave
+  /// correctly. If [SupabaseAuth] already consumed a one-time PKCE `code`, we catch
+  /// [AuthException] and still return the current user's email when a session exists.
   static Future<String?> handleAuthCallbackUrl(String url) async {
     final uri = Uri.parse(url);
     if (!uri.toString().contains('auth/callback')) return null;
 
-    String? refreshToken;
-    final fragment = uri.fragment;
-    if (fragment.isNotEmpty) {
-      final params = Uri.splitQueryString(fragment);
-      refreshToken = params['refresh_token'];
-    }
-    if (refreshToken == null || refreshToken.isEmpty) return null;
+    final hasPkceCode = uri.queryParameters.containsKey('code');
+    final fragmentParams = uri.fragment.isNotEmpty
+        ? Uri.splitQueryString(uri.fragment)
+        : const <String, String>{};
+    final hasImplicitTokens = fragmentParams.containsKey('access_token') ||
+        fragmentParams.containsKey('refresh_token');
 
-    await client.auth.setSession(refreshToken);
+    if (hasPkceCode || hasImplicitTokens) {
+      try {
+        await client.auth.getSessionFromUrl(uri);
+      } on AuthException catch (_) {
+        if (client.auth.currentSession == null && client.auth.currentUser == null) {
+          return null;
+        }
+      }
+    }
+
     return client.auth.currentUser?.email;
   }
 }

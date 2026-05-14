@@ -70,8 +70,9 @@ class AppStateNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Auth state: we keep users logged in indefinitely (no expiration). Session is persisted
-  /// by Supabase; sign-out only on user action (profile) or auth error (e.g. invalid refresh token).
+  /// Auth state: Supabase persists access + refresh tokens and refreshes the access
+  /// token before JWT expiry. Sign-out on user action, or when refresh fails (invalid /
+  /// revoked refresh token), which clears the local session.
   void initAuthListener() {
     final sub = SupabaseService.authStateChanges.listen((state) async {
       final isSignedIn = state.event == AuthChangeEvent.signedIn ||
