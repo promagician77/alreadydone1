@@ -592,13 +592,6 @@ class SupabaseService {
 
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
-  /// Resolves OAuth / magic-link / email-confirm callbacks into a persisted session.
-  ///
-  /// Supabase returns **access_token**, **refresh_token**, and **expires_in** (PKCE:
-  /// `?code=…`; implicit flow: hash fragment). [GoTrueClient.getSessionFromUrl]
-  /// applies all of them so [Session.expiresIn] / JWT `exp` and auto-refresh behave
-  /// correctly. If [SupabaseAuth] already consumed a one-time PKCE `code`, we catch
-  /// [AuthException] and still return the current user's email when a session exists.
   static Future<String?> handleAuthCallbackUrl(String url) async {
     final uri = Uri.parse(url);
     if (!uri.toString().contains('auth/callback')) return null;

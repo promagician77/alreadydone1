@@ -264,7 +264,9 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: PasswordResetWidget.routeName,
           path: PasswordResetWidget.routePath,
-          builder: (context, params) => PasswordResetWidget(),
+          builder: (context, params) => PasswordResetWidget(
+            initialEmail: params.getParam('email', ParamType.String),
+          ),
         ),
         FFRoute(
           name: EmailVerificationWidget.routeName,

@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
-import '/flutter_flow/nav/nav.dart';
 import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
 import 'password_reset_model.dart';
 export 'password_reset_model.dart';
 
 class PasswordResetWidget extends StatefulWidget {
-  const PasswordResetWidget({super.key});
+  const PasswordResetWidget({super.key, this.initialEmail});
+
+  /// When opened from sign-up (or elsewhere) with `?email=`, pre-fills the field.
+  final String? initialEmail;
 
   static String routeName = 'PasswordReset';
   static String routePath = '/passwordReset';
@@ -26,6 +28,10 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => PasswordResetModel());
+    final prefill = widget.initialEmail?.trim();
+    if (prefill != null && prefill.isNotEmpty) {
+      _model.emailTextController.text = prefill;
+    }
   }
 
   @override
