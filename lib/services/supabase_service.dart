@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -13,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '/pages/onboarding/onboarding_state.dart';
 import '/services/onboarding_service.dart';
+import '/services/persistent_device_id_service.dart';
 
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 
@@ -28,8 +28,6 @@ class EmailAlreadyRegisteredException implements Exception {
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
-
-  static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
 
   /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
   /// auth state listener) cannot both observe "no row" and insert duplicates.
@@ -249,17 +247,10 @@ class SupabaseService {
     if (kIsWeb) return null;
     try {
       switch (defaultTargetPlatform) {
-        case TargetPlatform.android: {
-          final info = await _deviceInfo.androidInfo;
-          final map = info.data;
-          final androidId = (map['androidId'] as String?)?.trim() ?? '';
-          final picked = androidId.isNotEmpty ? androidId : info.id.trim();
-          return picked.isEmpty ? null : picked;
-        }
+        case TargetPlatform.android:
+          return PersistentDeviceIdService.getAndroidPersistentDeviceId();
         case TargetPlatform.iOS:
-          final info = await _deviceInfo.iosInfo;
-          final id = info.identifierForVendor;
-          return (id ?? '').trim().isEmpty ? null : id!.trim();
+          return PersistentDeviceIdService.getIosPersistentDeviceId();
         default:
           return null;
       }
