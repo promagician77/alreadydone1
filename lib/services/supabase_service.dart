@@ -389,6 +389,25 @@ class SupabaseService {
     );
   }
 
+  static Future<AuthResponse> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) async {
+    return await client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.recovery,
+    );
+  }
+
+  /// Sets a new password after [verifyRecoveryOtp], then signs out so the user can log in.
+  static Future<void> completePasswordRecovery({
+    required String newPassword,
+  }) async {
+    await client.auth.updateUser(UserAttributes(password: newPassword));
+    await signOut();
+  }
+
   static Future<void> updatePassword({
     required String currentPassword,
     required String newPassword,

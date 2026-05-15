@@ -130,7 +130,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         if (!isAuth && !isAuthRoute) {
           return LoginWidget.routePath;
         }
+        final isPasswordRecoveryOtp =
+            path == EmailVerificationWidget.routePath &&
+            state.uri.queryParameters['recovery'] == '1';
+
         if (isAuth && isAuthRoute) {
+          if (isPasswordRecoveryOtp) return null;
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed)
             return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
@@ -280,6 +285,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
               email: params.getParam('email', ParamType.String) ?? '',
               isEmailChange:
                   params.getParam('changeEmail', ParamType.String) == '1',
+              isPasswordRecovery:
+                  params.getParam('recovery', ParamType.String) == '1',
               userId: userId,
             );
           },
