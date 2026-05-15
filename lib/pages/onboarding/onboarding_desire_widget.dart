@@ -286,7 +286,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   Widget build(BuildContext context) {
     const categories = [
       ('❤️', 'Love'),
-      ('💰', 'Money'),
+      ('💰', 'Money/Lifestyle'),
       ('💼', 'Career/Business'),
       ('🌟', 'Health'),
       ('🏠', 'Home'),

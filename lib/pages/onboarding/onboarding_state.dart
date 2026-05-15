@@ -35,7 +35,7 @@ class OnboardingState {
   static const List<String> energyWords = ['Powerful', 'Peaceful', 'Abundant', 'Grateful', 'Confident'];
   static const List<String> categories = [
     'Love',
-    'Money',
+    'Money/Lifestyle',
     'Career/Business',
     'Health',
     'Home',

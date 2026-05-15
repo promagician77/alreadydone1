@@ -77,7 +77,7 @@ export default function NewManifestationCoachmark() {
                   Love (0)
                 </div>
                 <div style={{ padding: '6px 14px', borderRadius: '20px', border: `1px solid ${c.border}`, background: c.bgCard, fontSize: '12px', color: c.textMuted, fontFamily: c.sans, fontWeight: 500, whiteSpace: 'nowrap' }}>
-                  Money (7)
+                  Money/Lifestyle (7)
                 </div>
               </div>
 
