@@ -4,6 +4,7 @@ import '/pages/auth/auth_theme.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
+import '/pages/email_verification/email_verification_widget.dart';
 import 'password_reset_model.dart';
 export 'password_reset_model.dart';
 
@@ -79,7 +80,7 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "We'll send you a link to create a new one",
+                        "We'll email you an 8-digit code to reset your password",
                         textAlign: TextAlign.center,
                         style: AuthTheme.welcomeSubStyle,
                       ),
@@ -93,7 +94,7 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 8),
-                      _primaryButton('Send Reset Link', _handlePasswordReset),
+                      _primaryButton('Send reset code', _handlePasswordReset),
                       if (_model.isLoading)
                         const Padding(
                           padding: EdgeInsets.only(top: 16),
@@ -169,8 +170,13 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
       await SupabaseService.resetPasswordForEmail(email);
 
       if (mounted) {
-        AppToast.success(context, 'Password reset link sent! Please check your email.');
-        context.go('/login');
+        AppToast.success(
+          context,
+          'Reset code sent! Check your email for the 8-digit code.',
+        );
+        context.go(
+          '${EmailVerificationWidget.routePath}?email=${Uri.encodeQueryComponent(email)}&recovery=1',
+        );
       }
     } catch (e) {
       if (mounted) {

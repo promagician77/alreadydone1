@@ -15,11 +15,13 @@ class EmailVerificationWidget extends StatefulWidget {
     super.key,
     required this.email,
     this.isEmailChange = false,
+    this.isPasswordRecovery = false,
     this.userId,
   });
 
   final String email;
   final bool isEmailChange;
+  final bool isPasswordRecovery;
   final int? userId;
 
   static String routeName = 'EmailVerification';
@@ -71,9 +73,7 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new, size: 22),
                     color: AuthTheme.gold,
-                    onPressed: () => context.go(
-                      widget.isEmailChange ? '/profile' : '/signUp',
-                    ),
+                    onPressed: _handleBack,
                   ),
                 ),
               ),
@@ -87,22 +87,55 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                       const Center(child: WaveformIcon()),
                       const SizedBox(height: 20),
                       Text(
-                        'Verify your email',
+                        _titleText,
                         textAlign: TextAlign.center,
                         style: AuthTheme.welcomeTitleStyle,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Enter the verification code we sent to\n${widget.email}',
+                        _subtitleText,
                         textAlign: TextAlign.center,
                         style: AuthTheme.welcomeSubStyle,
                       ),
                       const SizedBox(height: 24),
-                      _label('Verification code'),
-                      const SizedBox(height: 6),
-                      _codeInput(),
-                      const SizedBox(height: 16),
-                      _primaryButton('Verify', _handleVerify),
+                      if (widget.isPasswordRecovery) ...[
+                        _label('Verification code'),
+                        const SizedBox(height: 6),
+                        _codeInput(),
+                        const SizedBox(height: 16),
+                        _label('New password'),
+                        const SizedBox(height: 6),
+                        _passwordInput(
+                          controller: _model.passwordTextController,
+                          focusNode: _model.passwordFocusNode,
+                          hint: '8+ chars, upper/lower, number, symbol',
+                          obscureText: _model.obscurePassword,
+                          onObscuredToggle: () => setState(
+                            () => _model.obscurePassword = !_model.obscurePassword,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _label('Confirm password'),
+                        const SizedBox(height: 6),
+                        _passwordInput(
+                          controller: _model.confirmPasswordTextController,
+                          focusNode: _model.confirmPasswordFocusNode,
+                          hint: 'Re-enter your password',
+                          obscureText: _model.obscureConfirmPassword,
+                          onObscuredToggle: () => setState(
+                            () => _model.obscureConfirmPassword =
+                                !_model.obscureConfirmPassword,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _primaryButton('Reset password', _handlePasswordRecovery),
+                      ] else ...[
+                        _label('Verification code'),
+                        const SizedBox(height: 6),
+                        _codeInput(),
+                        const SizedBox(height: 16),
+                        _primaryButton('Verify', _handleVerify),
+                      ],
                       if (_model.isLoading)
                         const Padding(
                           padding: EdgeInsets.only(top: 16),
@@ -130,17 +163,9 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                       const SizedBox(height: 8),
                       Center(
                         child: TextButton(
-                          onPressed: _model.isLoading
-                              ? null
-                              : () => context.go(
-                                    widget.isEmailChange
-                                        ? '/profile'
-                                        : '/signUp',
-                                  ),
+                          onPressed: _model.isLoading ? null : _handleBack,
                           child: Text(
-                            widget.isEmailChange
-                                ? 'Back to profile'
-                                : 'Back to sign up',
+                            _backLinkLabel,
                             style: GoogleFonts.outfit(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -162,6 +187,59 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
   }
 
   Widget _label(String text) => Text(text, style: AuthTheme.labelStyle);
+
+  String get _backRoute {
+    if (widget.isEmailChange) return '/profile';
+    if (widget.isPasswordRecovery) return '/passwordReset';
+    return '/signUp';
+  }
+
+  String get _backLinkLabel {
+    if (widget.isEmailChange) return 'Back to profile';
+    if (widget.isPasswordRecovery) return 'Back to reset password';
+    return 'Back to sign up';
+  }
+
+  String get _titleText {
+    if (widget.isPasswordRecovery) return 'Reset your password';
+    return 'Verify your email';
+  }
+
+  String get _subtitleText {
+    if (widget.isPasswordRecovery) {
+      return 'Enter the 8-digit code and your new password for\n${widget.email}';
+    }
+    return 'Enter the verification code we sent to\n${widget.email}';
+  }
+
+  Future<void> _handleBack() async {
+    if (widget.isPasswordRecovery && SupabaseService.isAuthenticated) {
+      try {
+        await SupabaseService.signOut();
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    context.go(_backRoute);
+  }
+
+  String? _getPasswordValidationError(String password) {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Password must include at least one uppercase letter.';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
+      return 'Password must include at least one lowercase letter.';
+    }
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
+      return 'Password must include at least one number.';
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>_\-\\/\[\];`~+=]').hasMatch(password)) {
+      return 'Password must include at least one special character.';
+    }
+    return null;
+  }
 
   static const int _codeDigitCount = 8;
   static const double _codeBoxGap = 8;
@@ -268,6 +346,49 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     );
   }
 
+  Widget _passwordInput({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String hint,
+    required bool obscureText,
+    required VoidCallback onObscuredToggle,
+  }) {
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      obscureText: obscureText,
+      style: AuthTheme.bodyStyle,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: AuthTheme.placeholderStyle,
+        filled: true,
+        fillColor: AuthTheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AuthTheme.stone),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AuthTheme.gold),
+        ),
+        suffixIcon: IconButton(
+          tooltip: obscureText ? 'Show password' : 'Hide password',
+          icon: Icon(
+            obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            color: AuthTheme.inkMid,
+            size: 22,
+          ),
+          onPressed: onObscuredToggle,
+        ),
+      ),
+    );
+  }
+
   Widget _primaryButton(String label, VoidCallback? onPressed) {
     return Material(
       color: _model.isLoading ? AuthTheme.goldDark : AuthTheme.gold,
@@ -346,11 +467,71 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     }
   }
 
+  Future<void> _handlePasswordRecovery() async {
+    final code = _model.codeTextController.text.trim();
+    final password = _model.passwordTextController.text;
+    final confirmPassword = _model.confirmPasswordTextController.text;
+
+    if (code.length < 6 || code.length > 8) {
+      AppToast.info(context, 'Please enter the 8-digit code from your email');
+      return;
+    }
+
+    if (password.isEmpty || confirmPassword.isEmpty) {
+      AppToast.info(context, 'Please enter and confirm your new password');
+      return;
+    }
+
+    final passwordError = _getPasswordValidationError(password);
+    if (passwordError != null) {
+      AppToast.info(context, passwordError);
+      return;
+    }
+
+    if (password != confirmPassword) {
+      AppToast.info(context, 'Passwords do not match.');
+      return;
+    }
+
+    setState(() => _model.isLoading = true);
+
+    try {
+      final response = await SupabaseService.verifyRecoveryOtp(
+        email: widget.email,
+        token: code,
+      );
+      if (response.user == null) {
+        throw Exception('Invalid or expired code');
+      }
+
+      await SupabaseService.completePasswordRecovery(newPassword: password);
+
+      if (mounted) {
+        AppToast.success(
+          context,
+          'Password updated! Please sign in with your new password.',
+        );
+        context.go('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
+        AppToast.error(context, msg.isEmpty ? 'Could not reset password' : msg);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _model.isLoading = false);
+      }
+    }
+  }
+
   Future<void> _handleResendCode() async {
     setState(() => _model.isLoading = true);
 
     try {
-      if (widget.isEmailChange) {
+      if (widget.isPasswordRecovery) {
+        await SupabaseService.resetPasswordForEmail(widget.email);
+      } else if (widget.isEmailChange) {
         await SupabaseService.updateUserEmail(widget.email);
       } else {
         await SupabaseService.sendEmailOtp(email: widget.email);
