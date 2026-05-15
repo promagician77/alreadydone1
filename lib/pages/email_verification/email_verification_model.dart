@@ -11,7 +11,6 @@ class EmailVerificationModel extends FlutterFlowModel<EmailVerificationWidget> {
   final confirmPasswordTextController = TextEditingController();
 
   bool isLoading = false;
-  bool recoveryOtpVerified = false;
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
 

@@ -98,13 +98,11 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                         style: AuthTheme.welcomeSubStyle,
                       ),
                       const SizedBox(height: 24),
-                      if (!_showPasswordStep) ...[
+                      if (widget.isPasswordRecovery) ...[
                         _label('Verification code'),
                         const SizedBox(height: 6),
                         _codeInput(),
                         const SizedBox(height: 16),
-                        _primaryButton(_verifyButtonLabel, _handleVerify),
-                      ] else ...[
                         _label('New password'),
                         const SizedBox(height: 6),
                         _passwordInput(
@@ -130,7 +128,13 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        _primaryButton('Update password', _handleUpdatePassword),
+                        _primaryButton('Reset password', _handlePasswordRecovery),
+                      ] else ...[
+                        _label('Verification code'),
+                        const SizedBox(height: 6),
+                        _codeInput(),
+                        const SizedBox(height: 16),
+                        _primaryButton('Verify', _handleVerify),
                       ],
                       if (_model.isLoading)
                         const Padding(
@@ -141,22 +145,21 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                           ),
                         ),
                       const SizedBox(height: 16),
-                      if (!_showPasswordStep)
-                        Center(
-                          child: TextButton(
-                            onPressed:
-                                _model.isLoading ? null : _handleResendCode,
-                            child: Text(
-                              'Resend code',
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: AuthTheme.gold,
-                                decoration: TextDecoration.underline,
-                              ),
+                      Center(
+                        child: TextButton(
+                          onPressed:
+                              _model.isLoading ? null : _handleResendCode,
+                          child: Text(
+                            'Resend code',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AuthTheme.gold,
+                              decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
+                      ),
                       const SizedBox(height: 8),
                       Center(
                         child: TextButton(
@@ -185,9 +188,6 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
 
   Widget _label(String text) => Text(text, style: AuthTheme.labelStyle);
 
-  bool get _showPasswordStep =>
-      widget.isPasswordRecovery && _model.recoveryOtpVerified;
-
   String get _backRoute {
     if (widget.isEmailChange) return '/profile';
     if (widget.isPasswordRecovery) return '/passwordReset';
@@ -201,33 +201,24 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
   }
 
   String get _titleText {
-    if (widget.isPasswordRecovery) {
-      return _showPasswordStep ? 'Create new password' : 'Enter reset code';
-    }
+    if (widget.isPasswordRecovery) return 'Reset your password';
     return 'Verify your email';
   }
 
   String get _subtitleText {
     if (widget.isPasswordRecovery) {
-      if (_showPasswordStep) {
-        return 'Choose a new password for\n${widget.email}';
-      }
-      return 'Enter the 8-digit code we sent to\n${widget.email}';
+      return 'Enter the 8-digit code and your new password for\n${widget.email}';
     }
     return 'Enter the verification code we sent to\n${widget.email}';
   }
 
-  String get _verifyButtonLabel =>
-      widget.isPasswordRecovery ? 'Continue' : 'Verify';
-
   Future<void> _handleBack() async {
-    if (_showPasswordStep) {
+    if (widget.isPasswordRecovery && SupabaseService.isAuthenticated) {
       try {
         await SupabaseService.signOut();
       } catch (_) {}
-      if (!mounted) return;
-      setState(() => _model.recoveryOtpVerified = false);
     }
+    if (!mounted) return;
     context.go(_backRoute);
   }
 
@@ -426,18 +417,6 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     setState(() => _model.isLoading = true);
 
     try {
-      if (widget.isPasswordRecovery) {
-        final response = await SupabaseService.verifyRecoveryOtp(
-          email: widget.email,
-          token: code,
-        );
-        if (response.user != null && mounted) {
-          setState(() => _model.recoveryOtpVerified = true);
-          AppToast.success(context, 'Code verified. Choose your new password.');
-        }
-        return;
-      }
-
       final response = widget.isEmailChange
           ? await SupabaseService.verifyEmailChangeOtp(
               email: widget.email,
@@ -488,9 +467,15 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     }
   }
 
-  Future<void> _handleUpdatePassword() async {
+  Future<void> _handlePasswordRecovery() async {
+    final code = _model.codeTextController.text.trim();
     final password = _model.passwordTextController.text;
     final confirmPassword = _model.confirmPasswordTextController.text;
+
+    if (code.length < 6 || code.length > 8) {
+      AppToast.info(context, 'Please enter the 8-digit code from your email');
+      return;
+    }
 
     if (password.isEmpty || confirmPassword.isEmpty) {
       AppToast.info(context, 'Please enter and confirm your new password');
@@ -511,7 +496,16 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     setState(() => _model.isLoading = true);
 
     try {
+      final response = await SupabaseService.verifyRecoveryOtp(
+        email: widget.email,
+        token: code,
+      );
+      if (response.user == null) {
+        throw Exception('Invalid or expired code');
+      }
+
       await SupabaseService.completePasswordRecovery(newPassword: password);
+
       if (mounted) {
         AppToast.success(
           context,
@@ -522,7 +516,7 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     } catch (e) {
       if (mounted) {
         final msg = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
-        AppToast.error(context, msg.isEmpty ? 'Could not update password' : msg);
+        AppToast.error(context, msg.isEmpty ? 'Could not reset password' : msg);
       }
     } finally {
       if (mounted) {
