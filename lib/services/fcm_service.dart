@@ -1,14 +1,22 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart'
     show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
+import '/flutter_flow/nav/nav.dart';
 import 'backend_client.dart';
 import 'supabase_service.dart';
 
 const String _kAndroidChannelId = 'fcm_default_channel';
 const String _kAndroidChannelName = 'Notifications';
+
+const String _kDailyCategory = 'DAILY_STORY';
+const String _kDailyRoute = '/onboarding/desire';
+const String _kActionLater = 'later';
+const String _kActionCreateStory = 'create_story';
 
 class FcmService {
   FcmService._();
@@ -51,6 +59,12 @@ class FcmService {
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
       FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpenedApp);
+
+      final initialMessage =
+          await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        _handleRemoteMessageData(initialMessage.data);
+      }
     } catch (e) {
       debugPrint('FcmService init error: $e');
     }
@@ -58,17 +72,35 @@ class FcmService {
 
   static Future<void> _initLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings(
-      requestAlertPermission: false, // already requested via FCM
+    final iosInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
       requestBadgePermission: false,
+      notificationCategories: [
+        DarwinNotificationCategory(
+          _kDailyCategory,
+          actions: <DarwinNotificationAction>[
+            DarwinNotificationAction.plain(
+              _kActionLater,
+              'Later',
+            ),
+            DarwinNotificationAction.plain(
+              _kActionCreateStory,
+              'Create Story',
+              options: <DarwinNotificationActionOption>{
+                DarwinNotificationActionOption.foreground,
+              },
+            ),
+          ],
+        ),
+      ],
     );
-    const initSettings = InitializationSettings(
+    final initSettings = InitializationSettings(
       android: androidInit,
       iOS: iosInit,
     );
     await _localNotifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (_) {},
+      onDidReceiveNotificationResponse: _onNotificationResponse,
     );
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
@@ -81,17 +113,38 @@ class FcmService {
         enableVibration: true,
       );
       final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
-          _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          _localNotifications
+              .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin>();
       await androidPlugin?.createNotificationChannel(channel);
     }
+  }
+
+  static void _onNotificationResponse(NotificationResponse response) {
+    Map<String, String> data = {};
+    final payload = response.payload;
+    if (payload != null && payload.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(payload);
+        if (decoded is Map) {
+          data = decoded.map(
+            (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+          );
+        }
+      } catch (e) {
+        debugPrint('FCM notification payload parse error: $e');
+      }
+    }
+    _handleNotificationAction(
+      data: data,
+      actionId: response.actionId,
+    );
   }
 
   /// Get the current FCM token. Returns null if not available.
   /// On iOS, explicitly waits for APNs token before requesting FCM token.
   static Future<String?> getToken() async {
     try {
-      // iOS: APNS token must be available before FCM can generate its token.
-      // Explicitly wait for it with retries.
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         String? apnsToken =
             await FirebaseMessaging.instance.getAPNSToken();
@@ -122,7 +175,6 @@ class FcmService {
   }
 
   static void _onForegroundMessage(RemoteMessage message) {
-    // Prefer notification payload; fall back to data for data-only messages
     final String title = message.notification?.title ??
         message.data['title'] ??
         'Notification';
@@ -131,26 +183,50 @@ class FcmService {
         message.data['message'] ??
         '';
     debugPrint('FCM foreground: $title - $body');
-    _showLocalNotification(title: title, body: body);
+    _showLocalNotification(
+      title: title,
+      body: body,
+      data: message.data.map(
+        (key, value) => MapEntry(key, value?.toString() ?? ''),
+      ),
+    );
   }
 
   static Future<void> _showLocalNotification({
     required String title,
     required String body,
+    Map<String, String>? data,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    final isDaily = data?['type'] == 'daily';
+    final androidDetails = AndroidNotificationDetails(
       _kAndroidChannelId,
       _kAndroidChannelName,
       channelDescription: 'Push notifications from Already Done',
       importance: Importance.high,
       priority: Priority.high,
+      actions: isDaily
+          ? <AndroidNotificationAction>[
+              const AndroidNotificationAction(
+                _kActionLater,
+                'Later',
+                showsUserInterface: false,
+                cancelNotification: true,
+              ),
+              const AndroidNotificationAction(
+                _kActionCreateStory,
+                'Create Story',
+                showsUserInterface: true,
+              ),
+            ]
+          : null,
     );
-    const iosDetails = DarwinNotificationDetails(
+    final iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      categoryIdentifier: isDaily ? _kDailyCategory : null,
     );
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -159,12 +235,60 @@ class FcmService {
       title,
       body,
       details,
+      payload: data != null && data.isNotEmpty ? jsonEncode(data) : null,
     );
   }
 
   static void _onMessageOpenedApp(RemoteMessage message) {
     debugPrint(
         'FCM opened from background: ${message.notification?.title}');
+    _handleRemoteMessageData(message.data);
+  }
+
+  static void _handleRemoteMessageData(Map<String, dynamic> data) {
+    _handleNotificationAction(
+      data: data.map(
+        (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+      ),
+    );
+  }
+
+  static void _handleNotificationAction({
+    required Map<String, String> data,
+    String? actionId,
+  }) {
+    if (actionId == _kActionLater) {
+      return;
+    }
+
+    final route = data['route']?.trim();
+    final type = data['type']?.trim();
+
+    if (actionId == _kActionCreateStory) {
+      _navigateToRoute(
+        (route != null && route.isNotEmpty) ? route : _kDailyRoute,
+      );
+      return;
+    }
+
+    if (type == 'daily') {
+      _navigateToRoute(
+        (route != null && route.isNotEmpty) ? route : _kDailyRoute,
+      );
+      return;
+    }
+
+    if (route != null && route.isNotEmpty) {
+      _navigateToRoute(route);
+    }
+  }
+
+  static void _navigateToRoute(String route) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = appNavigatorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      GoRouter.of(ctx).go(route);
+    });
   }
 
   static void _onTokenRefresh(String newToken) {
@@ -193,16 +317,13 @@ class FcmService {
     }
   }
 
-  /// Call when user signs in (e.g. from auth state listener) to send token to backend.
   static Future<void> onUserSignedIn() async {
     await _registerTokenWithBackend();
   }
 
-  /// Call when app resumes so the latest token is sent (e.g. if it was refreshed while app was in background).
   static Future<void> onAppResumed() async {
     await _registerTokenWithBackend();
   }
 
-  /// Call when user signs out (optional: clear token on backend).
   static Future<void> onUserSignedOut() async {}
 }
