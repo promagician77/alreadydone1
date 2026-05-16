@@ -89,9 +89,9 @@ class _SomeoneYouLoveSheetState extends State<SomeoneYouLoveSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     buildSheetHeader(
-                      title: 'Someone You Love',
+                      title: 'Someone You Love (Romantic)',
                       subtitle:
-                          'A special person to include in your stories (optional)',
+                          'A special romantic person to include in your stories (optional)',
                     ),
                     const SizedBox(height: 20),
                     TextField(

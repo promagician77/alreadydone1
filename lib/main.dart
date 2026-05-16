@@ -15,12 +15,12 @@ import '/services/revenuecat_service.dart';
 import '/services/fcm_service.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:upgrader/upgrader.dart';
 import 'flutter_flow/nav/nav.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '/env_loader.dart';
 import '/services/app_toast.dart';
 import '/services/server_toast.dart';
-import '/services/app_update_prompt_service.dart';
 import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
@@ -107,12 +107,6 @@ Future<void> _initializeAppDeferred() async {
     }
   } catch (e) {
     debugPrint('Backend check failed: $e');
-  }
-
-  try {
-    await AppUpdatePromptService.checkAndMaybeShow();
-  } catch (e) {
-    debugPrint('Update prompt check failed: $e');
   }
 
   if (!kIsWeb && firebaseInitialized) {
@@ -294,6 +288,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       ),
       themeMode: _themeMode,
       routerConfig: _router,
+      builder: (context, child) {
+        if (kIsWeb) {
+          return child ?? const SizedBox.shrink();
+        }
+        return UpgradeAlert(
+          navigatorKey: appNavigatorKey,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

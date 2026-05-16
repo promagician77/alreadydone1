@@ -92,6 +92,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.0
   in_app_review: ^2.0.11
+  upgrader: ^13.3.0
 
 dependency_overrides:
   http: 1.4.0
