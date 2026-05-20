@@ -185,6 +185,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildTrialBadge() {
+    final annualSelected = _model.selectedPlan == 1;
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -205,7 +206,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           ],
         ),
         child: Text(
-          '✨ Start Your 3-Day Free Trial',
+          annualSelected
+              ? '✨ Start Your 3-Day Free Trial (Annual Plan)'
+              : '✨ Annual plan includes a 3-day free trial',
           style: GoogleFonts.outfit(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -224,8 +227,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           plan: 'Monthly',
           price: '\$14.99',
           period: '/month',
-          isRecommended: true,
-          savingsLabel: 'Save 30% vs weekly plan',
+          isRecommended: false,
+          savingsLabel: 'No free trial',
           features: const [
             'Daily manifestation stories',
             'Clone your own voice',
@@ -237,16 +240,16 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         ),
         const SizedBox(height: 12),
         _buildPricingCard(
-          plan: 'Weekly',
-          price: '\$4.99',
-          period: '/week',
-          isRecommended: false,
-          savingsLabel: null,
+          plan: 'Yearly',
+          price: '\$99.99',
+          period: '/year',
+          isRecommended: true,
+          savingsLabel: '[SAVE 44%] -> only \$8.33/month',
           features: const [
             'Daily manifestation stories',
             'Clone your own voice',
             'Sleep Mode with theta waves',
-            'Professional voice available',
+            'Professional voices available',
           ],
           isSelected: _model.selectedPlan == 1,
           onTap: () => safeSetState(() => _model.selectedPlan = 1),
@@ -417,30 +420,37 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildCtaButton() {
-    final label =
-        _model.isSubscribed ? 'Update Plan' : 'Start Free Trial';
+    final hasAnnualTrial = _model.selectedPlan == 1;
+    final label = _model.isSubscribed
+        ? 'Update Plan'
+        : (hasAnnualTrial ? 'Start 3-Day Free Trial' : 'Start Subscription');
     return _ctaButton(
       label: label,
-      onTap: () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed),
+      onTap: _handleConfirmPayment,
     );
   }
 
-  Package? _findPackage(Offerings? offerings, {required bool wantMonthly}) {
+  Package? _findPackage(Offerings? offerings, {required bool wantAnnual}) {
     final packages = offerings?.current?.availablePackages ?? [];
     for (final p in packages) {
       final id = p.identifier.toLowerCase();
-      final isMonthly = id.contains('monthly') || id.contains('month') || id.contains(r'$rc_monthly');
-      final isWeekly = id.contains('weekly') || id.contains('week') || id.contains(r'$rc_weekly');
-      if (wantMonthly && isMonthly) return p;
-      if (!wantMonthly && isWeekly) return p;
+      final isMonthly =
+          id.contains('monthly') || id.contains('month') || id.contains(r'$rc_monthly');
+      final isAnnual = id.contains('annual') ||
+          id.contains('yearly') ||
+          id.contains('year') ||
+          id.contains(r'$rc_annual');
+      if (wantAnnual && isAnnual) return p;
+      if (!wantAnnual && isMonthly) return p;
     }
     // Fallback: if only one plan exists, use it (dashboard may have single package)
     if (packages.length == 1) return packages.first;
     return null;
   }
 
-  Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
+  Future<void> _handleConfirmPayment() async {
     if (_model.isPaymentLoading) return;
+    final isStartTrial = _model.selectedPlan == 1;
 
     RevenueCatService.logFlow(
       'OnboardingPay',
@@ -478,12 +488,12 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       await RevenueCatService.instance.ensureReady(appUserId: userId.toString());
 
       final offerings = await RevenueCatService.instance.getOfferings();
-      final wantMonthly = _model.selectedPlan == 0;
-      final package = _findPackage(offerings, wantMonthly: wantMonthly);
+      final wantAnnual = _model.selectedPlan == 1;
+      final package = _findPackage(offerings, wantAnnual: wantAnnual);
       if (package == null) {
         RevenueCatService.logFlow(
           'OnboardingPay',
-          '_handleConfirmPayment: package NOT FOUND wantMonthly=$wantMonthly',
+          '_handleConfirmPayment: package NOT FOUND wantAnnual=$wantAnnual',
         );
         if (!mounted) return;
         AppToast.error(
@@ -703,7 +713,9 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Widget _buildSecondaryText() {
     return Text(
-      'Free for 3 days, then \$4.99/week or \$14.99/month.\nCancel anytime in settings.',
+      'Monthly: \$14.99 (no free trial).\n'
+      'Annual: 3 days free, then \$99.99/year ([SAVE 44%] -> only \$8.33/month).\n'
+      'Cancel anytime in settings.',
       style: GoogleFonts.outfit(
         fontSize: 11,
         color: AuthTheme.inkSoft,
@@ -732,7 +744,6 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     );
   }
 
-  /// When paywall is shown during onboarding (returnTo set), show a link to continue without subscribing.
   Widget _buildContinueWithoutSubscribing() {
     final returnTo = GoRouterState.of(context).uri.queryParameters['returnTo'];
     if (returnTo == null || returnTo.isEmpty) return const SizedBox.shrink();
