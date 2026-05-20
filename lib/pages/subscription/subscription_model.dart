@@ -10,11 +10,14 @@ class SubscriptionModel extends FlutterFlowModel<SubscriptionWidget> {
   /// True when user has stripe_subscription_id (already subscribed).
   bool isSubscribed = false;
 
-  /// True when user's plan is monthly (show current plan; hide upgrade CTA when not canceled).
+  /// True when user's plan is monthly (show current plan; offer annual upgrade).
   bool isMonthlyPlan = false;
 
-  /// True when user's plan is weekly (show upgrade-to-monthly UI).
-  bool isWeeklyPlan = false;
+  /// True when user's plan is annual/yearly.
+  bool isAnnualPlan = false;
+
+  /// Legacy RevenueCat / backend plan still stored as weekly.
+  bool isLegacyWeeklyPlan = false;
 
   /// True when subscription_status is "trial" (show cancel payment button if monthly).
   bool isTrialing = false;
@@ -23,7 +26,7 @@ class SubscriptionModel extends FlutterFlowModel<SubscriptionWidget> {
   bool isCanceled = false;
 
   /// True after profile subscription state has been loaded. Until then, show loading placeholder
-  /// for pricing/CTA to avoid flashing wrong layout (e.g. default then weekly-upgrade).
+  /// for pricing/CTA to avoid flashing wrong layout (e.g. default then upgrade-to-annual).
   bool subscriptionStateLoaded = false;
 
   @override

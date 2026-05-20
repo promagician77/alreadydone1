@@ -1047,7 +1047,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     'active',
   ];
 
-  static const _sleepModeAllowedPlans = ['monthly', 'weekly'];
+  static const _sleepModeAllowedPlans = ['monthly', 'weekly', 'annual'];
 
   static bool _canUseSleepMode(String? status, String? plan) {
     final s = (status ?? '').toString().toLowerCase().trim();

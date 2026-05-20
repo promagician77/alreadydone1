@@ -27,7 +27,7 @@ class ProfileModel extends FlutterFlowModel<ProfileWidget> {
   /// Subscription status from profile (rc_subscription_status / rc_subscription_plan).
   bool isSubscribedFromRC = false;
   bool showUpgradeCardFromRC = false;
-  /// Label for Subscription row: 'Free', 'Weekly', 'Monthly', or 'Trial'.
+  /// Label for Subscription row: 'Free', 'Weekly' (legacy), 'Monthly', 'Annual', or 'Trial'.
   String subscriptionRowLabel = 'Free';
 
   @override

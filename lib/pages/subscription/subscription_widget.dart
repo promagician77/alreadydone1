@@ -16,7 +16,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'subscription_model.dart';
 export 'subscription_model.dart';
 
-/// Green accent for "current plan" card when user is on monthly.
+/// Green accent for "current plan" card when user is on annual.
 const Color _currentPlanGreen = Color(0xFF2E7D32);
 const Color _currentPlanGreenLight = Color(0xFFE8F5E9);
 
@@ -48,7 +48,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   /// Derive subscription/plan state from user profile so the correct theme shows:
-  /// when rc_subscription_plan is weekly, show weekly (current) + monthly "UPGRADE NOW" UI.
+  /// monthly → annual upgrade; annual → current + manage; legacy weekly → pick monthly or annual.
   Future<void> _loadProfileSubscriptionState() async {
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) {
@@ -66,21 +66,31 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           ?.toString()
           .trim()
           .toLowerCase();
-      final isWeeklyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('week');
-      final isMonthlyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('month') && !rcPlan.contains('week');
+      final isLegacyWeekly =
+          rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('week');
+      final isMonthlyPlan = rcPlan != null &&
+          rcPlan.isNotEmpty &&
+          rcPlan.contains('month') &&
+          !rcPlan.contains('week');
+      final isAnnualPlan = rcPlan != null &&
+          rcPlan.isNotEmpty &&
+          (rcPlan.contains('annual') ||
+              rcPlan.contains('yearly') ||
+              (rcPlan.contains('year') && !rcPlan.contains('week')));
       final isCanceled = rcStatus == 'canceled' || rcStatus == 'cancelled';
       RevenueCatService.logFlow(
         'Subscription',
         '_loadProfileSubscriptionState: rcStatus=$rcStatus rcPlan=$rcPlan '
-        'weekly=$isWeeklyPlan monthly=$isMonthlyPlan canceled=$isCanceled',
+        'legacyWeekly=$isLegacyWeekly monthly=$isMonthlyPlan annual=$isAnnualPlan canceled=$isCanceled',
       );
       safeSetState(() {
         _model.isSubscribed = rcStatus == 'active' || rcStatus == 'trial';
         _model.isMonthlyPlan = isMonthlyPlan;
-        _model.isWeeklyPlan = isWeeklyPlan;
+        _model.isAnnualPlan = isAnnualPlan;
+        _model.isLegacyWeeklyPlan = isLegacyWeekly;
         _model.isTrialing = rcStatus == 'trial';
         _model.isCanceled = isCanceled;
-        if (_model.selectedPlan == null) _model.selectedPlan = 0;
+        if (_model.selectedPlan == null) _model.selectedPlan = 1;
         _model.subscriptionStateLoaded = true;
       });
     } catch (e, st) {
@@ -95,6 +105,9 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     _model.dispose();
     super.dispose();
   }
+
+  bool get _hidePurchaseCta =>
+      _model.isSubscribed && !_model.isCanceled && _model.isAnnualPlan;
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +151,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                         _buildPricingCardsLoadingPlaceholder()
                       else ...[
                         _buildPricingCards(),
-                        if (!_model.isMonthlyPlan || _model.isCanceled) ...[
+                        if (!_hidePurchaseCta) ...[
                           const SizedBox(height: 24),
                           _buildCtaButton(),
                           if (_model.isSubscribed && !_model.isCanceled) ...[
@@ -220,6 +233,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildTrialBadge() {
+    final annualSelected = _model.selectedPlan == 1;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -238,7 +252,9 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         ],
       ),
       child: Text(
-        '✨ Start your 3-day free trial today',
+        annualSelected
+            ? '✨ Annual: 3-day free trial · \$99.99/year'
+            : 'Monthly: \$14.99 — no free trial',
         style: GoogleFonts.outfit(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -267,8 +283,47 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildPricingCards() {
-    // Monthly plan user: show Monthly (current) first, Weekly second. No upgrade CTA.
-    final isMonthlyView = _model.isMonthlyPlan && !_model.isCanceled;
+    const features = [
+      'Daily manifestation stories',
+      'Clone your own voice',
+      'Sleep Mode with theta waves',
+      'Professional voices available',
+    ];
+
+    // Annual subscriber: annual current, monthly secondary (no purchase CTA).
+    final isAnnualView = _model.isAnnualPlan && !_model.isCanceled && _model.isSubscribed;
+    if (isAnnualView) {
+      return Column(
+        children: [
+          _buildPricingCard(
+            plan: 'Yearly',
+            price: '\$99.99',
+            period: '/year',
+            savings: '[SAVE 44%] -> only \$8.33/month',
+            breakdown: '3-day free trial · Billed annually · Cancel anytime',
+            features: features,
+            isSelected: _model.selectedPlan == 1,
+            onTap: () => safeSetState(() => _model.selectedPlan = 1),
+            badgeLabel: 'CURRENT PLAN',
+          ),
+          const SizedBox(height: 10),
+          _buildPricingCard(
+            plan: 'Monthly',
+            price: '\$14.99',
+            period: '/month',
+            savings: 'No free trial',
+            breakdown: 'Billed monthly · Cancel anytime',
+            features: features,
+            isPopular: false,
+            isSelected: _model.selectedPlan == 0,
+            onTap: () => safeSetState(() => _model.selectedPlan = 0),
+          ),
+        ],
+      );
+    }
+
+    // Monthly subscriber: monthly current, annual upgrade.
+    final isMonthlyView = _model.isMonthlyPlan && !_model.isCanceled && _model.isSubscribed;
     if (isMonthlyView) {
       return Column(
         children: [
@@ -276,109 +331,52 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             plan: 'Monthly',
             price: '\$14.99',
             period: '/month',
-            savings: 'Save 30% vs weekly plan',
+            savings: 'No free trial',
             breakdown: 'Billed monthly · Cancel anytime',
-            features: [
-              'Daily manifestation stories',
-              'Clone your own voice',
-              'Sleep Mode with theta waves',
-              'Professional voice available',
-            ],
+            features: features,
             isSelected: _model.selectedPlan == 0,
             onTap: () => safeSetState(() => _model.selectedPlan = 0),
             badgeLabel: 'CURRENT PLAN',
           ),
           const SizedBox(height: 10),
           _buildPricingCard(
-            plan: 'Weekly',
-            price: '\$4.99',
-            period: '/week',
-            breakdown: 'Billed weekly · Cancel anytime',
-            features: [
-              'Daily manifestation stories',
-              'Clone your own voice',
-              'Sleep Mode with theta waves',
-              'Professional voice available',
-            ],
-            isPopular: false,
+            plan: 'Yearly',
+            price: '\$99.99',
+            period: '/year',
+            savings: '[SAVE 44%] -> only \$8.33/month',
+            breakdown: '3-day free trial · Billed annually · Cancel anytime',
+            features: features,
             isSelected: _model.selectedPlan == 1,
             onTap: () => safeSetState(() => _model.selectedPlan = 1),
-          ),
-        ],
-      );
-    }
-    // Weekly plan user: show Weekly (current) first, Monthly (upgrade) second.
-    final isWeeklyView = _model.isWeeklyPlan && !_model.isCanceled;
-    if (isWeeklyView) {
-      return Column(
-        children: [
-          _buildPricingCard(
-            plan: 'Weekly',
-            price: '\$4.99',
-            period: '/week',
-            breakdown: 'Billed weekly · Cancel anytime',
-            features: [
-              'Daily manifestation stories',
-              'Clone your own voice',
-              'Sleep Mode with theta waves',
-              'Professional voice available',
-            ],
-            isPopular: false,
-            isSelected: _model.selectedPlan == 1,
-            onTap: () => safeSetState(() => _model.selectedPlan = 1),
-            badgeLabel: 'CURRENT PLAN',
-          ),
-          const SizedBox(height: 10),
-          _buildPricingCard(
-            plan: 'Monthly',
-            price: '\$14.99',
-            period: '/month',
-            savings: 'Save 30% vs weekly plan',
-            breakdown: 'Billed monthly · Cancel anytime',
-            features: [
-              'Daily manifestation stories',
-              'Clone your own voice',
-              'Sleep Mode with theta waves',
-              'Professional voice available',
-            ],
-            isSelected: _model.selectedPlan == 0,
-            onTap: () => safeSetState(() => _model.selectedPlan = 0),
             badgeLabel: 'UPGRADE NOW',
           ),
         ],
       );
     }
-    // Not subscribed or canceled: show Monthly (best value) first, Weekly second.
+
+    // New, canceled, or legacy weekly: monthly + yearly (annual is best value).
     return Column(
       children: [
         _buildPricingCard(
           plan: 'Monthly',
           price: '\$14.99',
           period: '/month',
-          savings: 'BEST VALUE',
+          savings: 'No free trial',
           breakdown: 'Billed monthly · Cancel anytime',
-          features: [
-            'Daily manifestation stories',
-            'Clone your own voice',
-            'Sleep Mode with theta waves',
-            'Professional voice available',
-          ],
-          isPopular: true,
+          features: features,
+          isPopular: false,
           isSelected: _model.selectedPlan == 0,
           onTap: () => safeSetState(() => _model.selectedPlan = 0),
         ),
         const SizedBox(height: 10),
         _buildPricingCard(
-          plan: 'Weekly',
-          price: '\$4.99',
-          period: '/week',
-          breakdown: 'Billed weekly · Cancel anytime',
-          features: [
-            'Daily manifestation stories',
-            'Clone your own voice',
-            'Sleep Mode with theta waves',
-            'Professional voice available',
-          ],
+          plan: 'Yearly',
+          price: '\$99.99',
+          period: '/year',
+          savings: '[SAVE 44%] -> only \$8.33/month',
+          breakdown: '3-day free trial · Billed annually · Cancel anytime',
+          features: features,
+          isPopular: true,
           isSelected: _model.selectedPlan == 1,
           onTap: () => safeSetState(() => _model.selectedPlan = 1),
         ),
@@ -607,17 +605,27 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildCtaButton() {
-    final label = _model.isCanceled
-        ? 'Upgrade the Plan'
-        : (_model.isWeeklyPlan
-            ? 'Upgrade to Monthly'
-            : (_model.isSubscribed ? 'Upgrade the Plan' : 'Start Free Trial'));
-    final onTap = _model.isCanceled
-        ? () => _handleConfirmPayment(isStartTrial: false)
-        : (_model.isWeeklyPlan ? _handleChangeToMonthly : () => _handleConfirmPayment(isStartTrial: !_model.isSubscribed));
+    if (_model.isCanceled) {
+      return _ctaButton(
+        label: 'Upgrade the Plan',
+        onTap: () => _handleConfirmPayment(),
+      );
+    }
+    if (_model.isSubscribed && !_model.isCanceled && _model.isMonthlyPlan) {
+      return _ctaButton(
+        label: 'Upgrade to Annual',
+        onTap: _handleChangeToAnnual,
+      );
+    }
+    final isStartTrial = _model.selectedPlan == 1;
+    final label = _model.isSubscribed && !_model.isCanceled && _model.isLegacyWeeklyPlan
+        ? (isStartTrial ? 'Start 3-Day Free Trial' : 'Subscribe to Monthly')
+        : (_model.isSubscribed
+            ? 'Upgrade the Plan'
+            : (isStartTrial ? 'Start 3-Day Free Trial' : 'Start Subscription'));
     return _ctaButton(
       label: label,
-      onTap: onTap,
+      onTap: () => _handleConfirmPayment(),
     );
   }
 
@@ -654,12 +662,12 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     }
   }
 
-  /// Upgrade weekly → monthly: purchase the monthly package via RevenueCat.
-  Future<void> _handleChangeToMonthly() async {
+  /// Upgrade monthly (or similar) → annual: purchase the annual package via RevenueCat.
+  Future<void> _handleChangeToAnnual() async {
     if (_model.isPaymentLoading) return;
-    RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: start');
+    RevenueCatService.logFlow('Subscription', '_handleChangeToAnnual: start');
     if (!RevenueCatService.instance.isSupported) {
-      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: not supported');
+      RevenueCatService.logFlow('Subscription', '_handleChangeToAnnual: not supported');
       AppToast.error(
         context,
         'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
@@ -669,21 +677,24 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
     try {
       final userId = await SupabaseService.getCurrentUserTableId();
-      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: userId=$userId');
+      RevenueCatService.logFlow('Subscription', '_handleChangeToAnnual: userId=$userId');
+      if (userId != null) {
+        await RevenueCatService.instance.ensureReady(appUserId: userId.toString());
+      }
       final offerings = await RevenueCatService.instance.getOfferings();
-      final package = _findPackage(offerings, wantMonthly: true);
+      final package = _findPackage(offerings, wantAnnual: true);
       if (package == null) {
         RevenueCatService.logFlow(
           'Subscription',
-          '_handleChangeToMonthly: monthly package NOT FOUND',
+          '_handleChangeToAnnual: annual package NOT FOUND',
         );
         if (!mounted) return;
-        AppToast.error(context, 'Monthly plan not available. Please try later.');
+        AppToast.error(context, 'Annual plan not available. Please try later.');
         return;
       }
       RevenueCatService.logFlow(
         'Subscription',
-        '_handleChangeToMonthly: purchasing ${package.identifier}',
+        '_handleChangeToAnnual: purchasing ${package.identifier}',
       );
       final info = await RevenueCatService.instance.purchasePackage(package);
       if (!mounted) return;
@@ -691,7 +702,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         try {
           RevenueCatService.logFlow(
             'Subscription',
-            '_handleChangeToMonthly: syncing backend userId=$userId',
+            '_handleChangeToAnnual: syncing backend userId=$userId',
           );
           final payload = RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
           await BackendClient.updateUserRevenueCatSubscription(
@@ -704,18 +715,18 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         } catch (e, st) {
           RevenueCatService.logFlow(
             'Subscription',
-            '_handleChangeToMonthly: backend sync FAILED: $e',
+            '_handleChangeToAnnual: backend sync FAILED: $e',
           );
           debugPrint('$st');
         }
       }
-      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: success');
-      AppToast.success(context, 'Upgraded to Monthly!');
+      RevenueCatService.logFlow('Subscription', '_handleChangeToAnnual: success');
+      AppToast.success(context, 'Upgraded to Annual!');
       _goAfterSubscribe(context);
     } on PlatformException catch (e) {
       RevenueCatService.logFlow(
         'Subscription',
-        '_handleChangeToMonthly: PlatformException code=${e.code} message=${e.message}',
+        '_handleChangeToAnnual: PlatformException code=${e.code} message=${e.message}',
       );
       if (!mounted) return;
       if (PurchasesErrorHelper.getErrorCode(e) == PurchasesErrorCode.purchaseCancelledError) {
@@ -724,7 +735,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         AppToast.error(context, e.message ?? 'Upgrade failed');
       }
     } catch (e, st) {
-      RevenueCatService.logFlow('Subscription', '_handleChangeToMonthly: unexpected $e');
+      RevenueCatService.logFlow('Subscription', '_handleChangeToAnnual: unexpected $e');
       debugPrint('$st');
       if (!mounted) return;
       AppToast.error(
@@ -738,21 +749,25 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     }
   }
 
-  Package? _findPackage(Offerings? offerings, {required bool wantMonthly}) {
+  Package? _findPackage(Offerings? offerings, {required bool wantAnnual}) {
     final packages = offerings?.current?.availablePackages ?? [];
     for (final p in packages) {
       final id = p.identifier.toLowerCase();
-      final isMonthly = id.contains('monthly') || id.contains('month') || id.contains(r'$rc_monthly');
-      final isWeekly = id.contains('weekly') || id.contains('week') || id.contains(r'$rc_weekly');
-      if (wantMonthly && isMonthly) return p;
-      if (!wantMonthly && isWeekly) return p;
+      final isMonthly =
+          id.contains('monthly') || id.contains('month') || id.contains(r'$rc_monthly');
+      final isAnnual = id.contains('annual') ||
+          id.contains('yearly') ||
+          (id.contains('year') && !id.contains('week'));
+      if (wantAnnual && isAnnual) return p;
+      if (!wantAnnual && isMonthly) return p;
     }
     if (packages.length == 1) return packages.first;
     return null;
   }
 
-  Future<void> _handleConfirmPayment({required bool isStartTrial}) async {
+  Future<void> _handleConfirmPayment() async {
     if (_model.isPaymentLoading) return;
+    final isStartTrial = _model.selectedPlan == 1;
 
     RevenueCatService.logFlow(
       'Subscription',
@@ -783,17 +798,18 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     safeSetState(() => _model.isPaymentLoading = true);
 
     try {
+      await RevenueCatService.instance.ensureReady(appUserId: userId.toString());
       final offerings = await RevenueCatService.instance.getOfferings();
-      final wantMonthly = _model.selectedPlan == 0;
+      final wantAnnual = _model.selectedPlan == 1;
       RevenueCatService.logFlow(
         'Subscription',
-        '_handleConfirmPayment: wantMonthly=$wantMonthly userId=$userId',
+        '_handleConfirmPayment: wantAnnual=$wantAnnual userId=$userId',
       );
-      final package = _findPackage(offerings, wantMonthly: wantMonthly);
+      final package = _findPackage(offerings, wantAnnual: wantAnnual);
       if (package == null) {
         RevenueCatService.logFlow(
           'Subscription',
-          '_handleConfirmPayment: package NOT FOUND for wantMonthly=$wantMonthly',
+          '_handleConfirmPayment: package NOT FOUND for wantAnnual=$wantAnnual',
         );
         if (!mounted) return;
         AppToast.error(
@@ -954,7 +970,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         children: [
           const TextSpan(
             text:
-                'Free for 3 days, then \$4.99/week or \$14.99/month. Cancel anytime in settings. By continuing, you agree to our ',
+                'Monthly: \$14.99 (no free trial). Annual: 3 days free, then \$99.99/year ([SAVE 44%] -> only \$8.33/month). Cancel anytime in settings. By continuing, you agree to our ',
           ),
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,

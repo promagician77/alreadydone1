@@ -1,6 +1,5 @@
 import 'dart:developer' as developer;
 
-import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -200,7 +199,7 @@ class RevenueCatService {
         isSubscribed: false,
         isTrialing: false,
         isCanceled: false,
-        isWeeklyPlan: false,
+        isAnnualPlan: false,
         isMonthlyPlan: false,
       );
     }
@@ -214,11 +213,11 @@ class RevenueCatService {
 
       final productId = (entitlement?.productIdentifier ?? '').toLowerCase();
 
-      final isWeekly = productId.contains('weekly') ||
-          productId.contains('week') ||
-          productId.contains(r'$rc_weekly');
+      final isAnnual = productId.contains('annual') ||
+          productId.contains('yearly') ||
+          (productId.contains('year') && !productId.contains('week'));
 
-      final isMonthly = !isWeekly &&
+      final isMonthly = !isAnnual &&
           (productId.contains('monthly') ||
               productId.contains('month') ||
               productId.contains(r'$rc_monthly'));
@@ -227,14 +226,14 @@ class RevenueCatService {
 
       _log(
         'getSubscriptionStatus: computed active=$active trialing=$isTrialing '
-        'canceled=$isCanceled productId=$productId weekly=$isWeekly monthly=$isMonthly',
+        'canceled=$isCanceled productId=$productId annual=$isAnnual monthly=$isMonthly',
       );
 
       return RevenueCatSubscriptionStatus(
         isSubscribed: active,
         isTrialing: isTrialing,
         isCanceled: isCanceled,
-        isWeeklyPlan: isWeekly,
+        isAnnualPlan: isAnnual,
         isMonthlyPlan: isMonthly,
       );
     } catch (e, st) {
@@ -243,7 +242,7 @@ class RevenueCatService {
         isSubscribed: false,
         isTrialing: false,
         isCanceled: false,
-        isWeeklyPlan: false,
+        isAnnualPlan: false,
         isMonthlyPlan: false,
       );
     }
@@ -258,10 +257,6 @@ class RevenueCatService {
     try {
       _log('getOfferings: requesting Purchases.getOfferings()');
       final offerings = await Purchases.getOfferings();
-      if (offerings == null) {
-        _log('getOfferings: null response');
-        return null;
-      }
       final current = offerings.current;
       if (current == null) {
         _log(
@@ -279,7 +274,7 @@ class RevenueCatService {
         );
         if (packages.isEmpty) {
           _log(
-            'getOfferings: empty packages — add \$rc_weekly / \$rc_monthly '
+            'getOfferings: empty packages — add \$rc_annual / \$rc_monthly '
             'and ensure store products are approved and linked',
           );
         }
@@ -293,7 +288,7 @@ class RevenueCatService {
 
   Future<AvailablePlans> getAvailablePlans() async {
     if (!isSupported) {
-      return const AvailablePlans(weekly: null, monthly: null);
+      return const AvailablePlans(monthly: null, annual: null);
     }
     try {
       final offerings = await getOfferings();
@@ -304,31 +299,40 @@ class RevenueCatService {
         'ids=${packages.map((p) => p.identifier).join(", ")}',
       );
 
-      final weekly = packages.firstWhereOrNull(
-        (p) =>
-            p.packageType == PackageType.weekly ||
-            p.identifier == r'$rc_weekly' ||
-            p.identifier.toLowerCase().contains('weekly') ||
-            p.identifier.toLowerCase().contains('week'),
-      );
+      Package? annual;
+      for (final p in packages) {
+        final id = p.identifier.toLowerCase();
+        if (p.packageType == PackageType.annual ||
+            p.identifier == r'$rc_annual' ||
+            id.contains('annual') ||
+            id.contains('yearly') ||
+            (id.contains('year') && !id.contains('week'))) {
+          annual = p;
+          break;
+        }
+      }
 
-      final monthly = packages.firstWhereOrNull(
-        (p) =>
-            p.packageType == PackageType.monthly ||
+      Package? monthly;
+      for (final p in packages) {
+        final id = p.identifier.toLowerCase();
+        if (p.packageType == PackageType.monthly ||
             p.identifier == r'$rc_monthly' ||
-            p.identifier.toLowerCase().contains('monthly') ||
-            p.identifier.toLowerCase().contains('month'),
-      );
+            id.contains('monthly') ||
+            (id.contains('month') && !id.contains('year'))) {
+          monthly = p;
+          break;
+        }
+      }
 
       _log(
-        'getAvailablePlans: weekly=${weekly != null ? summarizePackage(weekly!) : "NOT FOUND"} | '
-        'monthly=${monthly != null ? summarizePackage(monthly!) : "NOT FOUND"}',
+        'getAvailablePlans: annual=${annual != null ? summarizePackage(annual) : "NOT FOUND"} | '
+        'monthly=${monthly != null ? summarizePackage(monthly) : "NOT FOUND"}',
       );
 
-      return AvailablePlans(weekly: weekly, monthly: monthly);
+      return AvailablePlans(monthly: monthly, annual: annual);
     } catch (e, st) {
       _log('getAvailablePlans: FAILED', error: e, stackTrace: st);
-      return const AvailablePlans(weekly: null, monthly: null);
+      return const AvailablePlans(monthly: null, annual: null);
     }
   }
 
@@ -434,13 +438,20 @@ class RevenueCatService {
     }
 
     final productId = (entitlement?.productIdentifier ?? '').toLowerCase();
-    final isWeekly = productId.contains('weekly') ||
-        productId.contains('week') ||
-        productId.contains(r'$rc_weekly');
-    final isMonthly = productId.contains('monthly') ||
-        productId.contains('month') ||
-        productId.contains(r'$rc_monthly');
-    final String plan = isWeekly ? 'weekly' : (isMonthly ? 'monthly' : 'unknown');
+    final isAnnual = productId.contains('annual') ||
+        productId.contains('yearly') ||
+        (productId.contains('year') && !productId.contains('week'));
+    final isWeekly = !isAnnual &&
+        (productId.contains('weekly') ||
+            productId.contains('week') ||
+            productId.contains(r'$rc_weekly'));
+    final isMonthly = !isAnnual &&
+        !isWeekly &&
+        (productId.contains('monthly') ||
+            productId.contains('month') ||
+            productId.contains(r'$rc_monthly'));
+    final String plan =
+        isAnnual ? 'annual' : (isWeekly ? 'weekly' : (isMonthly ? 'monthly' : 'unknown'));
 
     final payload = {
       'rc_customer_id': info.originalAppUserId,
@@ -462,16 +473,16 @@ class RevenueCatService {
 
 class AvailablePlans {
   const AvailablePlans({
-    required this.weekly,
     required this.monthly,
+    required this.annual,
   });
 
-  final Package? weekly;
   final Package? monthly;
+  final Package? annual;
 
-  bool get hasWeekly => weekly != null;
   bool get hasMonthly => monthly != null;
-  bool get hasAnyPlan => hasWeekly || hasMonthly;
+  bool get hasAnnual => annual != null;
+  bool get hasAnyPlan => hasMonthly || hasAnnual;
 }
 
 class RevenueCatSubscriptionStatus {
@@ -479,14 +490,14 @@ class RevenueCatSubscriptionStatus {
     required this.isSubscribed,
     required this.isTrialing,
     required this.isCanceled,
-    required this.isWeeklyPlan,
+    required this.isAnnualPlan,
     required this.isMonthlyPlan,
   });
 
   final bool isSubscribed;
   final bool isTrialing;
   final bool isCanceled;
-  final bool isWeeklyPlan;
+  final bool isAnnualPlan;
   final bool isMonthlyPlan;
 
   bool get isActiveAndRenewing => isSubscribed && !isCanceled;
