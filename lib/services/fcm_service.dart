@@ -218,7 +218,7 @@ class FcmService {
     final route = data['route']?.trim();
     final type = data['type']?.trim();
 
-    if (type == 'monday' || type == 'friday') {
+    if (type == 'monday' || type == 'thursday') {
       _navigateToRoute(
         (route != null && route.isNotEmpty) ? route : _kStoryReminderRoute,
       );
