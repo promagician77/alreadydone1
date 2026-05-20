@@ -13,10 +13,7 @@ import 'supabase_service.dart';
 const String _kAndroidChannelId = 'fcm_default_channel';
 const String _kAndroidChannelName = 'Notifications';
 
-const String _kDailyCategory = 'DAILY_STORY';
-const String _kDailyRoute = '/onboarding/desire';
-const String _kActionLater = 'later';
-const String _kActionCreateStory = 'create_story';
+const String _kMondayRoute = '/onboarding/desire';
 
 class FcmService {
   FcmService._();
@@ -72,27 +69,9 @@ class FcmService {
 
   static Future<void> _initLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    final iosInit = DarwinInitializationSettings(
+    const iosInit = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
-      notificationCategories: [
-        DarwinNotificationCategory(
-          _kDailyCategory,
-          actions: <DarwinNotificationAction>[
-            DarwinNotificationAction.plain(
-              _kActionLater,
-              'Later',
-            ),
-            DarwinNotificationAction.plain(
-              _kActionCreateStory,
-              'Create Story',
-              options: <DarwinNotificationActionOption>{
-                DarwinNotificationActionOption.foreground,
-              },
-            ),
-          ],
-        ),
-      ],
     );
     final initSettings = InitializationSettings(
       android: androidInit,
@@ -135,10 +114,7 @@ class FcmService {
         debugPrint('FCM notification payload parse error: $e');
       }
     }
-    _handleNotificationAction(
-      data: data,
-      actionId: response.actionId,
-    );
+    _handleNotificationTap(data: data);
   }
 
   /// Get the current FCM token. Returns null if not available.
@@ -197,36 +173,19 @@ class FcmService {
     required String body,
     Map<String, String>? data,
   }) async {
-    final isDaily = data?['type'] == 'daily';
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       _kAndroidChannelId,
       _kAndroidChannelName,
       channelDescription: 'Push notifications from Already Done',
       importance: Importance.high,
       priority: Priority.high,
-      actions: isDaily
-          ? <AndroidNotificationAction>[
-              const AndroidNotificationAction(
-                _kActionLater,
-                'Later',
-                showsUserInterface: false,
-                cancelNotification: true,
-              ),
-              const AndroidNotificationAction(
-                _kActionCreateStory,
-                'Create Story',
-                showsUserInterface: true,
-              ),
-            ]
-          : null,
     );
-    final iosDetails = DarwinNotificationDetails(
+    const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
-      categoryIdentifier: isDaily ? _kDailyCategory : null,
     );
-    final details = NotificationDetails(
+    const details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
@@ -246,34 +205,22 @@ class FcmService {
   }
 
   static void _handleRemoteMessageData(Map<String, dynamic> data) {
-    _handleNotificationAction(
+    _handleNotificationTap(
       data: data.map(
         (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
       ),
     );
   }
 
-  static void _handleNotificationAction({
+  static void _handleNotificationTap({
     required Map<String, String> data,
-    String? actionId,
   }) {
-    if (actionId == _kActionLater) {
-      return;
-    }
-
     final route = data['route']?.trim();
     final type = data['type']?.trim();
 
-    if (actionId == _kActionCreateStory) {
+    if (type == 'monday') {
       _navigateToRoute(
-        (route != null && route.isNotEmpty) ? route : _kDailyRoute,
-      );
-      return;
-    }
-
-    if (type == 'daily') {
-      _navigateToRoute(
-        (route != null && route.isNotEmpty) ? route : _kDailyRoute,
+        (route != null && route.isNotEmpty) ? route : _kMondayRoute,
       );
       return;
     }
