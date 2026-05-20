@@ -1061,7 +1061,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                '[SAVE 44%] -> only \$8.33/month\n\$99.99/year',
+                'SAVE 44% -> only \$8.33/month\n\$99.99/year',
                 style: GoogleFonts.cormorantGaramond(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
