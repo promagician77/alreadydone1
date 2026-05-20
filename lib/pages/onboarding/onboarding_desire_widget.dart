@@ -315,13 +315,22 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                 ),
                 _progressBar(2),
                 Expanded(
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final inputMinHeight =
+                          (constraints.maxHeight * 0.34).clamp(140.0, 200.0);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
                         Text(
                           "What's already done\nfor you?",
                           style:
@@ -405,7 +414,8 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          constraints: const BoxConstraints(minHeight: 188),
+                          constraints:
+                              BoxConstraints(minHeight: inputMinHeight),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AuthTheme.surface,
@@ -445,54 +455,67 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                Transform.translate(
-                  offset: const Offset(0, -78),
-                  child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AuthTheme.surface,
-                    border: Border(
-                      top: BorderSide(color: AuthTheme.stone.withValues(alpha: 0.6)),
-                    ),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(24, 6, 24, 8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Material(
-                      color: (_state.isGenerating || _prefillLoading)
-                          ? AuthTheme.stone
-                          : AuthTheme.gold,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        onTap: (_state.isGenerating || _prefillLoading)
-                            ? null
-                            : _handleCreateStory,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          alignment: Alignment.center,
-                          child: _prefillLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AuthTheme.surface,
-                                  ),
-                                )
-                              : Text(
-                                  'Create My Story',
-                                  style: AuthTheme.primaryButtonStyle,
+                                ],
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AuthTheme.surface,
+                              border: Border(
+                                top: BorderSide(
+                                  color:
+                                      AuthTheme.stone.withValues(alpha: 0.6),
                                 ),
-                        ),
-                      ),
-                    ),
+                              ),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal:
+                                  (MediaQuery.sizeOf(context).width * 0.064)
+                                      .clamp(20.0, 32.0),
+                              vertical: 10,
+                            ),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Material(
+                                color: (_state.isGenerating || _prefillLoading)
+                                    ? AuthTheme.stone
+                                    : AuthTheme.gold,
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  onTap: (_state.isGenerating || _prefillLoading)
+                                      ? null
+                                      : _handleCreateStory,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: _prefillLoading
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: AuthTheme.surface,
+                                            ),
+                                          )
+                                        : Text(
+                                            'Create My Story',
+                                            style:
+                                                AuthTheme.primaryButtonStyle,
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                ),
                 ),
               ],
             ),
