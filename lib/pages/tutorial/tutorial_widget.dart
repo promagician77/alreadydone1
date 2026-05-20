@@ -322,11 +322,17 @@ class _TutorialVisual extends StatelessWidget {
       case TutorialVisualType.personalize:
         return const _PersonalizePreview();
       case TutorialVisualType.category:
-        return const _CategoryPreview();
+        return const _OnboardingDesirePreview(
+          highlight: _DesirePreviewHighlight.categories,
+        );
       case TutorialVisualType.desire:
-        return const _DesirePreview();
+        return const _OnboardingDesirePreview(
+          highlight: _DesirePreviewHighlight.describe,
+        );
       case TutorialVisualType.createStory:
-        return const _CreateStoryPreview();
+        return const _OnboardingDesirePreview(
+          highlight: _DesirePreviewHighlight.button,
+        );
       case TutorialVisualType.paywall:
         return const _PaywallPreview();
       case TutorialVisualType.voiceSelect:
@@ -373,94 +379,164 @@ class _PersonalizePreview extends StatelessWidget {
   }
 }
 
-class _CategoryPreview extends StatelessWidget {
-  const _CategoryPreview();
+enum _DesirePreviewHighlight { categories, describe, button }
+
+class _OnboardingDesirePreview extends StatelessWidget {
+  const _OnboardingDesirePreview({required this.highlight});
+
+  final _DesirePreviewHighlight highlight;
+
+  static const _categories = [
+    ('❤️', 'Love'),
+    ('💰', 'Money/Lifestyle'),
+    ('💼', 'Career/Business'),
+    ('🌟', 'Health'),
+    ('🏠', 'Home'),
+    ('✨', 'Personal Growth'),
+  ];
+
+  Widget _maybeHighlight({
+    required bool active,
+    required Widget child,
+  }) {
+    if (!active) return child;
+    return _HighlightedBox(child: child);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _PreviewTitle(
-          title: "What's already done\nfor you?",
-          subtitle: 'Choose a category to begin.',
-        ),
-        const SizedBox(height: 16),
-        _HighlightedBox(
-          child: GridView.count(
-            crossAxisCount: 2,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 1.65,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: const [
-              _CategoryTile(
-                  icon: Icons.favorite_rounded, label: 'Love', active: true),
-              _CategoryTile(
-                  icon: Icons.attach_money_rounded, label: 'Money/Lifestyle'),
-              _CategoryTile(icon: Icons.work_rounded, label: 'Career/Business'),
-              _CategoryTile(icon: Icons.spa_rounded, label: 'Health'),
-              _CategoryTile(icon: Icons.home_rounded, label: 'Home'),
-              _CategoryTile(
-                  icon: Icons.self_improvement_rounded,
-                  label: 'Personal Growth'),
+    final categoryGrid = GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 2.35,
+      children: List.generate(_categories.length, (i) {
+        final (icon, label) = _categories[i];
+        final selected = i == 0;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AuthTheme.goldPale : AuthTheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AuthTheme.gold : AuthTheme.stone,
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 20)),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AuthTheme.ink,
+                  height: 1.15,
+                ),
+              ),
             ],
           ),
-        ),
-      ],
+        );
+      }),
     );
-  }
-}
 
-class _DesirePreview extends StatelessWidget {
-  const _DesirePreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final describeSection = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _PreviewTitle(
-          title: "Describe what's\nalready yours",
-          subtitle: 'Write it like it already happened.',
+        Text(
+          'Describe What\'s Already Yours',
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AuthTheme.ink,
+          ),
         ),
-        const SizedBox(height: 16),
-        _HighlightedBox(
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AuthTheme.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AuthTheme.stone),
-            ),
-            child: Text(
-              'I am in the deeply loving relationship where I feel seen, valued, and cherished every day...',
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                height: 1.45,
-                color: AuthTheme.inkSoft,
-              ),
-            ),
+        const SizedBox(height: 2),
+        Text(
+          '(Write Your Desired Manifestation Here)',
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AuthTheme.inkSoft,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          constraints: const BoxConstraints(minHeight: 188),
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AuthTheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AuthTheme.stone),
+          ),
+          child: Text(
+            'Write it like it already happened. Be specific. Be emotional.\n\nExample: The deeply loving relationship where I felt completely seen, valued, and cherished every single day',
+            style: AuthTheme.placeholderStyle.copyWith(fontSize: 14, height: 1.4),
           ),
         ),
       ],
     );
-  }
-}
 
-class _CreateStoryPreview extends StatelessWidget {
-  const _CreateStoryPreview();
+    final buttonBar = Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AuthTheme.surface,
+        border: Border(
+          top: BorderSide(color: AuthTheme.stone.withValues(alpha: 0.6)),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: const _PulsingButton(label: 'Create My Story'),
+    );
 
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _DesirePreview(),
-        SizedBox(height: 16),
-        _PulsingButton(label: 'Create My Story'),
+        Row(
+          children: List.generate(4, (i) {
+            return Expanded(
+              child: Container(
+                height: 3,
+                margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                decoration: BoxDecoration(
+                  color: i < 2 ? AuthTheme.gold : AuthTheme.stone,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          "What's already done\nfor you?",
+          style: AuthTheme.welcomeTitleStyle.copyWith(fontSize: 20),
+        ),
+        const SizedBox(height: 4),
+        Text('Choose a category', style: AuthTheme.welcomeSubStyle),
+        const SizedBox(height: 12),
+        _maybeHighlight(
+          active: highlight == _DesirePreviewHighlight.categories,
+          child: categoryGrid,
+        ),
+        const SizedBox(height: 12),
+        _maybeHighlight(
+          active: highlight == _DesirePreviewHighlight.describe,
+          child: describeSection,
+        ),
+        const SizedBox(height: 12),
+        _maybeHighlight(
+          active: highlight == _DesirePreviewHighlight.button,
+          child: buttonBar,
+        ),
       ],
     );
   }
@@ -1313,52 +1389,6 @@ class _MockChips extends StatelessWidget {
           }).toList(),
         ),
       ],
-    );
-  }
-}
-
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({
-    required this.icon,
-    required this.label,
-    this.active = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: active ? AuthTheme.goldPale : AuthTheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: active ? AuthTheme.gold : AuthTheme.stone,
-          width: active ? 1.5 : 1,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: active ? AuthTheme.gold : AuthTheme.inkSoft,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: GoogleFonts.outfit(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AuthTheme.ink,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

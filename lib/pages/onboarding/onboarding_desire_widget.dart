@@ -405,7 +405,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          constraints: const BoxConstraints(minHeight: 152),
+                          constraints: const BoxConstraints(minHeight: 188),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AuthTheme.surface,
@@ -414,8 +414,8 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                           ),
                           child: TextField(
                             controller: _state.desireDescriptionController,
-                            minLines: 6,
-                            maxLines: 10,
+                            minLines: 7,
+                            maxLines: 12,
                             textCapitalization: TextCapitalization.sentences,
                             scrollPhysics: const BouncingScrollPhysics(),
                             onChanged: (value) {
@@ -449,7 +449,9 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                     ),
                   ),
                 ),
-                Container(
+                Transform.translate(
+                  offset: const Offset(0, -78),
+                  child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: AuthTheme.surface,
@@ -457,7 +459,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                       top: BorderSide(color: AuthTheme.stone.withValues(alpha: 0.6)),
                     ),
                   ),
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                  padding: const EdgeInsets.fromLTRB(24, 6, 24, 8),
                   child: SizedBox(
                     width: double.infinity,
                     child: Material(
@@ -490,6 +492,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                       ),
                     ),
                   ),
+                ),
                 ),
               ],
             ),
