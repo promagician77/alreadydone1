@@ -13,7 +13,7 @@ import 'supabase_service.dart';
 const String _kAndroidChannelId = 'fcm_default_channel';
 const String _kAndroidChannelName = 'Notifications';
 
-const String _kMondayRoute = '/onboarding/desire';
+const String _kStoryReminderRoute = '/onboarding/desire';
 
 class FcmService {
   FcmService._();
@@ -218,9 +218,9 @@ class FcmService {
     final route = data['route']?.trim();
     final type = data['type']?.trim();
 
-    if (type == 'monday') {
+    if (type == 'monday' || type == 'friday') {
       _navigateToRoute(
-        (route != null && route.isNotEmpty) ? route : _kMondayRoute,
+        (route != null && route.isNotEmpty) ? route : _kStoryReminderRoute,
       );
       return;
     }
