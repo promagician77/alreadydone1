@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -649,80 +649,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
   }
 
-  Future<void> _openRatingDebugPanel() async {
-    if (!kDebugMode || !mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        Future<void> triggerWithDay(int day) async {
-          RatingPromptController.setDebugForcedDaysSinceStart(day);
-          await RatingPromptPrefs.resetForTesting();
-          await RatingPromptController.evaluateAfterPlaybackComplete();
-          if (ctx.mounted) {
-            AppToast.info(ctx, 'Forced day $day and triggered rating check.');
-          }
-        }
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Rating Prompt Debug',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: () => unawaited(triggerWithDay(7)),
-                  child: const Text('Force Day 7 + Trigger'),
-                ),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: () => unawaited(triggerWithDay(30)),
-                  child: const Text('Force Day 30 + Trigger'),
-                ),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: () => unawaited(triggerWithDay(90)),
-                  child: const Text('Force Day 90 + Trigger'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () async {
-                    RatingPromptController.setDebugForcedDaysSinceStart(null);
-                    await RatingPromptPrefs.resetForTesting();
-                    if (ctx.mounted) {
-                      AppToast.info(ctx, 'Rating state reset.');
-                    }
-                  },
-                  child: const Text('Reset Rating State'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () async {
-                    await RatingPromptController.evaluateAfterPlaybackComplete();
-                    if (ctx.mounted) {
-                      AppToast.info(ctx, 'Triggered rating check.');
-                    }
-                  },
-                  child: const Text('Trigger Rating Check Now'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final filtered = _getFilteredStories();
@@ -739,14 +665,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       child: Scaffold(
         key: scaffoldKey,
         backgroundColor: _AppColors.surface,
-        floatingActionButton: kDebugMode
-            ? FloatingActionButton.small(
-                heroTag: 'rating_debug_fab',
-                onPressed: () => unawaited(_openRatingDebugPanel()),
-                backgroundColor: _AppColors.gold,
-                child: const Icon(Icons.bug_report),
-              )
-            : null,
         body: Stack(
           key: _homeBodyStackKey,
           clipBehavior: Clip.none,

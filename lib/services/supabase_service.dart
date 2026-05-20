@@ -28,10 +28,6 @@ class EmailAlreadyRegisteredException implements Exception {
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
 
-  static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
-
-  /// Serializes [ensureUserProfileFromAuth] so concurrent calls (e.g. OAuth +
-  /// auth state listener) cannot both observe "no row" and insert duplicates.
   static Future<void> _ensureUserProfileChain = Future<void>.value();
 
   static Future<void> _runEnsureUserProfileSerialized(
@@ -61,8 +57,6 @@ class SupabaseService {
         detectSessionInUri: true,
       ),
     );
-
-    _startAuthAutoRefresh();
   }
 
   static User? get currentUser => client.auth.currentUser;
@@ -383,7 +377,6 @@ class SupabaseService {
   }
 
   static Future<void> signOut() async {
-    _stopAuthAutoRefresh();
     await client.auth.signOut();
     await OnboardingService.clearProgress();
     OnboardingState.instance.clear();
@@ -639,7 +632,6 @@ class SupabaseService {
 
   static Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
-  /// Handle auth callback from magic link (e.g. email change confirmation).
   static Future<String?> handleAuthCallbackUrl(String url) async {
     final uri = Uri.parse(url);
     if (!uri.toString().contains('auth/callback')) return null;
@@ -662,81 +654,5 @@ class SupabaseService {
     }
 
     return client.auth.currentUser?.email;
-  }
-
-  static Future<String?> getValidAccessToken({
-    Duration minTtl = const Duration(minutes: 5),
-  }) async {
-    await ensureFreshSession(minTtl: minTtl);
-    return client.auth.currentSession?.accessToken;
-  }
-
-  static Future<void> ensureFreshSession({
-    Duration minTtl = const Duration(minutes: 5),
-  }) async {
-    final session = client.auth.currentSession;
-    if (session == null) return;
-
-    final expiresAt = _sessionExpiresAt(session);
-    if (expiresAt == null) return;
-
-    final remaining = expiresAt.difference(DateTime.now());
-    if (remaining > minTtl) return;
-
-    await _refreshSerialized();
-  }
-
-  static DateTime? _sessionExpiresAt(Session session) {
-    final raw = session.expiresAt;
-    if (raw == null) return null;
-    return DateTime.fromMillisecondsSinceEpoch(raw * 1000);
-  }
-
-  static void _startAuthAutoRefresh() {
-    _stopAuthAutoRefresh();
-    _scheduleNextRefresh(client.auth.currentSession);
-
-    _authRefreshSub = client.auth.onAuthStateChange.listen((state) {
-      _scheduleNextRefresh(state.session);
-    });
-  }
-
-  static void _stopAuthAutoRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = null;
-    _authRefreshSub?.cancel();
-    _authRefreshSub = null;
-  }
-
-  static void _scheduleNextRefresh(Session? session) {
-    _refreshTimer?.cancel();
-    _refreshTimer = null;
-
-    if (session == null) return;
-    final expiresAt = _sessionExpiresAt(session);
-    if (expiresAt == null) return;
-
-    final now = DateTime.now();
-    final target = expiresAt.subtract(_refreshLeeway);
-    final delay = target.isAfter(now) ? target.difference(now) : Duration.zero;
-    final clamped = delay < _minRefreshDelay ? _minRefreshDelay : delay;
-
-    _refreshTimer = Timer(clamped, () async {
-      try {
-        await _refreshSerialized();
-      } catch (_) {
-      } finally {
-        _scheduleNextRefresh(client.auth.currentSession);
-      }
-    });
-  }
-
-  static Future<void> _refreshSerialized() {
-    _refreshChain = _refreshChain.then((_) async {
-      final session = client.auth.currentSession;
-      if (session == null) return;
-      await client.auth.refreshSession();
-    });
-    return _refreshChain;
   }
 }
