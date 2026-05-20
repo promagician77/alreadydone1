@@ -294,86 +294,107 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     ];
     return Scaffold(
       backgroundColor: AuthTheme.warmWhite,
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           SafeArea(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-              padding: const EdgeInsets.only(left: 8, top: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, size: 22),
-                  color: AuthTheme.gold,
-                  onPressed: () =>
-                      context.go(OnboardingPersonalizeWidget.routePath),
-                ),
-              ),
-            ),
-            _progressBar(2),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      "What's already done\nfor you?",
-                      style: AuthTheme.welcomeTitleStyle.copyWith(fontSize: 24),
+                  padding: const EdgeInsets.only(left: 8, top: 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+                      color: AuthTheme.gold,
+                      onPressed: () =>
+                          context.go(OnboardingPersonalizeWidget.routePath),
                     ),
-                    const SizedBox(height: 8),
-                    Text('Choose a category', style: AuthTheme.welcomeSubStyle),
-                    const SizedBox(height: 32),
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 1.2,
-                      children: List.generate(categories.length, (i) {
-                        final (icon, label) = categories[i];
-                        final selected = _state.selectedCategory == i;
-                        return Pressable(
-                          onTap: () => setState(() => _state.selectedCategory = i),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: selected ? AuthTheme.goldPale : AuthTheme.surface,
+                  ),
+                ),
+                _progressBar(2),
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          "What's already done\nfor you?",
+                          style:
+                              AuthTheme.welcomeTitleStyle.copyWith(fontSize: 22),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Choose a category', style: AuthTheme.welcomeSubStyle),
+                        const SizedBox(height: 16),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 2.35,
+                          children: List.generate(categories.length, (i) {
+                            final (icon, label) = categories[i];
+                            final selected = _state.selectedCategory == i;
+                            return Pressable(
+                              onTap: () =>
+                                  setState(() => _state.selectedCategory = i),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: selected ? AuthTheme.gold : AuthTheme.stone,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(icon, style: const TextStyle(fontSize: 24)),
-                                const SizedBox(height: 6),
-                                Text(
-                                  label,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AuthTheme.ink,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? AuthTheme.goldPale
+                                      : AuthTheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: selected
+                                        ? AuthTheme.gold
+                                        : AuthTheme.stone,
+                                    width: selected ? 1.5 : 1,
                                   ),
                                 ),
-                              ],
-                            ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(icon,
+                                        style: const TextStyle(fontSize: 20)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      label,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AuthTheme.ink,
+                                        height: 1.15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Describe What\'s Already Yours',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AuthTheme.ink,
                           ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 20),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Text('Describe What\'s Already Yours', style: AuthTheme.labelStyle),
+                        ),
+                        const SizedBox(height: 2),
                         Text(
                           '(Write Your Desired Manifestation Here)',
                           style: GoogleFonts.outfit(
@@ -382,78 +403,97 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                             color: AuthTheme.inkSoft,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AuthTheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AuthTheme.stone),
-                      ),
-                      child: TextField(
-                        controller: _state.desireDescriptionController,
-                        maxLines: 5,
-                        textCapitalization: TextCapitalization.sentences,
-                        onChanged: (value) {
-                          final next = _capitalizeSentences(value);
-                          if (next == value) return;
-                          final controller = _state.desireDescriptionController;
-                          final oldSelection = controller.selection;
-                          final offset = oldSelection.baseOffset.clamp(0, next.length);
-                          controller.value = controller.value.copyWith(
-                            text: next,
-                            selection: TextSelection.collapsed(offset: offset),
-                            composing: TextRange.empty,
-                          );
-                        },
-                        style: AuthTheme.bodyStyle.copyWith(fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: "Write it like it already happened. Be specific. Be emotional.\n\nExample: The deeply loving relationship where I felt completely seen, valued, and cherished every single day",
-                          hintStyle: AuthTheme.placeholderStyle.copyWith(fontSize: 14),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-              child: SizedBox(
-                width: double.infinity,
-                child: Material(
-                  color: (_state.isGenerating || _prefillLoading) ? AuthTheme.stone : AuthTheme.gold,
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
-                    onTap: (_state.isGenerating || _prefillLoading) ? null : _handleCreateStory,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      alignment: Alignment.center,
-                      child: _prefillLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AuthTheme.surface,
+                        const SizedBox(height: 8),
+                        Container(
+                          constraints: const BoxConstraints(minHeight: 152),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AuthTheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AuthTheme.stone),
+                          ),
+                          child: TextField(
+                            controller: _state.desireDescriptionController,
+                            minLines: 6,
+                            maxLines: 10,
+                            textCapitalization: TextCapitalization.sentences,
+                            scrollPhysics: const BouncingScrollPhysics(),
+                            onChanged: (value) {
+                              final next = _capitalizeSentences(value);
+                              if (next == value) return;
+                              final controller =
+                                  _state.desireDescriptionController;
+                              final oldSelection = controller.selection;
+                              final offset = oldSelection.baseOffset
+                                  .clamp(0, next.length);
+                              controller.value = controller.value.copyWith(
+                                text: next,
+                                selection:
+                                    TextSelection.collapsed(offset: offset),
+                                composing: TextRange.empty,
+                              );
+                            },
+                            style: AuthTheme.bodyStyle.copyWith(fontSize: 14),
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Write it like it already happened. Be specific. Be emotional.\n\nExample: The deeply loving relationship where I felt completely seen, valued, and cherished every single day',
+                              hintStyle: AuthTheme.placeholderStyle
+                                  .copyWith(fontSize: 14),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              isDense: true,
                             ),
-                          )
-                        : Text('Create My Story', style: AuthTheme.primaryButtonStyle),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AuthTheme.surface,
+                    border: Border(
+                      top: BorderSide(color: AuthTheme.stone.withValues(alpha: 0.6)),
+                    ),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Material(
+                      color: (_state.isGenerating || _prefillLoading)
+                          ? AuthTheme.stone
+                          : AuthTheme.gold,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        onTap: (_state.isGenerating || _prefillLoading)
+                            ? null
+                            : _handleCreateStory,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          child: _prefillLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AuthTheme.surface,
+                                  ),
+                                )
+                              : Text(
+                                  'Create My Story',
+                                  style: AuthTheme.primaryButtonStyle,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
           if (_state.isGenerating)
             Positioned.fill(
               child: IgnorePointer(

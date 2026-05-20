@@ -41,6 +41,53 @@ class ProfileWidget extends StatefulWidget {
   State<ProfileWidget> createState() => _ProfileWidgetState();
 }
 
+class _UpgradeSavingsArrow extends StatelessWidget {
+  const _UpgradeSavingsArrow({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: CustomPaint(
+        size: const Size(20, 12),
+        painter: _UpgradeSavingsArrowPainter(color: color.withValues(alpha: 0.92)),
+      ),
+    );
+  }
+}
+
+class _UpgradeSavingsArrowPainter extends CustomPainter {
+  const _UpgradeSavingsArrowPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.6
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final centerY = size.height / 2;
+    canvas.drawLine(Offset(0, centerY), Offset(size.width - 5, centerY), paint);
+
+    final arrowHead = Path()
+      ..moveTo(size.width - 9, centerY - 4)
+      ..lineTo(size.width - 1.5, centerY)
+      ..lineTo(size.width - 9, centerY + 4);
+    canvas.drawPath(arrowHead, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _UpgradeSavingsArrowPainter oldDelegate) {
+    return oldDelegate.color != color;
+  }
+}
+
 class _ProfileWidgetState extends State<ProfileWidget> {
   late ProfileModel _model;
 
@@ -1021,6 +1068,31 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     return child;
   }
 
+  Widget _buildUpgradeSavingsText() {
+    final textStyle = GoogleFonts.cormorantGaramond(
+      fontSize: 20,
+      fontWeight: FontWeight.w400,
+      color: Colors.white,
+      height: 1.2,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 0,
+          runSpacing: 4,
+          children: [
+            Text('SAVE 44%', style: textStyle),
+            const _UpgradeSavingsArrow(color: Colors.white),
+            Text('only \$8.33/month', style: textStyle),
+          ],
+        ),
+        Text('\$99.99/year', style: textStyle),
+      ],
+    );
+  }
+
   Widget _buildUpgradeCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1060,15 +1132,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'SAVE 44% -> only \$8.33/month\n\$99.99/year',
-                style: GoogleFonts.cormorantGaramond(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white,
-                  height: 1.2,
-                ),
-              ),
+              _buildUpgradeSavingsText(),
               const SizedBox(height: 8),
               Text(
                 '3-day free trial · Billed annually · Cancel anytime',
