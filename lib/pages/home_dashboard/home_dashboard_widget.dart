@@ -16,8 +16,6 @@ import '/services/ai_consent_service.dart';
 import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';
 import '/services/sleep_mode_notifier.dart';
-import '/services/rating_prompt_controller.dart';
-import '/services/rating_prompt_prefs.dart';
 import '/services/profile_day_streak.dart';
 import '/services/supabase_service.dart';
 import '/pages/onboarding/onboarding_desire_widget.dart';
@@ -146,7 +144,6 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         _model.playingStoryId = null;
         _model.playbackPosition = Duration.zero;
       });
-      unawaited(RatingPromptController.evaluateAfterPlaybackComplete());
     });
     _audioPlayer.onDurationChanged.listen((d) {
       final sid = _model.playingStoryId;
