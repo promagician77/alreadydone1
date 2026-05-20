@@ -39,7 +39,7 @@ class _DesiresColors {
 class _DesireCategory {
   final String id;
   final String name;
-  final String eyebrow; // e.g. "Love", "Money"
+  final String eyebrow; // e.g. "Love", "Money/Lifestyle"
   final Color accentColor;
   final Color iconBg;
   final List<_StoryItem> stories;
@@ -120,7 +120,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
         // fallback to static list if API fails
         desireCategories = [
           {'id': '1', 'name': 'Love'},
-          {'id': '2', 'name': 'Money'},
+          {'id': '2', 'name': 'Money/Lifestyle'},
           {'id': '3', 'name': 'Career/Business'},
           {'id': '4', 'name': 'Health'},
           {'id': '5', 'name': 'Home'},
@@ -229,7 +229,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
       setState(() {
         _desireCategories = [
           {'id': '1', 'name': 'Love'},
-          {'id': '2', 'name': 'Money'},
+          {'id': '2', 'name': 'Money/Lifestyle'},
           {'id': '3', 'name': 'Career/Business'},
           {'id': '4', 'name': 'Health'},
           {'id': '5', 'name': 'Home'},
@@ -358,7 +358,7 @@ class _DesiresWidgetState extends State<DesiresWidget> {
       _DesireCategory(
         id: '2',
         name: 'Financial Abundance',
-        eyebrow: 'Money',
+        eyebrow: 'Money/Lifestyle',
         accentColor: _DesiresColors.gold,
         iconBg: _DesiresColors.goldPale,
         stories: [

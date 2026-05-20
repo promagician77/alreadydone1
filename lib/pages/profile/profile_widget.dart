@@ -447,7 +447,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                   }
                                 });
                               }),
-                              ('Someone You Love', '$someoneYouLove →', () async {
+                              ('Someone You Love (Romantic)', '$someoneYouLove →', () async {
                                 final userId = await SupabaseService.getCurrentUserTableId();
                                 if (userId == null || !mounted) return;
                                 showSomeoneYouLoveModal(

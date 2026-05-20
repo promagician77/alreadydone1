@@ -17,7 +17,7 @@ export default function AlreadyDoneTutorial() {
     {
       screen: 'category',
       title: 'Choose a Category',
-      body: 'Pick the area of life you want to manifest. Love, Money, Career/Business, Health, or Home.',
+      body: 'Pick the area of life you want to manifest. Love, Money/Lifestyle, Career/Business, Health, Home, or Personal Growth.',
       target: 'categories',
       cardPosition: 'bottom',
       arrowDirection: 'up',
@@ -289,7 +289,7 @@ export default function AlreadyDoneTutorial() {
                     Love (0)
                   </div>
                   <div style={{ padding: '8px 16px', borderRadius: '20px', border: `1px solid ${c.border}`, background: c.bgCard, fontSize: '13px', color: c.textMuted, fontFamily: c.sans, fontWeight: 500 }}>
-                    Money (6)
+                    Money/Lifestyle (6)
                   </div>
                 </div>
 
@@ -397,10 +397,11 @@ export default function AlreadyDoneTutorial() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {[
                       { Icon: Heart, label: 'Love', selected: true },
-                      { Icon: DollarSign, label: 'Money', selected: false },
-                      { Icon: Sparkles, label: 'Career/Business', selected: false },
-                      { emoji: '🌿', label: 'Health', selected: false },
-                      { emoji: '🏠', label: 'Home', selected: false },
+                      { Icon: DollarSign, label: 'Money/Lifestyle', selected: false },
+                      { Icon: Briefcase, label: 'Career/Business', selected: false },
+                      { Icon: Sparkles, label: 'Health', selected: false },
+                      { Icon: Home, label: 'Home', selected: false },
+                      { Icon: Sparkles, label: 'Personal Growth', selected: false },
                     ].map((item, i) => (
                       <div
                         key={i}

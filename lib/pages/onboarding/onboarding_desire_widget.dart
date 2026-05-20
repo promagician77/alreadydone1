@@ -207,7 +207,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
         final missing = <String>[];
         if (name.isEmpty) missing.add('First Name');
         if (location.isEmpty) missing.add('Dream Place');
-        if (someoneYouLove.isEmpty) missing.add('Someone You Love');
+        if (someoneYouLove.isEmpty) missing.add('Someone You Love (Romantic)');
         AppToast.info(context, 'Please fill in ${missing.join(', ')}');
       }
       return;
@@ -286,7 +286,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   Widget build(BuildContext context) {
     const categories = [
       ('❤️', 'Love'),
-      ('💰', 'Money'),
+      ('💰', 'Money/Lifestyle'),
       ('💼', 'Career/Business'),
       ('🌟', 'Health'),
       ('🏠', 'Home'),

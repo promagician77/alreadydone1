@@ -397,7 +397,8 @@ class _CategoryPreview extends StatelessWidget {
             children: const [
               _CategoryTile(
                   icon: Icons.favorite_rounded, label: 'Love', active: true),
-              _CategoryTile(icon: Icons.attach_money_rounded, label: 'Money'),
+              _CategoryTile(
+                  icon: Icons.attach_money_rounded, label: 'Money/Lifestyle'),
               _CategoryTile(icon: Icons.work_rounded, label: 'Career/Business'),
               _CategoryTile(icon: Icons.spa_rounded, label: 'Health'),
               _CategoryTile(icon: Icons.home_rounded, label: 'Home'),

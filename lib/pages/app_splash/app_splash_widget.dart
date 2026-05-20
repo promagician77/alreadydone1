@@ -7,8 +7,6 @@ import '/flutter_flow/flutter_flow_util.dart';
 import 'app_splash_model.dart';
 export 'app_splash_model.dart';
 
-/// App-branded splash shown ~2s after install before login.
-/// Navy gradient, gold particles, app logo, "Already Done", loading dots.
 class AppSplashWidget extends StatefulWidget {
   const AppSplashWidget({super.key});
 
@@ -26,7 +24,6 @@ class _AppSplashWidgetState extends State<AppSplashWidget>
   static const _splashDuration = Duration(seconds: 2);
   late final AnimationController _particleController;
 
-  // Splash design tokens (match HTML)
   static const _gold = Color(0xFFD4AF37);
   static const _navy = Color(0xFF1A1A2E);
   static const _navyLight = Color(0xFF2A2A3E);

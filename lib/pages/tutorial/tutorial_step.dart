@@ -35,7 +35,7 @@ const tutorialSteps = <TutorialStep>[
   TutorialStep(
     title: 'Choose a Category',
     body:
-        'Pick the area of life you want to manifest. Love, Money, Career/Business, Health, Home, or Personal Growth.',
+        'Pick the area of life you want to manifest. Love, Money/Lifestyle, Career/Business, Health, Home, or Personal Growth.',
     visualType: TutorialVisualType.category,
     focusLabel: 'Categories',
   ),

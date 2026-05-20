@@ -249,7 +249,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                       }),
                     ),
                     const SizedBox(height: 20),
-                    Text('Someone You Love', style: AuthTheme.labelStyle),
+                    Text('Someone You Love (Romantic)', style: AuthTheme.labelStyle),
                     const SizedBox(height: 8),
                     _formInput(_state.lovedOneController, 'Alex'),
                     const SizedBox(height: 32),
@@ -278,7 +278,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                         return;
                       }
                       if (loved.isEmpty) {
-                        AppToast.info(context, 'Please enter someone you love');
+                        AppToast.info(context, 'Please enter someone you love (romantic)');
                         return;
                       }
                       await _state.persistToPrefs(OnboardingDesireWidget.routePath);

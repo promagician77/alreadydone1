@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
-import '/flutter_flow/flutter_flow_util.dart';
-import '/pages/auth/auth_theme.dart';
-import '/services/supabase_service.dart';
 import 'package:go_router/go_router.dart';
-import '/flutter_flow/nav/nav.dart';
-import '/services/timezone_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '/flutter_flow/flutter_flow_util.dart';
+import '/flutter_flow/nav/nav.dart';
+
+import '/services/supabase_service.dart';
+import '/services/timezone_sync_service.dart';
 import '/services/app_toast.dart';
+
 import '/widgets/pressable.dart';
+
+import '/pages/auth/auth_theme.dart';
+
 import 'login_model.dart';
 export 'login_model.dart';
 
@@ -40,7 +45,6 @@ class _LoginWidgetState extends State<LoginWidget> {
     if (mounted) setState(() => _model.userHasSignedInBefore = hasSignedInBefore);
   }
 
-  /// True when user came from Log Out (query param) or session expired (has signed in before).
   bool _showWelcomeBack(BuildContext context) {
     return GoRouterState.of(context).uri.queryParameters['welcomeBack'] == 'true' ||
         _model.userHasSignedInBefore;
