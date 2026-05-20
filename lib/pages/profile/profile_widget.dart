@@ -67,9 +67,16 @@ class _ProfileWidgetState extends State<ProfileWidget> {
         .toLowerCase();
     final isWeeklyPlan = rcPlan != null && rcPlan.isNotEmpty && (rcPlan.contains('week'));
     final isMonthlyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('month') && !rcPlan.contains('week');
+    final isAnnualPlan = rcPlan != null &&
+        rcPlan.isNotEmpty &&
+        (rcPlan.contains('annual') ||
+            rcPlan.contains('yearly') ||
+            (rcPlan.contains('year') && !rcPlan.contains('week')));
     final isCanceled = rcStatus == 'canceled' || rcStatus == 'cancelled';
     _model.isSubscribedFromRC = rcStatus == 'active' || rcStatus == 'trial';
-    _model.showUpgradeCardFromRC = isWeeklyPlan && !isCanceled;
+    final onLowerTierPlan = isWeeklyPlan || isMonthlyPlan;
+    _model.showUpgradeCardFromRC =
+        _model.isSubscribedFromRC && !isCanceled && onLowerTierPlan && !isAnnualPlan;
     if (!_model.isSubscribedFromRC || isCanceled) {
       _model.subscriptionRowLabel = 'Free';
     } else if (rcStatus == 'trial') {
@@ -78,6 +85,8 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       _model.subscriptionRowLabel = 'Monthly';
     } else if (isWeeklyPlan) {
       _model.subscriptionRowLabel = 'Weekly';
+    } else if (isAnnualPlan) {
+      _model.subscriptionRowLabel = 'Annual';
     } else {
       _model.subscriptionRowLabel = 'Active';
     }
@@ -1042,7 +1051,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'UPGRADE TO MONTHLY PLAN',
+                'UPGRADE TO ANNUAL PLAN',
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   letterSpacing: 1.5,
@@ -1052,7 +1061,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Save 30% \nBy Switching to the Monthly Plan',
+                '[SAVE 44%] -> only \$8.33/month\n\$99.99/year',
                 style: GoogleFonts.cormorantGaramond(
                   fontSize: 20,
                   fontWeight: FontWeight.w400,
@@ -1062,7 +1071,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Billed monthly · Cancel anytime',
+                '3-day free trial · Billed annually · Cancel anytime',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.8),
@@ -1085,7 +1094,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                   ),
                   child: Center(
                     child: Text(
-                      _isSubscribed ? 'Upgrade to Monthly' : 'Start Free Trial',
+                      _isSubscribed ? 'Upgrade to Annual' : 'Start Free Trial',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
