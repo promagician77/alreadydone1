@@ -9,8 +9,6 @@ import '/services/supabase_service.dart';
 import 'onboarding_state.dart';
 import 'onboarding_desire_widget.dart';
 import 'onboarding_origin_splash_widget.dart';
-import '/services/onboarding_service.dart';
-
 Widget _progressBar(int activeSegments) {
   return Padding(
     padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
@@ -100,12 +98,29 @@ class OnboardingPersonalizeWidget extends StatefulWidget {
 
 class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidget> {
   late OnboardingState _state;
+  bool _collectFirstName = true;
+  bool _authNameLoading = true;
 
   @override
   void initState() {
     super.initState();
     _state = OnboardingState.instance;
     _state.dreamLocationController.addListener(_onDreamLocationChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAuthProvidedName());
+  }
+
+  Future<void> _loadAuthProvidedName() async {
+    final collect = await SupabaseService.shouldCollectFirstNameInOnboarding();
+    if (!mounted) return;
+    setState(() {
+      _collectFirstName = collect;
+      _authNameLoading = false;
+    });
+  }
+
+  String? get _resolvedFirstName {
+    final name = _state.firstNameController.text.trim();
+    return name.isEmpty ? null : name;
   }
 
   void _onDreamLocationChanged() => setState(() {});
@@ -151,10 +166,30 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                       style: AuthTheme.welcomeSubStyle.copyWith(height: 1.5),
                     ),
                     const SizedBox(height: 32),
-                    Text('Your First Name', style: AuthTheme.labelStyle),
-                    const SizedBox(height: 8),
-                    _formInput(_state.firstNameController, 'Jordan'),
-                    const SizedBox(height: 20),
+                    if (_authNameLoading) ...[
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AuthTheme.gold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ] else if (_collectFirstName) ...[
+                      Text('Your First Name', style: AuthTheme.labelStyle),
+                      const SizedBox(height: 8),
+                      _formInput(_state.firstNameController, 'Jordan'),
+                      const SizedBox(height: 20),
+                    ] else if (_resolvedFirstName != null) ...[
+                      Text(
+                        'Hi, ${_resolvedFirstName!}!',
+                        style: AuthTheme.welcomeTitleStyle.copyWith(fontSize: 22),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     Text('Where does your dream life take place?', style: AuthTheme.labelStyle),
                     const SizedBox(height: 4),
                     Text('City or country', style: AuthTheme.checkboxLabelStyle.copyWith(fontSize: 11, color: AuthTheme.inkSoft)),
@@ -266,11 +301,20 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     onTap: () async {
+                      if (_authNameLoading) return;
                       final name = _state.firstNameController.text.trim();
                       final place = _state.dreamLocationController.text.trim();
                       final loved = _state.lovedOneController.text.trim();
-                      if (name.isEmpty) {
+                      if (_collectFirstName && name.isEmpty) {
                         AppToast.info(context, 'Please enter your first name');
+                        return;
+                      }
+                      if (!_collectFirstName && name.isEmpty) {
+                        AppToast.info(
+                          context,
+                          'We could not load your name from Sign in with Apple. '
+                          'Please sign out and sign in again.',
+                        );
                         return;
                       }
                       if (place.isEmpty) {
@@ -287,6 +331,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                         try {
                           await BackendClient.updateUserProfile(
                             userId,
+                            name: name,
                             location: place,
                             someoneYouLove: loved,
                           );

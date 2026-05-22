@@ -11,6 +11,8 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '/pages/onboarding/onboarding_state.dart';
+import '/services/apple_sign_in_cache.dart';
+import '/services/backend_client.dart';
 import '/services/onboarding_service.dart';
 import '/services/persistent_device_id_service.dart';
 
@@ -214,11 +216,17 @@ class SupabaseService {
     });
   }
 
-  static Future<void> ensureUserProfileFromAuth({String? overrideName}) async {
+  static Future<void> ensureUserProfileFromAuth({
+    String? overrideName,
+    String? emailHint,
+  }) async {
     await _runEnsureUserProfileSerialized(() async {
       final user = currentUser;
       if (user == null) return;
-      final email = user.email?.trim();
+      final hinted = emailHint?.trim();
+      final email = (hinted != null && hinted.isNotEmpty)
+          ? hinted
+          : user.email?.trim();
       if (email == null || email.isEmpty) return;
 
       // Build the best name we have right now.
@@ -364,6 +372,114 @@ class SupabaseService {
     state.firstNameController.text = candidate;
   }
 
+  /// Fills onboarding first name from Supabase metadata, backend profile, or Apple cache.
+  /// Does not read onboarding SharedPreferences (manual entry still allowed when empty).
+  static Future<void> syncOnboardingFirstNameFromAuth() async {
+    final state = OnboardingState.instance;
+    if (state.firstNameController.text.trim().isNotEmpty) return;
+
+    final user = currentUser;
+    var firstName = _extractFirstName(user?.userMetadata?['full_name'] as String?) ??
+        _extractFirstName(user?.userMetadata?['name'] as String?);
+
+    if (firstName == null) {
+      final userId = await getCurrentUserTableId();
+      if (userId != null) {
+        try {
+          final profile = await BackendClient.getUserProfile(userId);
+          final stored = (profile['name'] as String?)?.trim() ?? '';
+          if (stored.isNotEmpty && !_isPlaceholderName(stored)) {
+            firstName = _extractFirstName(stored);
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (firstName == null) {
+      final appleId = _appleUserIdentifierFromSession();
+      if (appleId != null) {
+        final cached = await AppleSignInCache.load(appleId);
+        firstName = _extractFirstName(cached?.givenName) ??
+            _extractFirstName(cached?.fullName);
+      }
+    }
+
+    if (firstName != null && firstName.isNotEmpty) {
+      state.firstNameController.text = firstName;
+    }
+  }
+
+  /// True when auth already supplied a first name (hide manual entry in onboarding).
+  static Future<bool> shouldCollectFirstNameInOnboarding() async {
+    await syncOnboardingFirstNameFromAuth();
+    return OnboardingState.instance.firstNameController.text.trim().isEmpty;
+  }
+
+  static String? _appleUserIdentifierFromSession() {
+    for (final identity in currentUser?.identities ?? const []) {
+      if (identity.provider == 'apple') {
+        return identity.id;
+      }
+    }
+    return null;
+  }
+
+  static Future<void> _persistAppleCredentialCache(
+    AuthorizationCredentialAppleID credential, {
+    String? fullName,
+  }) async {
+    final userIdentifier = credential.userIdentifier;
+    if (userIdentifier == null || userIdentifier.isEmpty) return;
+    await AppleSignInCache.save(
+      userIdentifier: userIdentifier,
+      fullName: fullName,
+      givenName: credential.givenName,
+      familyName: credential.familyName,
+      email: credential.email,
+    );
+  }
+
+  static Future<({String? fullName, String? givenName})> _resolveAppleNameFromCredential(
+    AuthorizationCredentialAppleID credential,
+  ) async {
+    String? fullName;
+    String? givenName = credential.givenName?.trim();
+    if ((credential.givenName?.isNotEmpty ?? false) ||
+        (credential.familyName?.isNotEmpty ?? false)) {
+      fullName = [credential.givenName, credential.familyName]
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .join(' ')
+          .trim();
+      if (fullName.isEmpty) fullName = null;
+    }
+
+    final userIdentifier = credential.userIdentifier;
+    if (userIdentifier != null && userIdentifier.isNotEmpty) {
+      if (fullName != null || (givenName != null && givenName.isNotEmpty)) {
+        await _persistAppleCredentialCache(credential, fullName: fullName);
+      } else {
+        final cached = await AppleSignInCache.load(userIdentifier);
+        fullName = cached?.fullName?.trim();
+        if (fullName != null && fullName.isEmpty) fullName = null;
+        givenName ??= cached?.givenName?.trim();
+        if (givenName != null && givenName.isEmpty) givenName = null;
+      }
+    }
+
+    return (fullName: fullName, givenName: givenName);
+  }
+
+  static Future<void> _persistFirstNameToBackend(String? firstName) async {
+    final trimmed = firstName?.trim() ?? '';
+    if (trimmed.isEmpty) return;
+    final userId = await getCurrentUserTableId();
+    if (userId == null) return;
+    try {
+      await BackendClient.updateUserProfile(userId, name: trimmed);
+    } catch (_) {}
+  }
+
   static Future<AuthResponse> signIn({
     required String email,
     required String password,
@@ -435,10 +551,6 @@ class SupabaseService {
   }
 
   /// Apple sign-in: native Sign in with Apple on iOS, OAuth redirect on web/Android.
-  ///
-  /// FIX: The real display name (from Apple credential) is now passed directly
-  /// into [ensureUserProfileFromAuth] *before* the metadata update completes,
-  /// preventing the race condition that wrote the email-prefix as the username.
   static Future<void> signInWithApple() async {
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     if (!isIOS) {
@@ -464,33 +576,35 @@ class SupabaseService {
         throw Exception('Apple Sign-In: no identity token');
       }
 
+      final appleEmail = credential.email?.trim();
+
       await client.auth.signInWithIdToken(
         provider: OAuthProvider.apple,
         idToken: idToken,
         nonce: rawNonce,
       );
 
-      String? fullName;
-      if ((credential.givenName?.isNotEmpty ?? false) ||
-          (credential.familyName?.isNotEmpty ?? false)) {
-        fullName = [credential.givenName, credential.familyName]
-            .whereType<String>()
-            .where((s) => s.isNotEmpty)
-            .join(' ')
-            .trim();
-        if (fullName.isEmpty) fullName = null;
+      final resolved = await _resolveAppleNameFromCredential(credential);
+      var fullName = resolved.fullName;
+      final givenName = resolved.givenName;
+
+      final metadata = <String, dynamic>{};
+      if (fullName != null) metadata['full_name'] = fullName;
+      if (givenName != null && givenName.isNotEmpty) metadata['name'] = givenName;
+      if (metadata.isNotEmpty) {
+        await client.auth.updateUser(UserAttributes(data: metadata));
       }
 
-      if (fullName != null) {
-        await client.auth.updateUser(
-          UserAttributes(data: {'full_name': fullName}),
-        );
-      }
+      await ensureUserProfileFromAuth(
+        overrideName: fullName,
+        emailHint: appleEmail,
+      );
 
-      await ensureUserProfileFromAuth(overrideName: fullName);
+      final firstName = _extractFirstName(givenName) ?? _extractFirstName(fullName);
+      await _persistFirstNameToBackend(firstName);
 
       _prefillOnboardingFirstName(
-        firstName: credential.givenName,
+        firstName: givenName,
         fullName: fullName ??
             (client.auth.currentUser?.userMetadata?['full_name'] as String?) ??
             (client.auth.currentUser?.userMetadata?['name'] as String?),
@@ -600,6 +714,8 @@ class SupabaseService {
       await ensureUserProfileFromAuth(
         overrideName: (displayName != null && displayName.isNotEmpty) ? displayName : null,
       );
+
+      await _persistFirstNameToBackend(_extractFirstName(displayName));
 
       _prefillOnboardingFirstName(
         fullName: googleUser.displayName ??

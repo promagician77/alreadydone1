@@ -1,4 +1,4 @@
-package com.mycompany.alreadydoneapp
+package com.mycompany.alreadyapp
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
