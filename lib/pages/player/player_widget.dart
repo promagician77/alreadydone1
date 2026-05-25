@@ -1451,6 +1451,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         lovedOne: lovedOne,
         dreamLocation: dreamLocation,
       );
+
+      debugPrint('deepen res: $res');
+
       if (!mounted) return;
       final theme =
           (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
@@ -1468,13 +1471,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (newStoryId == null) {
         try {
           final storiesRes = await BackendClient.getStories(userId);
+          debugPrint('storiesRes: $storiesRes');
           final list = (storiesRes['stories'] as List<dynamic>?) ?? const [];
+          debugPrint('list: $list');
           int? bestId;
           for (final s in list) {
             final map = s is Map<String, dynamic> ? s : <String, dynamic>{};
             final idRaw = map['id'] ?? map['Id'];
+            debugPrint('idRaw: $idRaw');
             final sid =
                 idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
+            debugPrint('sid: $sid');
             if (sid == null) continue;
             if (bestId == null || sid > bestId) bestId = sid;
           }
@@ -1485,6 +1492,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final voiceIdToUse = (_voiceId ?? '').trim().isNotEmpty
           ? _voiceId!.trim()
           : await PlayerStoryLoader.getUserVoiceId();
+
+      debugPrint('voiceIdToUse: $voiceIdToUse');
 
       String? newAudioUrl;
       if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
@@ -1503,6 +1512,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
         } catch (_) {}
       }
 
+      debugPrint('newAudioUrl: $newAudioUrl');
+
       if (!mounted) return;
       setState(() {
         _currentStoryId = storyIdToUse;
@@ -1513,6 +1524,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _playUrl = newAudioUrl;
         }
       });
+
+      debugPrint('setState: $setState');
 
       if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
         try {
