@@ -92,6 +92,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   String? _previewContent;
   String? _fullStoryContent;
   String? _playUrl;
+  String? _playContentType;
   String? _voiceId;
   bool _loading = true;
   String? _loadError;
@@ -636,7 +637,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted || _disposed) return;
         await _applyMixContext();
-        await _audioPlayer.play(UrlSource(url), mode: PlayerMode.mediaPlayer);
+        await _audioPlayer.play(
+          PlayerStoryUtils.urlSource(url, contentType: _playContentType),
+          mode: PlayerMode.mediaPlayer,
+        );
         await _audioPlayer.setReleaseMode(
             _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
         await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
@@ -675,7 +679,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
       await _audioPlayer.setVolume(1.0);
     } else {
-      await _audioPlayer.play(UrlSource(url), mode: PlayerMode.mediaPlayer);
+      await _audioPlayer.play(
+        PlayerStoryUtils.urlSource(url, contentType: _playContentType),
+        mode: PlayerMode.mediaPlayer,
+      );
     }
 
     if (_disposed || !mounted) return;
@@ -858,7 +865,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             (effectiveDuration > Duration.zero &&
                 _position >= effectiveDuration)) {
           await _audioPlayer.play(
-            UrlSource(url),
+            PlayerStoryUtils.urlSource(url, contentType: _playContentType),
             mode: PlayerMode.mediaPlayer,
           );
         } else {
@@ -987,6 +994,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             storyId: storyId,
           );
           playUrl = genRes['url']?.toString().trim();
+          _playContentType = genRes['content_type']?.toString().trim();
           voiceIdForCache = voiceIdToUse;
         } catch (e) {
           if (mounted) {
@@ -1043,7 +1051,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       );
 
       await _audioPlayer.stop();
-      await _audioPlayer.setSource(UrlSource(playUrl));
+      await _audioPlayer.setSource(
+        PlayerStoryUtils.urlSource(playUrl, contentType: _playContentType),
+      );
       if (_isPlaying) await _audioPlayer.resume();
     } catch (_) {
       if (mounted) {
@@ -1328,7 +1338,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         voiceId: voiceIdToUse,
       );
       await _audioPlayer.stop();
-      await _audioPlayer.setSource(UrlSource(cachedUrl));
+      await _audioPlayer.setSource(
+        PlayerStoryUtils.urlSource(cachedUrl, contentType: _playContentType),
+      );
       if (wasPlaying) await _audioPlayer.resume();
       if (mounted) setState(() => _isPlaying = wasPlaying);
       return;
@@ -1341,6 +1353,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         storyId: storyId,
       );
       final url = res['url']?.toString().trim();
+      final contentType = res['content_type']?.toString().trim();
       if (url == null || url.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1355,6 +1368,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final wasPlaying = _isPlaying;
       setState(() {
         _playUrl = url;
+        _playContentType = contentType;
         _voiceId = voiceIdToUse;
         _isGeneratingVoice = false;
       });
@@ -1369,7 +1383,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         voiceId: voiceIdToUse,
       );
       await _audioPlayer.stop();
-      await _audioPlayer.setSource(UrlSource(url));
+      await _audioPlayer.setSource(
+        PlayerStoryUtils.urlSource(url, contentType: contentType),
+      );
       if (wasPlaying) await _audioPlayer.resume();
       if (mounted) setState(() => _isPlaying = wasPlaying);
     } catch (e) {
@@ -1473,15 +1489,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
           final storiesRes = await BackendClient.getStories(userId);
           debugPrint('storiesRes: $storiesRes');
           final list = (storiesRes['stories'] as List<dynamic>?) ?? const [];
-          debugPrint('list: $list');
           int? bestId;
           for (final s in list) {
             final map = s is Map<String, dynamic> ? s : <String, dynamic>{};
             final idRaw = map['id'] ?? map['Id'];
-            debugPrint('idRaw: $idRaw');
             final sid =
                 idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
-            debugPrint('sid: $sid');
             if (sid == null) continue;
             if (bestId == null || sid > bestId) bestId = sid;
           }
@@ -1495,44 +1508,69 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       debugPrint('voiceIdToUse: $voiceIdToUse');
 
-      String? newAudioUrl;
-      if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
-        try {
-          final audioRes = await BackendClient.voiceGenerateAudio(
-            voiceId: voiceIdToUse,
-            storyId: storyIdToUse,
-          );
-          final url = audioRes['url']?.toString().trim();
-          if (url != null && url.isNotEmpty) newAudioUrl = url;
-          if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
-            _voicePlayUrlCache[
-                PlayerStoryUtils.voiceCacheKey(storyIdToUse, voiceIdToUse)] =
-                newAudioUrl;
-          }
-        } catch (_) {}
-      }
-
-      debugPrint('newAudioUrl: $newAudioUrl');
-
       if (!mounted) return;
       setState(() {
         _currentStoryId = storyIdToUse;
         _title = theme;
         _previewContent = story;
         _fullStoryContent = story;
+        _playUrl = null;
+        _playContentType = null;
+      });
+
+      String? newAudioUrl;
+      String? newContentType;
+      if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
+        try {
+          final audioRes = await BackendClient.voiceGenerateAudio(
+            voiceId: voiceIdToUse,
+            storyId: storyIdToUse,
+          );
+          debugPrint('audioRes: $audioRes');
+          final url = audioRes['url']?.toString().trim();
+          final contentType = audioRes['content_type']?.toString().trim();
+          if (url != null && url.isNotEmpty) {
+            newAudioUrl = url;
+            newContentType = contentType;
+            _voicePlayUrlCache[
+                PlayerStoryUtils.voiceCacheKey(storyIdToUse, voiceIdToUse)] =
+                url;
+          }
+        } catch (e) {
+          debugPrint('deepen audio generation failed: $e');
+          if (mounted) {
+            AppToast.error(
+              context,
+              'Deepened story saved, but audio is not ready yet. Try play again shortly.',
+            );
+          }
+        }
+      }
+
+      debugPrint('newAudioUrl: $newAudioUrl');
+
+      if (!mounted) return;
+      setState(() {
         if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
           _playUrl = newAudioUrl;
+          _playContentType = newContentType;
         }
       });
 
-      debugPrint('setState: $setState');
-
       if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
         try {
-          await _audioPlayer.setSource(UrlSource(newAudioUrl));
-          if (shouldAutoPlayNew) await _audioPlayer.resume();
+          final source = PlayerStoryUtils.urlSource(
+            newAudioUrl,
+            contentType: newContentType,
+          );
+          if (shouldAutoPlayNew) {
+            await _audioPlayer.play(source, mode: PlayerMode.mediaPlayer);
+          } else {
+            await _audioPlayer.setSource(source);
+          }
           if (mounted) setState(() => _isPlaying = shouldAutoPlayNew);
-        } catch (_) {
+        } catch (e) {
+          debugPrint('deepen audio playback failed: $e');
           if (mounted) setState(() => _isPlaying = false);
         }
       }

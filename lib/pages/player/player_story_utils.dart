@@ -1,7 +1,33 @@
+import 'package:audioplayers/audioplayers.dart';
+
 import '/pages/player/player_constants.dart';
 
 /// Story duration, voice, and display helpers for the player.
 abstract final class PlayerStoryUtils {
+  /// MIME type for [UrlSource] (required on web for remote Supabase MP3/WAV).
+  static String? mimeTypeForPlayUrl(String url, {String? contentType}) {
+    final normalized = contentType?.split(';').first.trim().toLowerCase();
+    if (normalized != null &&
+        normalized.isNotEmpty &&
+        normalized != 'application/octet-stream') {
+      return normalized;
+    }
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    if (path.endsWith('.mp3')) return 'audio/mpeg';
+    if (path.endsWith('.wav')) return 'audio/wav';
+    if (path.endsWith('.m4a') || path.endsWith('.mp4')) return 'audio/mp4';
+    if (path.endsWith('.ogg')) return 'audio/ogg';
+    if (path.endsWith('.opus')) return 'audio/opus';
+    if (path.endsWith('.flac')) return 'audio/flac';
+    return null;
+  }
+
+  static UrlSource urlSource(String url, {String? contentType}) {
+    return UrlSource(
+      url,
+      mimeType: mimeTypeForPlayUrl(url, contentType: contentType),
+    );
+  }
   static String formatDuration(int seconds) {
     final m = seconds ~/ 60;
     final s = seconds % 60;

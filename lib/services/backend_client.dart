@@ -336,6 +336,8 @@ class BackendClient {
           const Duration(seconds: 120),
           onTimeout: () => throw Exception('Deepen story timeout'),
         );
+
+    debugPrint('deepen response: $response');
     if (response.statusCode >= 400) {
       throw Exception(
         'Deepen failed: ${response.statusCode} ${response.body}',
@@ -447,10 +449,13 @@ class BackendClient {
           }),
         )
         .timeout(
-          const Duration(seconds: 90),
+          const Duration(seconds: 180),
           onTimeout: () => throw Exception('Voice generate audio timeout'),
         );
+
+    debugPrint('voice generate audio response: $response');
     if (response.statusCode >= 400) {
+      debugPrint('voice generate audio failed: ${response.statusCode} ${response.body}');
       throw Exception(
         'Voice generate audio failed: ${response.statusCode} ${response.body}',
       );
@@ -481,7 +486,7 @@ class BackendClient {
           }),
         )
         .timeout(
-          const Duration(seconds: 90),
+          const Duration(seconds: 180),
           onTimeout: () => throw Exception('Voice generate audio timeout'),
         );
 
