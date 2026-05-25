@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,39 +8,26 @@ import '/services/last_played_service.dart';
 import 'package:flutter/material.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '/services/backend_client.dart';
 import '/services/ai_consent_service.dart';
 import '/services/app_toast.dart';
 import '/services/rating_prompt_controller.dart';
 import '/services/supabase_service.dart';
-import '/widgets/pressable.dart';
 import '/index.dart';
 import 'player_modals/player_modals.dart';
+import 'player_modals/player_option_sheets.dart';
 import 'player_model.dart';
+import 'player_colors.dart';
+import 'player_constants.dart';
+import 'player_story_utils.dart';
+import 'player_story_loader.dart';
 import 'coachmark/done_library_coachmark_nav.dart';
 import 'coachmark/player_done_library_coachmark.dart';
 import 'coachmark/player_settings_coachmark.dart';
+import 'widgets/player_blocking_overlay.dart';
+import 'widgets/player_body.dart';
+import 'widgets/player_no_story_state.dart';
 export 'player_model.dart';
-
-class _PlayerColors {
-  static const warmWhite = Color(0xFFF9F7F4);
-  static const surface = Color(0xFFFEFDFB);
-  static const ink = Color(0xFF1C1917);
-  static const inkMid = Color(0xFF44403C);
-  static const inkSoft = Color(0xFF78716C);
-  static const stone = Color(0xFFE8E2DA);
-  static const stoneMid = Color(0xFFD6D0C8);
-  static const gold = Color(0xFFB8861E);
-  static const goldDark = Color(0xFF8B6914);
-  static const goldLight = Color(0xFFD4A574);
-  static const goldPale = Color(0xFFFBF4E6);
-  static const blush = Color(0xFFD98B80);
-  static const lavender = Color(0xFF9B8FAA);
-  static const sleepPurple = Color(0xFF4A3B5F);
-  static const sleepBlue = Color(0xFF2A3B5F);
-  static const sleepDark = Color(0xFF1A1F3A);
-}
 
 class PlayerWidget extends StatefulWidget {
   const PlayerWidget({
@@ -76,14 +62,10 @@ class PlayerWidget extends StatefulWidget {
 
 class _PlayerWidgetState extends State<PlayerWidget>
     with SingleTickerProviderStateMixin {
-  static const String _settingsCoachmarkKeyPrefix =
-      'player_settings_coachmark_v1_';
-  static const String _doneLibraryCoachmarkKeyPrefix =
-      'player_done_library_coachmark_v1_';
-
   String _nextResetMessage() {
     final now = DateTime.now();
-    final nextMidnight = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final nextMidnight =
+        DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
     final time = dateTimeFormat('jm', nextMidnight);
     final date = dateTimeFormat('MMM d', nextMidnight);
     return 'You can create one story or deepen per day. Try again at $time ($date).';
@@ -97,34 +79,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   final AudioPlayer _thetaTrackPlayer = AudioPlayer();
-
-  static const _presetVoices = [
-    ('QuCIJW2VbXkVSkVMP2V9', 'Chris'),
-    ('8yh4Wuya1OlwcUp0epGF', 'David'),
-    ('tJHJUEHzOkMoPmJJ5jo2', 'Alex'),
-    ('KGZeK6FsnWQdrkDHnDNA', 'Sarah'),
-    ('NXqsj0QYxuanzBw3KwjB', 'Maya'),
-    ('VlQRLHkc5IdFj7o0atT1', 'Luna'),
-  ];
-
-  static String? _presetVoiceName(String voiceId) {
-    final id = voiceId.trim();
-    for (final t in _presetVoices) {
-      if (t.$1 == id) return t.$2;
-    }
-    return null;
-  }
-
-  static const List<(String name, String assetPath)> _thetaTracks = [
-    ('Healing Therapy', 'audios/theta/Healing Therapy.mp3'),
-    ('The City in Dreams', 'audios/theta/The City in Dreams.mp3'),
-    ('Solar Drift', 'audios/theta/Solar Drift.mp3'),
-    ('Boyar', 'audios/theta/Boyar.mp3'),
-    ('Mantle', 'audios/theta/Mantle.mp3'),
-    ('Reflection', 'audios/theta/Reflection.mp3'),
-    ('Healing Spheres', 'audios/theta/Healing Spheres.mp3'),
-    ('Neptune', 'audios/theta/Neptune.mp3'),
-  ];
 
   StreamSubscription? _playerCompleteSub;
   StreamSubscription? _durationChangedSub;
@@ -150,42 +104,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   static final Map<String, String> _voicePlayUrlCache = {};
 
-  static String _voiceCacheKey(int storyId, String voiceId) =>
-      '${storyId}_$voiceId';
-
-  String get _voiceDropdownValue {
-    final id = _voiceId?.trim();
-    if (id == null || id.isEmpty) return _voiceDropdownMyVoice;
-    for (final t in _presetVoices) {
-      if (t.$1 == id) return id;
-    }
-    return _voiceDropdownMyVoice;
-  }
-
-  static const String _voiceDropdownMyVoice = 'my_voice';
-
-  String get _voiceLabel {
-    final id = _voiceId?.trim();
-    if (id == null || id.isEmpty) return 'In your voice';
-    final name = _presetVoiceName(id);
-    return name != null ? "$name's voice" : 'In your voice';
-  }
-
-  String get _categoryHeaderLine {
-    final raw = (_categoryLabel ?? 'Love').trim();
-    final lower = raw.toLowerCase();
-    const doneSuffix = '· already done';
-    const completeSuffix = '· already complete';
-    String withoutSuffix = raw;
-    if (lower.endsWith(doneSuffix)) {
-      withoutSuffix = raw.substring(0, raw.length - doneSuffix.length).trim();
-    } else if (lower.endsWith(completeSuffix)) {
-      withoutSuffix = raw.substring(0, raw.length - completeSuffix.length).trim();
-    }
-    withoutSuffix = withoutSuffix.replaceAll(RegExp(r'\s*·\s*$'), '').trim();
-    final category = withoutSuffix.isEmpty ? 'Love' : withoutSuffix;
-    return '${category.toUpperCase()} · ALREADY DONE';
-  }
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -196,48 +114,57 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Timer? _sleepMasterTimer;
 
-  static const List<double> _speedOptions = [0.5, 0.75, 1.0];
-
   double _normalPlaybackRate = 1.0;
   bool _loopEnabled = false;
 
   final ValueNotifier<bool> _loopNotifier = ValueNotifier(false);
-  final ValueNotifier<String> _speedLabelNotifier = ValueNotifier<String>('Normal (1.0x)');
+  final ValueNotifier<String> _speedLabelNotifier =
+      ValueNotifier<String>('Normal (1.0x)');
 
   late final ValueNotifier<String> _backgroundSoundNameNotifier;
-  static const double _sleepVolumeTarget = 0.7;
-
-  static const double _thetaVolumeTarget = 0.2;
-
-  static const int _sleepVolumeFadeInSeconds = 120;
-
-  static const int _sleepFadeOutSeconds = 60;
-
-  static const double _sleepBrightness = 0.4;
 
   late AnimationController _waveformController;
   int _selectedThetaIndex = 0;
   bool _backgroundSoundEnabled = true;
 
-  String get _currentThetaTrackName => _thetaTracks[_selectedThetaIndex].$1;
+  String get _currentThetaTrackName =>
+      PlayerConstants.thetaTracks[_selectedThetaIndex].$1;
 
   bool _showSettingsCoachmark = false;
   bool _showDoneLibraryCoachmark = false;
 
+  Duration get _expectedDuration =>
+      PlayerStoryUtils.expectedDuration(_durationLabel);
+
+  Duration get _effectiveDuration => PlayerStoryUtils.effectiveDuration(
+        durationLabel: _durationLabel,
+        playbackDuration: _duration,
+      );
+
+  String get _categoryHeaderLine =>
+      PlayerStoryUtils.categoryHeaderLine(_categoryLabel);
+
+  String get _voiceLabel => PlayerStoryUtils.voiceLabel(_voiceId);
+
+  String get _normalSpeedLabel =>
+      PlayerStoryUtils.normalSpeedLabel(_normalPlaybackRate);
+
+  String get _sleepSpeedLabel =>
+      PlayerStoryUtils.sleepSpeedLabel(_normalPlaybackRate);
+
   String? _settingsCoachmarkStorageKeyOrNull() {
     final id = SupabaseService.currentUser?.id;
     if (id == null || id.isEmpty) return null;
-    return '$_settingsCoachmarkKeyPrefix${id.toLowerCase()}';
+    return '${PlayerConstants.settingsCoachmarkKeyPrefix}${id.toLowerCase()}';
   }
 
   String? _doneLibraryCoachmarkStorageKeyOrNull() {
     final id = SupabaseService.currentUser?.id;
     if (id == null || id.isEmpty) return null;
-    return '$_doneLibraryCoachmarkKeyPrefix${id.toLowerCase()}';
+    return '${PlayerConstants.doneLibraryCoachmarkKeyPrefix}${id.toLowerCase()}';
   }
 
   Future<void> _maybeShowSettingsCoachmark() async {
-    // Only show when the player screen is actually usable.
     if (!mounted) return;
     if (_sleepModeActive) return;
     if (_isGeneratingVoice || _isDeepening) return;
@@ -306,7 +233,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (mounted) await _maybeShowDoneLibraryCoachmark();
   }
 
-  // ---------------------------------------------------------------------------
   AudioContext _buildMixAudioContext() {
     return AudioContextConfig(
       focus: AudioContextConfigFocus.mixWithOthers,
@@ -323,7 +249,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   @override
   void initState() {
     super.initState();
-    _backgroundSoundNameNotifier = ValueNotifier<String>(_currentThetaTrackName);
+    _backgroundSoundNameNotifier =
+        ValueNotifier<String>(_currentThetaTrackName);
     _waveformController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -394,7 +321,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
             _previewContent = null;
           }
           _playUrl = widget.playUrl;
-          _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
+          _voiceId =
+              widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
           _loading = false;
         });
         _saveLastPlayed();
@@ -419,8 +347,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             });
             return;
           }
-        } catch (_) {
-        }
+        } catch (_) {}
       }
 
       final lastPlayed = await LastPlayedService.loadLastPlayed();
@@ -434,47 +361,49 @@ class _PlayerWidgetState extends State<PlayerWidget>
         final storyContent = lastPlayed['storyContent']?.toString().trim();
         final voiceId = lastPlayed['voiceId']?.toString().trim();
         final sid = lastPlayed['storyId'];
-        final currentId = sid is int ? sid : int.tryParse(sid?.toString() ?? '');
+        final currentId =
+            sid is int ? sid : int.tryParse(sid?.toString() ?? '');
         if (currentId == null) {
           await LastPlayedService.clearLastPlayed();
         } else {
-        if (!mounted) return;
-        setState(() {
-          _playUrl = playUrl;
-          _title = title;
-          _categoryLabel = categoryLabel ?? 'Love';
-          _subtitle = widget.subtitle;
-          _durationLabel = durationLabel;
-          _voiceId = voiceId != null && voiceId.isNotEmpty ? voiceId : null;
-          _currentStoryId = currentId;
-          if (storyPreview != null && storyPreview.isNotEmpty) {
-            _previewContent = storyPreview;
+          if (!mounted) return;
+          setState(() {
+            _playUrl = playUrl;
+            _title = title;
+            _categoryLabel = categoryLabel ?? 'Love';
+            _subtitle = widget.subtitle;
+            _durationLabel = durationLabel;
+            _voiceId =
+                voiceId != null && voiceId.isNotEmpty ? voiceId : null;
+            _currentStoryId = currentId;
+            if (storyPreview != null && storyPreview.isNotEmpty) {
+              _previewContent = storyPreview;
+            }
+            if (storyContent != null && storyContent.isNotEmpty) {
+              _fullStoryContent = storyContent;
+            }
+            _loading = false;
+            _loadError = null;
+          });
+          if (voiceId != null &&
+              voiceId.isNotEmpty &&
+              playUrl.isNotEmpty) {
+            _voicePlayUrlCache[
+                PlayerStoryUtils.voiceCacheKey(currentId, voiceId)] = playUrl;
           }
-          if (storyContent != null && storyContent.isNotEmpty) {
-            _fullStoryContent = storyContent;
-          }
-          _loading = false;
-          _loadError = null;
-        });
-        if (currentId != null &&
-            voiceId != null &&
-            voiceId.isNotEmpty &&
-            playUrl != null &&
-            playUrl.isNotEmpty) {
-          _voicePlayUrlCache[_voiceCacheKey(currentId, voiceId)] = playUrl;
-        }
-        _maybeAutoPlayAndActivateSleepMode();
-        _afterPlayerLoadedForCoachmarks();
-        return;
+          _maybeAutoPlayAndActivateSleepMode();
+          _afterPlayerLoadedForCoachmarks();
+          return;
         }
       }
 
-      // No last played: use last created story (by created_at).
-      Map<String, dynamic>? fallback = await _loadLastCreatedStory();
+      Map<String, dynamic>? fallback =
+          await PlayerStoryLoader.loadLastCreatedStory();
       if (fallback == null &&
           storiesList != null &&
           storiesList.isNotEmpty) {
-        fallback = await _loadFirstAvailableFromList(storiesList);
+        fallback =
+            await PlayerStoryLoader.loadFirstAvailableFromList(storiesList);
       }
       if (fallback != null && !mounted) return;
       final fallbackMap = fallback;
@@ -500,7 +429,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
             voiceId != null &&
             voiceId.isNotEmpty &&
             playUrl.isNotEmpty) {
-          _voicePlayUrlCache[_voiceCacheKey(storyId, voiceId)] = playUrl;
+          _voicePlayUrlCache[
+              PlayerStoryUtils.voiceCacheKey(storyId, voiceId)] = playUrl;
         }
         LastPlayedService.saveLastPlayed(
           storyId: fallbackMap['storyId'] as int?,
@@ -526,7 +456,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _previewContent = null;
         }
         _playUrl = widget.playUrl;
-        _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
+        _voiceId =
+            widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
         _hasNoStory = true;
         _loading = false;
       });
@@ -541,7 +472,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _title = widget.title;
         _subtitle = widget.subtitle;
         _durationLabel = widget.durationLabel;
-        _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
+        _voiceId =
+            widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
         if (widget.storyId != null) _currentStoryId = widget.storyId;
       });
     }
@@ -564,14 +496,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _subtitle = widget.subtitle;
           _durationLabel = widget.durationLabel;
           if (widget.playUrl != null) _playUrl = widget.playUrl;
-          _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
+          _voiceId =
+              widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
         });
         return;
       }
 
-      final data = res as Map<String, dynamic>;
-      final content =
-          (data['story'] ?? data['content'])?.toString().trim();
+      final data = res;
+      final content = (data['story'] ?? data['content'])?.toString().trim();
       final playUrl = widget.playUrl ??
           data['playUrl']?.toString() ??
           data['play_url']?.toString();
@@ -580,8 +512,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
           ? content
           : (_previewContent ?? widget.storyPreview?.trim());
 
-      String? storyVoiceId = _parseVoiceIdFromMap(data);
-      if ((storyVoiceId == null || storyVoiceId.isEmpty) && widget.storyId != null) {
+      String? storyVoiceId = PlayerStoryUtils.parseVoiceIdFromMap(data);
+      if ((storyVoiceId == null || storyVoiceId.isEmpty) &&
+          widget.storyId != null) {
         final userId = await SupabaseService.getCurrentUserTableId();
         if (userId != null && mounted) {
           try {
@@ -592,7 +525,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               final id = map['id'] ?? map['Id'];
               final sid = id is int ? id : int.tryParse(id?.toString() ?? '');
               if (sid == widget.storyId) {
-                storyVoiceId = _parseVoiceIdFromMap(map);
+                storyVoiceId = PlayerStoryUtils.parseVoiceIdFromMap(map);
                 if (storyVoiceId != null && storyVoiceId.isNotEmpty) break;
               }
             }
@@ -606,12 +539,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       if (!mounted) return;
       setState(() {
-        _title =
-            (data['theme'] ?? data['title'])?.toString() ?? widget.title;
-        _categoryLabel =
-            (data['desire_name'] ?? data['category'])?.toString() ??
-                widget.categoryLabel ??
-                'Love';
+        _title = (data['theme'] ?? data['title'])?.toString() ?? widget.title;
+        _categoryLabel = (data['desire_name'] ?? data['category'])?.toString() ??
+            widget.categoryLabel ??
+            'Love';
         _subtitle = widget.subtitle;
         _durationLabel = widget.durationLabel;
         _previewContent =
@@ -631,7 +562,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
           playUrl != null) {
         final urlStr = playUrl.toString().trim();
         if (urlStr.isNotEmpty) {
-          _voicePlayUrlCache[_voiceCacheKey(widget.storyId!, voiceIdToSet)] =
+          _voicePlayUrlCache[
+              PlayerStoryUtils.voiceCacheKey(widget.storyId!, voiceIdToSet)] =
               urlStr;
         }
       }
@@ -652,154 +584,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _subtitle = widget.subtitle;
         _durationLabel = widget.durationLabel;
         if (widget.playUrl != null) _playUrl = widget.playUrl;
-        _voiceId = widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
+        _voiceId =
+            widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
       });
     }
   }
 
-  /// When last played and _loadLastCreatedStory both fail, try loading the first story
-  /// from the list that has a playUrl (e.g. from navbar with no params).
-  Future<Map<String, dynamic>?> _loadFirstAvailableFromList(List<dynamic> list) async {
-    final mapped = list
-        .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
-        .toList();
-    if (mapped.isEmpty) return null;
-    mapped.sort((a, b) {
-      final aAt = a['created_at'] ?? a['id'] ?? 0;
-      final bAt = b['created_at'] ?? b['id'] ?? 0;
-      if (aAt == bAt) return 0;
-      return bAt.toString().compareTo(aAt.toString());
-    });
-    for (final story in mapped) {
-      final storyId = story['id'] is int
-          ? story['id'] as int
-          : int.tryParse(story['id']?.toString() ?? '');
-      if (storyId == null) continue;
-      try {
-        final res = await BackendClient.getStoryPlayUrl(storyId);
-        final playUrl = res['playUrl']?.toString().trim();
-        if (playUrl == null || playUrl.isEmpty) continue;
-        final content =
-            (story['story'] ?? story['content'])?.toString().trim();
-        final preview = content != null && content.isNotEmpty ? content : null;
-        final duration = story['play_length'] ?? story['duration'];
-        int secs = 0;
-        if (duration != null) {
-          if (duration is int) {
-            secs = duration;
-          } else if (duration is num) {
-            secs = duration.round();
-          } else {
-            secs = int.tryParse(duration.toString()) ?? 0;
-          }
-        }
-        final m = secs ~/ 60;
-        final s = secs % 60;
-        final durationLabel =
-            '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-        final storyVoiceId =
-            (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
-        return {
-          'playUrl': playUrl,
-          'storyId': storyId,
-          'title': (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString(),
-          'categoryLabel': (story['desire_name'] ?? story['category'] ?? 'Love').toString(),
-          'durationLabel': durationLabel,
-          'storyPreview': preview,
-          'storyContent': content,
-          if (storyVoiceId != null && storyVoiceId.isNotEmpty) 'voiceId': storyVoiceId,
-        };
-      } catch (_) {
-        continue;
-      }
-    }
-    return null;
-  }
-
-  /// Load the last created story when no last played exists.
-  Future<Map<String, dynamic>?> _loadLastCreatedStory() async {
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return null;
-    try {
-      final profile = await BackendClient.getUserProfile(userId);
-      final voiceId = profile['voice_id']?.toString().trim() ??
-          profile['voice_Id']?.toString().trim();
-      if (voiceId == null || voiceId.isEmpty) return null;
-
-      final res = await BackendClient.getStories(userId);
-      final list = (res['stories'] as List<dynamic>?)
-              ?.map((e) =>
-                  e is Map<String, dynamic> ? e : <String, dynamic>{})
-              .toList() ??
-          [];
-      if (list.isEmpty) return null;
-
-      list.sort((a, b) {
-        final aAt = a['created_at'] ?? a['id'] ?? 0;
-        final bAt = b['created_at'] ?? b['id'] ?? 0;
-        if (aAt == bAt) return 0;
-        return bAt.toString().compareTo(aAt.toString());
-      });
-      final story = list.first;
-      final storyId = story['id'] is int
-          ? story['id'] as int
-          : int.tryParse(story['id']?.toString() ?? '');
-      if (storyId == null) return null;
-
-      String? playUrl;
-      try {
-        final res = await BackendClient.getStoryPlayUrl(storyId);
-        playUrl = res['playUrl']?.toString().trim();
-      } catch (_) {
-        final res = await BackendClient.voiceGenerateAudio(
-          voiceId: voiceId,
-          storyId: storyId,
-        );
-        playUrl = res['url']?.toString().trim();
-      }
-      if (playUrl == null || playUrl.isEmpty) return null;
-
-      final content =
-          (story['story'] ?? story['content'])?.toString().trim();
-      final preview = content != null && content.isNotEmpty ? content : null;
-      final duration = story['play_length'] ?? story['duration'];
-      int secs = 0;
-      if (duration != null) {
-        if (duration is int) {
-          secs = duration;
-        } else if (duration is num) {
-          secs = duration.round();
-        } else {
-          secs = int.tryParse(duration.toString()) ?? 0;
-        }
-      }
-      final m = secs ~/ 60;
-      final s = secs % 60;
-      final durationLabel =
-          '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-
-      final storyVoiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
-      return {
-        'playUrl': playUrl,
-        'storyId': storyId,
-        'title': (story['theme'] ??
-                story['title'] ??
-                story['desire_name'] ??
-                'Story')
-            .toString(),
-        'categoryLabel':
-            (story['desire_name'] ?? story['category'] ?? 'Love').toString(),
-        'durationLabel': durationLabel,
-        'storyPreview': preview,
-        'storyContent': content,
-        if (storyVoiceId != null && storyVoiceId.isNotEmpty) 'voiceId': storyVoiceId,
-      };
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Called once after first load when _voiceId is still null; fetches from getStories so voice name shows on first paint.
   Future<void> _fetchVoiceIdFromStoriesOnce() async {
     if (_voiceId != null && _voiceId!.trim().isNotEmpty) return;
     if (_currentStoryId == null || _disposed || !mounted) return;
@@ -813,40 +603,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
         final id = map['id'] ?? map['Id'];
         final sid = id is int ? id : int.tryParse(id?.toString() ?? '');
         if (sid != _currentStoryId) continue;
-        final voiceId = _parseVoiceIdFromMap(map);
+        final voiceId = PlayerStoryUtils.parseVoiceIdFromMap(map);
         if (voiceId != null && voiceId.isNotEmpty && mounted) {
           setState(() => _voiceId = voiceId);
         }
         return;
       }
     } catch (_) {}
-  }
-
-  /// Parses voice_id from a story/map; supports string or nested object (e.g. { id: "..." }).
-  static String? _parseVoiceIdFromMap(Map<String, dynamic> map) {
-    final raw = map['voice_id'] ?? map['voice_Id'];
-    if (raw == null) return null;
-    if (raw is String) return raw.trim().isEmpty ? null : raw.trim();
-    if (raw is Map) {
-      final id = raw['id'] ?? raw['voice_id'];
-      final s = id?.toString().trim();
-      return (s != null && s.isNotEmpty) ? s : null;
-    }
-    final s = raw.toString().trim();
-    return s.isEmpty ? null : s;
-  }
-
-  /// Returns the current user's voice_id from profile (for "my voice" stories).
-  Future<String?> _getUserVoiceId() async {
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return null;
-    try {
-      final profile = await BackendClient.getUserProfile(userId);
-      final id = profile['voice_id']?.toString().trim() ?? profile['voice_Id']?.toString().trim();
-      return id?.isNotEmpty == true ? id : null;
-    } catch (_) {
-      return null;
-    }
   }
 
   void _saveLastPlayed() {
@@ -921,7 +684,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     await _applyMixContext();
 
     await _audioPlayer.setVolume(1.0);
-    await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
+    await _thetaTrackPlayer.setVolume(PlayerConstants.thetaVolumeTarget);
 
     _startSleepMasterTimer();
 
@@ -954,20 +717,23 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
 
       double voiceVol;
-      if (elapsed < _sleepVolumeFadeInSeconds) {
-        final progress = elapsed / _sleepVolumeFadeInSeconds;
-        voiceVol = 1.0 - ((1.0 - _sleepVolumeTarget) * progress);
-      } else if (remaining <= _sleepFadeOutSeconds) {
-        voiceVol = _sleepVolumeTarget * (remaining / _sleepFadeOutSeconds);
+      if (elapsed < PlayerConstants.sleepVolumeFadeInSeconds) {
+        final progress = elapsed / PlayerConstants.sleepVolumeFadeInSeconds;
+        voiceVol = 1.0 -
+            ((1.0 - PlayerConstants.sleepVolumeTarget) * progress);
+      } else if (remaining <= PlayerConstants.sleepFadeOutSeconds) {
+        voiceVol = PlayerConstants.sleepVolumeTarget *
+            (remaining / PlayerConstants.sleepFadeOutSeconds);
       } else {
-        voiceVol = _sleepVolumeTarget;
+        voiceVol = PlayerConstants.sleepVolumeTarget;
       }
 
       double thetaVol;
-      if (remaining <= _sleepFadeOutSeconds) {
-        thetaVol = _thetaVolumeTarget * (remaining / _sleepFadeOutSeconds);
+      if (remaining <= PlayerConstants.sleepFadeOutSeconds) {
+        thetaVol = PlayerConstants.thetaVolumeTarget *
+            (remaining / PlayerConstants.sleepFadeOutSeconds);
       } else {
-        thetaVol = _thetaVolumeTarget;
+        thetaVol = PlayerConstants.thetaVolumeTarget;
       }
 
       _audioPlayer.setVolume(voiceVol.clamp(0.0, 1.0));
@@ -1006,21 +772,21 @@ class _PlayerWidgetState extends State<PlayerWidget>
     await _thetaTrackPlayer.stop();
     if (!_backgroundSoundEnabled) return;
 
-    final track = _thetaTracks[_selectedThetaIndex];
+    final track = PlayerConstants.thetaTracks[_selectedThetaIndex];
     await _applyMixContext();
 
     await _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
-    await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
+    await _thetaTrackPlayer.setVolume(PlayerConstants.thetaVolumeTarget);
 
     try {
       await _thetaTrackPlayer.play(AssetSource(track.$2));
-      await _thetaTrackPlayer.setVolume(_thetaVolumeTarget);
+      await _thetaTrackPlayer.setVolume(PlayerConstants.thetaVolumeTarget);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text('Background sound could not load: ${track.$1}')),
+            content: Text('Background sound could not load: ${track.$1}'),
+          ),
         );
       }
     }
@@ -1033,27 +799,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Future<void> _setSleepBrightness(bool dim) async {
     try {
       if (dim) {
-        await ScreenBrightness.instance
-            .setApplicationScreenBrightness(_sleepBrightness);
+        await ScreenBrightness.instance.setApplicationScreenBrightness(
+          PlayerConstants.sleepBrightness,
+        );
       } else {
-        await ScreenBrightness.instance
-            .resetApplicationScreenBrightness();
+        await ScreenBrightness.instance.resetApplicationScreenBrightness();
       }
     } catch (_) {}
-  }
-
-  static const _sleepModeAllowedStatuses = [
-    'trial',
-    'active',
-  ];
-
-  static const _sleepModeAllowedPlans = ['monthly', 'weekly', 'annual'];
-
-  static bool _canUseSleepMode(String? status, String? plan) {
-    final s = (status ?? '').toString().toLowerCase().trim();
-    final p = (plan ?? '').toString().toLowerCase().trim();
-    if (!_sleepModeAllowedStatuses.contains(s)) return false;
-    return _sleepModeAllowedPlans.contains(p);
   }
 
   @override
@@ -1084,46 +836,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
     super.dispose();
   }
 
-  static const _totalWaveBars = 32;
-
-  String _formatDuration(int seconds) {
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  int? _parseDurationSeconds(dynamic raw) {
-    if (raw == null) return null;
-    if (raw is int) return raw;
-    if (raw is num) return raw.round();
-    final text = raw.toString().trim();
-    if (text.isEmpty) return null;
-    final clock = RegExp(r'^(\d+):(\d{2})$').firstMatch(text);
-    if (clock != null) {
-      final minutes = int.tryParse(clock.group(1)!);
-      final seconds = int.tryParse(clock.group(2)!);
-      if (minutes != null && seconds != null) {
-        return minutes * 60 + seconds;
-      }
-    }
-    return num.tryParse(text)?.round();
-  }
-
-  Duration get _expectedDuration {
-    final seconds = _parseDurationSeconds(_durationLabel);
-    if (seconds == null || seconds <= 0) return Duration.zero;
-    return Duration(seconds: seconds);
-  }
-
-  Duration get _effectiveDuration =>
-      _expectedDuration > _duration ? _expectedDuration : _duration;
-
   Future<void> _togglePlayPause() async {
     final url = _playUrl;
     if (url == null || url.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No audio available')));
+          const SnackBar(content: Text('No audio available')),
+        );
       }
       return;
     }
@@ -1139,7 +858,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
             (effectiveDuration > Duration.zero &&
                 _position >= effectiveDuration)) {
           await _audioPlayer.play(
-              UrlSource(url), mode: PlayerMode.mediaPlayer);
+            UrlSource(url),
+            mode: PlayerMode.mediaPlayer,
+          );
         } else {
           await _audioPlayer.resume();
         }
@@ -1147,7 +868,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
         if (_sleepModeActive) {
           await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
-          await _audioPlayer.setVolume(_sleepVolumeTarget);
+          await _audioPlayer.setVolume(PlayerConstants.sleepVolumeTarget);
           if (_thetaTrackPlayer.state == PlayerState.paused) {
             await _thetaTrackPlayer.resume();
           } else {
@@ -1162,16 +883,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Playback failed: $e')));
+          SnackBar(content: Text('Playback failed: $e')),
+        );
         setState(() => _isPlaying = false);
       }
     }
   }
 
-  static const _skipSeconds = 10;
-
   Future<void> _skipBackward() async {
-    final newPos = _position.inSeconds - _skipSeconds;
+    final newPos = _position.inSeconds - PlayerConstants.skipSeconds;
     final target = Duration(
       seconds: newPos.clamp(0, _effectiveDuration.inSeconds),
     );
@@ -1179,7 +899,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Future<void> _skipForward() async {
-    final newPos = _position.inSeconds + _skipSeconds;
+    final newPos = _position.inSeconds + PlayerConstants.skipSeconds;
     final target = Duration(
       seconds: newPos.clamp(0, _effectiveDuration.inSeconds),
     );
@@ -1231,12 +951,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
           : (currentIndex + 1) % list.length;
       final story = list[nextIndex];
       final idRaw = story['id'] ?? story['Id'];
-      final storyId = idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
+      final storyId =
+          idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
       if (storyId == null) return;
 
-      final storyVoiceId = (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
+      final storyVoiceId =
+          (story['voice_id'] ?? story['voice_Id'])?.toString().trim();
 
-      String? playUrl = (story['playUrl'] ?? story['play_url'])?.toString().trim();
+      String? playUrl =
+          (story['playUrl'] ?? story['play_url'])?.toString().trim();
       if (playUrl == null || playUrl.isEmpty) {
         try {
           final urlRes = await BackendClient.getStoryPlayUrl(storyId);
@@ -1247,11 +970,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (playUrl == null || playUrl.isEmpty) {
         final voiceIdToUse = storyVoiceId?.isNotEmpty == true
             ? storyVoiceId
-            : (await _getUserVoiceId());
+            : (await PlayerStoryLoader.getUserVoiceId());
         if (voiceIdToUse == null || voiceIdToUse.isEmpty) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Could not switch story: no voice available')),
+              const SnackBar(
+                content: Text('Could not switch story: no voice available'),
+              ),
             );
           }
           return;
@@ -1277,22 +1002,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       final content = (story['story'] ?? story['content'])?.toString().trim();
       final preview = content != null && content.isNotEmpty ? content : null;
-      final duration = story['play_length'] ?? story['duration'];
-      int secs = 0;
-      if (duration != null) {
-        if (duration is int) {
-          secs = duration;
-        } else if (duration is num) {
-          secs = duration.round();
-        } else {
-          secs = int.tryParse(duration.toString()) ?? 0;
-        }
-      }
-      final m = secs ~/ 60;
-      final s = secs % 60;
-      final durationLabel = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-      final title = (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Story').toString();
-      final categoryLabel = (story['desire_name'] ?? story['category'] ?? 'Love').toString();
+      final durationLabel = PlayerStoryUtils.durationLabelFromStory(story);
+      final title = (story['theme'] ??
+              story['title'] ??
+              story['desire_name'] ??
+              'Story')
+          .toString();
+      final categoryLabel =
+          (story['desire_name'] ?? story['category'] ?? 'Love').toString();
 
       setState(() {
         _playUrl = playUrl;
@@ -1302,21 +1019,21 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _previewContent = preview;
         _fullStoryContent = content;
         _currentStoryId = storyId;
-        _voiceId = storyVoiceId != null && storyVoiceId.isNotEmpty ? storyVoiceId : null;
+        _voiceId =
+            storyVoiceId != null && storyVoiceId.isNotEmpty ? storyVoiceId : null;
         _loadError = null;
       });
 
       if (voiceIdForCache != null &&
-          voiceIdForCache!.isNotEmpty &&
-          playUrl != null &&
-          playUrl!.isNotEmpty) {
-        _voicePlayUrlCache[_voiceCacheKey(storyId, voiceIdForCache!)] =
-            playUrl!;
+          voiceIdForCache.isNotEmpty &&
+          playUrl.isNotEmpty) {
+        _voicePlayUrlCache[
+            PlayerStoryUtils.voiceCacheKey(storyId, voiceIdForCache)] = playUrl;
       }
 
       LastPlayedService.saveLastPlayed(
         storyId: storyId,
-        playUrl: playUrl!,
+        playUrl: playUrl,
         title: title,
         categoryLabel: categoryLabel,
         durationLabel: durationLabel,
@@ -1326,7 +1043,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       );
 
       await _audioPlayer.stop();
-      await _audioPlayer.setSource(UrlSource(playUrl!));
+      await _audioPlayer.setSource(UrlSource(playUrl));
       if (_isPlaying) await _audioPlayer.resume();
     } catch (_) {
       if (mounted) {
@@ -1336,10 +1053,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     }
   }
-
-  // ===========================================================================
-  // SETTINGS MODAL
-  // ===========================================================================
 
   Future<void> _openSettingsModal() async {
     if (_sleepModeActive) {
@@ -1367,7 +1080,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             }
           }
         },
-        backgroundSoundName: _thetaTracks[_selectedThetaIndex].$1,
+        backgroundSoundName: PlayerConstants.thetaTracks[_selectedThetaIndex].$1,
         backgroundSoundListenable: _backgroundSoundNameNotifier,
         onSleepSpeedTap: _openSleepSpeedSheet,
         onBackgroundSoundTap: _openThetaBackgroundSheet,
@@ -1389,11 +1102,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   profile['rc_subscription_plan'])
               ?.toString()
               .trim();
-          sleepModeAllowed = _canUseSleepMode(status, plan);
+          sleepModeAllowed = PlayerStoryUtils.canUseSleepMode(status, plan);
         } catch (_) {}
       }
       if (!mounted) return;
-      _loopNotifier.value = _loopEnabled; // keep in sync so modal shows current state
+      _loopNotifier.value = _loopEnabled;
       _speedLabelNotifier.value = _normalSpeedLabel;
       showPlaybackSettingsModal(
         context,
@@ -1427,114 +1140,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  String get _normalSpeedLabel {
-    if (_normalPlaybackRate == 1.0) return 'Normal (1.0x)';
-    return '${_formatSleepSpeed(_normalPlaybackRate)}x';
-  }
-
   Future<void> _openNormalSpeedSheet() async {
     final current = _normalPlaybackRate;
-    final selected = await showModalBottomSheet<double>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
-          decoration: const BoxDecoration(
-            color: _PlayerColors.surface,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x261C1917),
-                blurRadius: 20,
-                offset: Offset(0, -4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: _PlayerColors.stoneMid,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'Speed',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: _PlayerColors.ink,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Choose playback speed for your story.',
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  color: _PlayerColors.inkSoft,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Column(
-                children: List<Widget>.from(
-                  _speedOptions.map<Widget>((v) {
-                    final isSelected = v == current;
-                    return Pressable(
-                      onTap: () => Navigator.of(ctx).pop(v),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? _PlayerColors.goldPale
-                              : _PlayerColors.warmWhite,
-                          border: Border.all(
-                            color: isSelected
-                                ? _PlayerColors.gold
-                                : _PlayerColors.stone,
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              v == 1.0
-                                  ? 'Normal (1.0x)'
-                                  : '${_formatSleepSpeed(v)}x',
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: _PlayerColors.ink,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (isSelected)
-                              Icon(Icons.check,
-                                  size: 18, color: _PlayerColors.gold),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    final selected = await PlayerOptionSheets.showSpeedSheet(
+      context,
+      currentRate: current,
+      title: 'Speed',
+      subtitle: 'Choose playback speed for your story.',
     );
 
     if (selected != null && selected != current) {
@@ -1559,107 +1171,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _openLoopSheet() async {
     final current = _loopEnabled;
-    final selected = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
-          decoration: const BoxDecoration(
-            color: _PlayerColors.surface,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x261C1917),
-                blurRadius: 20,
-                offset: Offset(0, -4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: _PlayerColors.stoneMid,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'Loop',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: _PlayerColors.ink,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Repeat the story when it ends (common and sleep mode).',
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  color: _PlayerColors.inkSoft,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ...[false, true].map<Widget>((value) {
-                final isOn = value;
-                final isSelected = current == value;
-                return Pressable(
-                  onTap: () => Navigator.of(ctx).pop(value),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? _PlayerColors.goldPale
-                          : _PlayerColors.warmWhite,
-                      border: Border.all(
-                        color: isSelected
-                            ? _PlayerColors.gold
-                            : _PlayerColors.stone,
-                        width: 1.5,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          isOn ? 'On' : 'Off',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _PlayerColors.ink,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (isSelected)
-                          Icon(Icons.check,
-                              size: 18, color: _PlayerColors.gold),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        );
-      },
+    final selected = await PlayerOptionSheets.showLoopSheet(
+      context,
+      currentEnabled: current,
     );
 
     if (selected != null && selected != current) {
       setState(() => _loopEnabled = selected);
-      _loopNotifier.value = selected; // so open Playback Settings modal updates immediately
+      _loopNotifier.value = selected;
       if (_isPlaying) {
         _audioPlayer.setReleaseMode(
             _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
@@ -1675,120 +1194,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  String get _sleepSpeedLabel =>
-      _normalPlaybackRate == 1.0
-          ? 'Normal (1.0x)'
-          : '${_formatSleepSpeed(_normalPlaybackRate)}x';
-
-  String _formatSleepSpeed(double value) {
-    if (value % 1 == 0) {
-      return value.toStringAsFixed(0);
-    }
-    final s = value.toStringAsFixed(2);
-    return s.endsWith('0') ? s.substring(0, s.length - 1) : s;
-  }
-
   Future<void> _openSleepSpeedSheet() async {
     final current = _normalPlaybackRate;
-    final selected = await showModalBottomSheet<double>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
-          decoration: const BoxDecoration(
-            color: _PlayerColors.surface,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x261C1917),
-                blurRadius: 20,
-                offset: Offset(0, -4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: _PlayerColors.stoneMid,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'Sleep Speed',
-                style: GoogleFonts.outfit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: _PlayerColors.ink,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Choose how slowly your story plays in Sleep Mode.',
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  color: _PlayerColors.inkSoft,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Column(
-                children: List<Widget>.from(
-                  _speedOptions.map<Widget>((v) {
-                    final isSelected = v == current;
-                    return Pressable(
-                      onTap: () => Navigator.of(ctx).pop(v),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? _PlayerColors.goldPale
-                              : _PlayerColors.warmWhite,
-                          border: Border.all(
-                            color: isSelected
-                                ? _PlayerColors.gold
-                                : _PlayerColors.stone,
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              '${_formatSleepSpeed(v)}x',
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: _PlayerColors.ink,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (isSelected)
-                              Icon(Icons.check,
-                                  size: 18, color: _PlayerColors.gold),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    final selected = await PlayerOptionSheets.showSpeedSheet(
+      context,
+      currentRate: current,
+      title: 'Sleep Speed',
+      subtitle: 'Choose how slowly your story plays in Sleep Mode.',
+      sleepStyle: true,
     );
 
     if (selected != null && selected != current) {
@@ -1811,139 +1224,27 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  // ===========================================================================
-  // THETA BACKGROUND SELECTOR SHEET
-  // ===========================================================================
-
   Future<void> _openThetaBackgroundSheet() async {
     final currentIndex = _selectedThetaIndex;
-    final selected = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(ctx).padding.bottom + 24),
-          decoration: const BoxDecoration(
-            color: _PlayerColors.surface,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x261C1917),
-                blurRadius: 20,
-                offset: Offset(0, -4),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: _PlayerColors.stoneMid,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Background Sound',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: _PlayerColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Choose a theta wave track for Sleep Mode.',
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      color: _PlayerColors.inkSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Column(
-                    children: List.generate(_thetaTracks.length, (index) {
-                      final track = _thetaTracks[index];
-                      final isSelected = index == currentIndex;
-                      return Pressable(
-                        onTap: () => Navigator.of(ctx).pop(index),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? _PlayerColors.goldPale
-                                : _PlayerColors.warmWhite,
-                            border: Border.all(
-                              color: isSelected
-                                  ? _PlayerColors.gold
-                                  : _PlayerColors.stone,
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                '🎵',
-                                style: GoogleFonts.outfit(fontSize: 16),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  track.$1,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: _PlayerColors.ink,
-                                  ),
-                                ),
-                              ),
-                              if (isSelected)
-                                Icon(Icons.check,
-                                    size: 18,
-                                    color: _PlayerColors.gold),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    final selected = await PlayerOptionSheets.showThetaBackgroundSheet(
+      context,
+      currentIndex: currentIndex,
     );
 
     if (selected != null && selected != currentIndex) {
       setState(() {
         _selectedThetaIndex = selected;
       });
-      _backgroundSoundNameNotifier.value = _thetaTracks[_selectedThetaIndex].$1;
+      _backgroundSoundNameNotifier.value =
+          PlayerConstants.thetaTracks[_selectedThetaIndex].$1;
       if (_sleepModeActive) {
-        // Re-apply context, then swap the theta track.
         await _applyMixContext();
         await _startThetaBackground();
-        // Re-apply again after new theta starts.
         await Future.delayed(const Duration(milliseconds: 200));
         await _applyMixContext();
       }
       if (mounted) {
-        final name = _thetaTracks[_selectedThetaIndex].$1;
+        final name = PlayerConstants.thetaTracks[_selectedThetaIndex].$1;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Background sound set to $name'),
@@ -1953,10 +1254,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     }
   }
-
-  // ===========================================================================
-  // SLEEP REMAINING TIME
-  // ===========================================================================
 
   int? get _sleepRemainingMinutes {
     final started = _sleepModeStartedAt;
@@ -1968,452 +1265,51 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return (remaining / 60).ceil();
   }
 
-  // ===========================================================================
-  // BUILD
-  // ===========================================================================
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-        FocusManager.instance.primaryFocus?.unfocus();
-      },
-      child: Scaffold(
-        key: scaffoldKey,
-        backgroundColor: _sleepModeActive
-            ? _PlayerColors.sleepDark
-            : _PlayerColors.surface,
-        body: Stack(
-          key: _playerBodyStackKey,
-          clipBehavior: Clip.none,
-          children: [
-            if (_sleepModeActive) ...[
-              Positioned.fill(
-                child: ColoredBox(color: _PlayerColors.sleepDark),
-              ),
-            ],
-            SafeArea(
-              top: true,
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _hasNoStory
-                      ? _buildNoStoryState()
-                      : Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              20, 0, 20, 0),
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.only(bottom: 80),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildPlayerHeader(),
-                                _buildWaveform(),
-                                if (_sleepModeActive) _buildSleepInfo(),
-                                _buildProgressSection(),
-                                _buildControls(),
-                                SizedBox(
-                                    height: _sleepModeActive ? 0 : 28),
-                                if (!_sleepModeActive) _buildDeepenButton(),
-                                if (!_sleepModeActive)
-                                  _buildStoryPreview(),
-                              ],
-                            ),
-                          ),
-                        ),
-            ),
-            if (_isGeneratingVoice)
-              Positioned.fill(
-                child: Container(
-                  color: _PlayerColors.surface.withValues(alpha: 0.85),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(color: _PlayerColors.gold),
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            'Updating your story with the selected voice. This can take 30-45 seconds.',
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: _PlayerColors.ink,
-                              height: 1.4,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 28),
-                          child: Text(
-                            "Please keep the app open and don't lock your screen.",
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: _PlayerColors.ink,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (_isDeepening)
-              Positioned.fill(
-                child: Container(
-                  color: _PlayerColors.surface.withValues(alpha: 0.85),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(color: _PlayerColors.gold),
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            'Deepening your manifestation. This can take up to 60 ~ 90 seconds.',
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: _PlayerColors.ink,
-                              height: 1.4,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 28),
-                          child: Text(
-                            "Please keep the app open and don't lock your screen.",
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: _PlayerColors.ink,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (_showSettingsCoachmark)
-              Positioned.fill(
-                child: PlayerSettingsCoachmarkOverlay(
-                  stackKey: _playerBodyStackKey,
-                  settingsTargetKey: _settingsCoachmarkButtonKey,
-                  onGotIt: () => _dismissSettingsCoachmark(),
-                  onSettingsTap: () async {
-                    await _dismissSettingsCoachmark();
-                    if (mounted) _openSettingsModal();
-                  },
-                ),
-              )
-            else if (_showDoneLibraryCoachmark)
-              Positioned.fill(
-                child: PlayerDoneLibraryCoachmarkOverlay(
-                  stackKey: _playerBodyStackKey,
-                  doneTabTargetKey: doneLibraryCoachmarkTabKey,
-                  onGotIt: () => _dismissDoneLibraryCoachmark(),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
+  String get _storyPreviewText {
+    final fullText = _fullStoryContent ?? _previewContent;
+    return fullText?.trim().isNotEmpty == true
+        ? fullText!
+        : 'No preview available.';
   }
 
-  // ===========================================================================
-  // UI BUILDERS
-  // ===========================================================================
+  String get _sleepTimerText => _sleepTimerMinutes == null
+      ? 'Loop'
+      : '${_sleepRemainingMinutes ?? _sleepTimerMinutes ?? 30} min';
 
-  Widget _buildNoStoryState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.headset_outlined,
-              size: 64,
-              color: _PlayerColors.inkSoft.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'No story',
-              style: GoogleFonts.cormorantGaramond(
-                fontSize: 26,
-                fontWeight: FontWeight.w500,
-                color: _PlayerColors.ink,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create a story from Desires or Home\nto listen here.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
-                color: _PlayerColors.inkSoft,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 28),
-            TextButton(
-              onPressed: () => context.go(DesiresWidget.routePath),
-              style: TextButton.styleFrom(
-                backgroundColor: _PlayerColors.gold,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Go to Desires',
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlayerHeader() {
-    const settingsIconSize = 44.0; // Min tap target; prevents overlap on all phones
-    return Padding(
-      padding:
-          EdgeInsets.only(top: 24, bottom: _sleepModeActive ? 16 : 24),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: _sleepModeActive
-                  ? CrossAxisAlignment.center
-                  : CrossAxisAlignment.start,
-              children: [
-                if (_sleepModeActive) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _PlayerColors.sleepPurple
-                          .withValues(alpha: 0.3),
-                      border: Border.all(
-                          color: _PlayerColors.sleepPurple
-                              .withValues(alpha: 0.5)),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.nightlight_round,
-                            size: 14, color: _PlayerColors.goldLight),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Sleep Mode Active',
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Text(
-                  _categoryHeaderLine,
-                  textAlign:
-                      _sleepModeActive ? TextAlign.center : null,
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w600,
-                    color: _sleepModeActive
-                        ? Colors.white.withValues(alpha: 0.5)
-                        : _PlayerColors.blush,
-                  ),
-                ),
-                SizedBox(height: _sleepModeActive ? 8 : 12),
-                Text(
-                  _title ?? 'A Love That Was\nAlready Yours',
-                  textAlign:
-                      _sleepModeActive ? TextAlign.center : null,
-                  style: GoogleFonts.cormorantGaramond(
-                    fontSize: _sleepModeActive ? 20 : 32,
-                    fontWeight: FontWeight.w400,
-                    color: _sleepModeActive
-                        ? Colors.white.withValues(alpha: 0.9)
-                        : _PlayerColors.ink,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (_sleepModeActive)
-                  Text(
-                    _effectiveDuration.inSeconds > 0
-                        ? '${_formatDuration(_effectiveDuration.inSeconds)} · $_voiceLabel'
-                        : (_durationLabel ??
-                            _subtitle ??
-                            '$_voiceLabel · Generated today'),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.6),
-                    ),
-                  )
-                else
-                  _buildDurationAndVoiceRow(),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4, right: 20),
-            child: SizedBox(
-              key: _settingsCoachmarkButtonKey,
-              width: settingsIconSize,
-              height: settingsIconSize,
-              child: Center(
-                child: AnimatedBuilder(
-                  animation: _waveformController,
-                  builder: (context, child) {
-                    final isHighlighted =
-                        _showSettingsCoachmark && !_sleepModeActive;
-                    final t = _waveformController.value * math.pi * 2;
-                    final pulse = (math.sin(t) + 1) / 2;
-                    final glowAlpha =
-                        isHighlighted ? (0.22 + pulse * 0.18) : 0.0;
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: isHighlighted
-                            ? PlayerSettingsCoachmarkTokens.bgCard
-                            : Colors.transparent,
-                        shape: BoxShape.circle,
-                        boxShadow: isHighlighted
-                            ? [
-                                BoxShadow(
-                                  color: _PlayerColors.ink
-                                      .withValues(alpha: 0.14),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 5),
-                                  spreadRadius: 0,
-                                ),
-                                BoxShadow(
-                                  color: _PlayerColors.ink
-                                      .withValues(alpha: 0.06),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                                BoxShadow(
-                                  color: _PlayerColors.gold
-                                      .withValues(alpha: glowAlpha),
-                                  blurRadius: 32,
-                                  spreadRadius: 1,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: Pressable(
-                    onTap: () async {
-                      await _dismissSettingsCoachmark();
-                      _openSettingsModal();
-                    },
-                    borderRadius: BorderRadius.circular(999),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: Icon(
-                        Icons.settings,
-                        size: 24,
-                        color: _sleepModeActive
-                            ? Colors.white.withValues(alpha: 0.7)
-                            : _PlayerColors.ink,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDurationAndVoiceRow() {
-    final durationText = _effectiveDuration.inSeconds > 0
-        ? _formatDuration(_effectiveDuration.inSeconds)
-        : (_durationLabel ?? '0:00');
-    final isGenerating = _isGeneratingVoice;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          '$durationText · $_voiceLabel',
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            color: _PlayerColors.inkSoft,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        if (isGenerating) ...[
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: _PlayerColors.gold,
-            ),
-          ),
-        ],
-      ],
-    );
+  Future<void> _onSettingsTap() async {
+    await _dismissSettingsCoachmark();
+    _openSettingsModal();
   }
 
   Future<void> _onVoiceChanged(String? selectedValue) async {
-    if (selectedValue == null || selectedValue == _voiceDropdownValue) return;
+    if (selectedValue == null ||
+        selectedValue == PlayerStoryUtils.voiceDropdownValue(_voiceId)) {
+      return;
+    }
     final storyId = _currentStoryId;
     if (storyId == null) return;
-    String? voiceIdToUse;
-    if (selectedValue == _voiceDropdownMyVoice) {
-      voiceIdToUse = await _getUserVoiceId();
-      if (voiceIdToUse == null || voiceIdToUse.isEmpty) {
+    late final String voiceIdToUse;
+    if (selectedValue == PlayerConstants.voiceDropdownMyVoice) {
+      final userVoiceId = await PlayerStoryLoader.getUserVoiceId();
+      if (userVoiceId == null || userVoiceId.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Your voice is not available. Please record your voice first.')),
+            const SnackBar(
+              content: Text(
+                'Your voice is not available. Please record your voice first.',
+              ),
+            ),
           );
         }
         return;
       }
+      voiceIdToUse = userVoiceId;
     } else {
       voiceIdToUse = selectedValue;
     }
     if (!mounted) return;
 
-    // Use cached URL if available so user doesn't wait 30–45s when switching back.
-    final cacheKey = _voiceCacheKey(storyId, voiceIdToUse!);
+    final cacheKey = PlayerStoryUtils.voiceCacheKey(storyId, voiceIdToUse);
     final cachedUrl = _voicePlayUrlCache[cacheKey]?.trim();
     if (cachedUrl != null && cachedUrl.isNotEmpty) {
       final wasPlaying = _isPlaying;
@@ -2448,7 +1344,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (url == null || url.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not generate audio. Please try again.')),
+            const SnackBar(
+              content: Text('Could not generate audio. Please try again.'),
+            ),
           );
         }
         return;
@@ -2484,483 +1382,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  int get _visibleWaveBars {
-    final dur = _effectiveDuration.inMilliseconds;
-    if (dur <= 0) return 0;
-    final pos = _position.inMilliseconds;
-    final ratio = (pos / dur).clamp(0.0, 1.0);
-    return (ratio * _totalWaveBars).round().clamp(0, _totalWaveBars);
-  }
-
-  static const _barHeights = [
-    12.0, 24.0, 36.0, 20.0, 44.0, 32.0, 16.0, 28.0, 36.0, 24.0, 40.0,
-    28.0, 16.0, 32.0, 20.0, 12.0
-  ];
-
-  /// Sleep mode: smaller bars per HTML
-  static const _sleepBarHeights = [
-    10.0, 18.0, 28.0, 36.0, 40.0, 36.0, 24.0, 16.0, 8.0
-  ];
-
-  Widget _buildWaveform() {
-    final barCount = _sleepModeActive ? 9 : _totalWaveBars;
-    final heights = _sleepModeActive ? _sleepBarHeights : _barHeights;
-    final visible = _sleepModeActive
-        ? (_effectiveDuration.inMilliseconds > 0
-            ? ((_position.inMilliseconds / _effectiveDuration.inMilliseconds) *
-                    barCount)
-                .round()
-                .clamp(0, barCount)
-            : 0)
-        : _visibleWaveBars;
-
-    Widget waveRow;
-    if (_sleepModeActive) {
-      waveRow = AnimatedBuilder(
-        animation: _waveformController,
-        builder: (context, _) {
-          final t = _waveformController.value * 2 * math.pi;
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(barCount, (i) {
-              final isPlayed = i < visible;
-              final baseH = heights[i % heights.length];
-              final h =
-                  baseH * (0.55 + 0.45 * math.sin(t + i * math.pi / 4));
-              return Padding(
-                padding:
-                    EdgeInsets.only(right: i < barCount - 1 ? 3 : 0),
-                child: Container(
-                  width: 6,
-                  height: h,
-                  decoration: BoxDecoration(
-                    gradient: isPlayed
-                        ? const LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              _PlayerColors.goldLight,
-                              _PlayerColors.gold,
-                              _PlayerColors.sleepPurple,
-                              _PlayerColors.sleepBlue,
-                            ],
-                            stops: [0.0, 0.35, 0.7, 1.0],
-                          )
-                        : null,
-                    color: isPlayed
-                        ? null
-                        : Colors.white.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(3),
-                    boxShadow: isPlayed
-                        ? [
-                            BoxShadow(
-                              color: _PlayerColors.sleepPurple
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
-              );
-            }),
-          );
-        },
-      );
-    } else {
-      waveRow = AnimatedBuilder(
-        animation: _waveformController,
-        builder: (context, _) {
-          final t = _waveformController.value * 2 * math.pi;
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(barCount, (i) {
-              final isPlayed = i < visible;
-              final baseH = heights[i % heights.length];
-              final mult =
-                  (0.55 + 0.45 * math.sin(t + i * math.pi / 4))
-                      .clamp(0.2, 1.0);
-              final h = baseH * mult;
-              return Padding(
-                padding:
-                    EdgeInsets.only(right: i < barCount - 1 ? 3 : 0),
-                child: Container(
-                  width: 6,
-                  height: h,
-                  decoration: BoxDecoration(
-                    gradient: isPlayed
-                        ? const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              _PlayerColors.goldLight,
-                              _PlayerColors.gold,
-                              _PlayerColors.goldDark,
-                            ],
-                            stops: [0.0, 0.5, 1.0],
-                          )
-                        : null,
-                    color: isPlayed ? null : _PlayerColors.stone,
-                    borderRadius: BorderRadius.circular(3),
-                    boxShadow: isPlayed
-                        ? [
-                            BoxShadow(
-                              color: _PlayerColors.gold
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
-              );
-            }),
-          );
-        },
-      );
-    }
-    const fixedWaveHeight = 56.0;
-    return Padding(
-      padding: _sleepModeActive
-          ? const EdgeInsets.fromLTRB(0, 24, 0, 16)
-          : const EdgeInsets.fromLTRB(0, 48, 0, 48 + 24),
-      child: SizedBox(
-        height: fixedWaveHeight,
-        child: Center(child: waveRow),
-      ),
-    );
-  }
-
-  /// Sleep info card
-  Widget _buildSleepInfo() {
-    final timerText = _sleepTimerMinutes == null
-        ? 'Loop'
-        : '${_sleepRemainingMinutes ?? _sleepTimerMinutes ?? 30} min';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: _PlayerColors.sleepPurple.withValues(alpha: 0.2),
-        border: Border.all(
-            color: _PlayerColors.sleepPurple.withValues(alpha: 0.3)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _sleepInfoItem('Speed', _sleepSpeedLabel, false),
-          _sleepInfoItem('Loop', 'On', false),
-          _sleepInfoItem('Timer', timerText, true),
-        ],
-      ),
-    );
-  }
-
-  Widget _sleepInfoItem(String label, String value, bool valueIsGold) {
-    return Column(
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: GoogleFonts.outfit(
-            fontSize: 10,
-            color: Colors.white.withValues(alpha: 0.5),
-            fontWeight: FontWeight.w500,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: valueIsGold
-                ? _PlayerColors.goldLight
-                : Colors.white.withValues(alpha: 0.9),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Progress section: time row above 4px bar
-  Widget _buildProgressSection() {
-    final durMs = _effectiveDuration.inMilliseconds;
-    final posMs = _position.inMilliseconds;
-    final progress = durMs > 0 ? (posMs / durMs).clamp(0.0, 1.0) : 0.0;
-    final textColor = _sleepModeActive
-        ? Colors.white.withValues(alpha: 0.6)
-        : _PlayerColors.inkSoft;
-    final trackColor = _sleepModeActive
-        ? Colors.white.withValues(alpha: 0.2)
-        : _PlayerColors.stone;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: _sleepModeActive ? 20 : 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _formatDuration(_position.inSeconds),
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                    fontFeatures: const [
-                      FontFeature.tabularFigures()
-                    ],
-                  ),
-                ),
-                Text(
-                  _formatDuration(_effectiveDuration.inSeconds),
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: textColor,
-                    fontFeatures: const [
-                      FontFeature.tabularFigures()
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          LayoutBuilder(
-            builder: (_, constraints) {
-              final barWidth = constraints.maxWidth;
-              return GestureDetector(
-                onTapDown: durMs > 0 && barWidth > 0
-                    ? (d) {
-                        final rel = (d.localPosition.dx / barWidth)
-                            .clamp(0.0, 1.0);
-                        _audioPlayer.seek(Duration(
-                            milliseconds: (rel * durMs).round()));
-                      }
-                    : null,
-                child: Container(
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: trackColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: progress,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: _sleepModeActive
-                              ? const LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    _PlayerColors.goldLight,
-                                    _PlayerColors.gold,
-                                    _PlayerColors.sleepPurple,
-                                  ],
-                                  stops: [0.0, 0.5, 1.0],
-                                )
-                              : null,
-                          color: _sleepModeActive
-                              ? null
-                              : _PlayerColors.gold,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  static const _iconPrev = Icons.skip_previous_rounded;
-  static const _iconRewind = Icons.fast_rewind_rounded;
-  static const _iconPlay = Icons.play_arrow_rounded;
-  static const _iconPause = Icons.pause_rounded;
-  static const _iconForward = Icons.fast_forward_rounded;
-  static const _iconNext = Icons.skip_next_rounded;
-
-  Widget _buildControls() {
-    final hasUrl = _playUrl != null && _playUrl!.isNotEmpty;
-    final canSkipStory = hasUrl && _currentStoryId != null;
-    final controlsOpacity = _sleepModeActive ? 0.85 : 1.0;
-    final media = MediaQuery.of(context);
-    final width = media.size.width;
-    // Responsive breakpoints so buttons scale down on very small phones (e.g. 320px).
-    final isVeryNarrow = width < 340;
-    final isNarrow = width < 360;
-    final isCompact = width < 400;
-    final primarySize = isVeryNarrow
-        ? 44.0
-        : (isNarrow ? 50.0 : (isCompact ? 56.0 : 64.0));
-    final secondarySize = isVeryNarrow
-        ? 32.0
-        : (isNarrow ? 36.0 : (isCompact ? 40.0 : 48.0));
-    final spacing = isVeryNarrow ? 6.0 : (isNarrow ? 8.0 : (isCompact ? 12.0 : 20.0));
-    final sleepSpacing = isVeryNarrow ? 14.0 : (isNarrow ? 18.0 : 32.0);
-    // On very small screens, cap control row width so FittedBox scaleDown shrinks to fit.
-    final maxRowWidth = isVeryNarrow
-        ? (width - 24) * 0.92
-        : (isNarrow ? (width - 28) * 0.95 : (width - 32).toDouble());
-
-    final row = _sleepModeActive
-        ? Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _controlBtn(_iconPrev, false,
-                  canSkipStory ? () => _skipToPreviousStory() : (hasUrl ? _skipBackward : null),
-                  size: secondarySize),
-              SizedBox(width: sleepSpacing),
-              _controlBtn(
-                  _isPlaying ? _iconPause : _iconPlay,
-                  true,
-                  hasUrl ? _togglePlayPause : null,
-                  size: primarySize),
-              SizedBox(width: sleepSpacing),
-              _controlBtn(_iconNext, false,
-                  canSkipStory ? () => _skipToNextStory() : (hasUrl ? _skipForward : null),
-                  size: secondarySize),
-            ],
-          )
-        : Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _controlBtn(_iconPrev, false,
-                  canSkipStory ? () => _skipToPreviousStory() : (hasUrl ? _skipBackward : null),
-                  size: secondarySize),
-              SizedBox(width: spacing),
-              _controlBtn(_iconRewind, false,
-                  hasUrl ? _skipBackward : null,
-                  size: secondarySize),
-              SizedBox(width: spacing),
-              _controlBtn(
-                  _isPlaying ? _iconPause : _iconPlay,
-                  true,
-                  hasUrl ? _togglePlayPause : null,
-                  size: primarySize),
-              SizedBox(width: spacing),
-              _controlBtn(_iconForward, false,
-                  hasUrl ? _skipForward : null,
-                  size: secondarySize),
-              SizedBox(width: spacing),
-              _controlBtn(_iconNext, false,
-                  canSkipStory ? () => _skipToNextStory() : (hasUrl ? _skipForward : null),
-                  size: secondarySize),
-            ],
-          );
-    return Opacity(
-      opacity: controlsOpacity,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxRowWidth),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: row,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _controlBtn(IconData icon, bool primary, VoidCallback? onTap,
-      {double? size}) {
-    final media = MediaQuery.of(context);
-    final w = media.size.width;
-    final defaultPrimary = w < 340 ? 44.0 : (w < 360 ? 50.0 : (w < 400 ? 56.0 : 64.0));
-    final defaultSecondary = w < 340 ? 32.0 : (w < 360 ? 36.0 : (w < 400 ? 40.0 : 48.0));
-    final btnSize = size ?? (primary ? defaultPrimary : defaultSecondary);
-    final iconSize = primary
-        ? (btnSize * 0.5).clamp(18.0, 32.0)
-        : (btnSize * 0.5).clamp(14.0, 24.0);
-    final primaryColor =
-        _sleepModeActive ? _PlayerColors.sleepPurple : _PlayerColors.gold;
-    final secondaryColor = _sleepModeActive
-        ? Colors.white.withValues(alpha: 0.5)
-        : _PlayerColors.inkMid;
-    final color = primary ? Colors.white : secondaryColor;
-    final grayRectColor = _sleepModeActive
-        ? Colors.white.withValues(alpha: 0.18)
-        : _PlayerColors.stoneMid;
-    return Pressable(
-      onTap: onTap,
-      borderRadius: primary
-          ? BorderRadius.circular(btnSize / 2)
-          : BorderRadius.circular(btnSize / 4),
-      splashColor:
-          (primary ? Colors.white : primaryColor).withValues(alpha: 0.2),
-      highlightColor:
-          (primary ? Colors.white : primaryColor).withValues(alpha: 0.1),
-      child: Container(
-        width: btnSize,
-        height: btnSize,
-        decoration: BoxDecoration(
-          color: primary ? primaryColor : grayRectColor,
-          shape: primary ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: primary ? null : BorderRadius.circular(btnSize / 4),
-          boxShadow: primary
-              ? [
-                  BoxShadow(
-                    color: primaryColor.withValues(alpha: 0.4),
-                    blurRadius: _sleepModeActive ? 16 : 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        alignment: Alignment.center,
-        child: Icon(icon, size: iconSize, color: color),
-      ),
-    );
-  }
-
-  Widget _modeBtn(String label, bool active) {
-    return Pressable(
-      onTap: () {
-        // TODO: switch mode (Standard/Sleep/Loop)
-      },
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: active
-              ? _PlayerColors.goldPale
-              : _PlayerColors.surface,
-          border: Border.all(
-            color: active ? _PlayerColors.gold : _PlayerColors.stone,
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: active ? _PlayerColors.gold : _PlayerColors.inkSoft,
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _deepenManifestation() async {
     if (_isDeepening) return;
     final hasConsent = await AIConsentService.ensureConsent(context);
@@ -2983,9 +1404,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       return;
     }
     if (!mounted) return;
-    // Stop any in-progress playback while generating deepened story/audio.
     final shouldAutoPlayNew = _isPlaying;
-    try { await _audioPlayer.stop(); } catch (_) {}
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
     if (mounted) {
       setState(() {
         _isPlaying = false;
@@ -3002,10 +1424,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
     try {
       final profile = await BackendClient.getUserProfile(userId);
       name = (profile['name'] ?? '').toString().trim();
-      location = (profile['location'] ?? profile['dream_place'] ?? '').toString().trim();
+      location = (profile['location'] ?? profile['dream_place'] ?? '')
+          .toString()
+          .trim();
       energyWord = (profile['energyWord'] ?? '').toString().trim();
-      lovedOne = (profile['lovedOne'] ?? profile['someone_you_love'] ?? '').toString().trim();
-      dreamLocation = (profile['dream_place'] ?? profile['dreamLocation'] ?? '').toString().trim();
+      lovedOne = (profile['lovedOne'] ?? profile['someone_you_love'] ?? '')
+          .toString()
+          .trim();
+      dreamLocation =
+          (profile['dream_place'] ?? profile['dreamLocation'] ?? '')
+              .toString()
+              .trim();
     } catch (_) {}
     if (!mounted) {
       setState(() => _isDeepening = false);
@@ -3023,22 +1452,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
         dreamLocation: dreamLocation,
       );
       if (!mounted) return;
-      final theme = (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
+      final theme =
+          (res['theme'] ?? res['title'] ?? 'Deepened Story').toString().trim();
       final story = (res['story'] ?? res['content'] ?? '').toString().trim();
       if (story.isEmpty) {
         AppToast.error(context, 'Deepen response had no story content.');
         return;
       }
 
-      // Update the underlying player state (title + story + audio url) before showing the result modal.
       final newStoryIdRaw = res['id'] ?? res['story_id'] ?? res['storyId'];
       final newStoryId = newStoryIdRaw is int
           ? newStoryIdRaw
           : int.tryParse(newStoryIdRaw?.toString() ?? '');
       int storyIdToUse = newStoryId ?? storyId;
       if (newStoryId == null) {
-        // Some backends return the deepened story without its new id.
-        // Best-effort: load latest story id from list.
         try {
           final storiesRes = await BackendClient.getStories(userId);
           final list = (storiesRes['stories'] as List<dynamic>?) ?? const [];
@@ -3046,7 +1473,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
           for (final s in list) {
             final map = s is Map<String, dynamic> ? s : <String, dynamic>{};
             final idRaw = map['id'] ?? map['Id'];
-            final sid = idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
+            final sid =
+                idRaw is int ? idRaw : int.tryParse(idRaw?.toString() ?? '');
             if (sid == null) continue;
             if (bestId == null || sid > bestId) bestId = sid;
           }
@@ -3054,10 +1482,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         } catch (_) {}
       }
 
-      // Generate audio for the deepened story using the currently selected voice.
       final voiceIdToUse = (_voiceId ?? '').trim().isNotEmpty
           ? _voiceId!.trim()
-          : await _getUserVoiceId();
+          : await PlayerStoryLoader.getUserVoiceId();
 
       String? newAudioUrl;
       if (voiceIdToUse != null && voiceIdToUse.isNotEmpty) {
@@ -3068,13 +1495,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
           );
           final url = audioRes['url']?.toString().trim();
           if (url != null && url.isNotEmpty) newAudioUrl = url;
-          if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
-            _voicePlayUrlCache[_voiceCacheKey(storyIdToUse, voiceIdToUse)] =
-                newAudioUrl!;
+          if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
+            _voicePlayUrlCache[
+                PlayerStoryUtils.voiceCacheKey(storyIdToUse, voiceIdToUse)] =
+                newAudioUrl;
           }
-        } catch (_) {
-          // If generation fails, keep existing audio; user can still read the deepened story.
-        }
+        } catch (_) {}
       }
 
       if (!mounted) return;
@@ -3083,14 +1509,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _title = theme;
         _previewContent = story;
         _fullStoryContent = story;
-        if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
+        if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
           _playUrl = newAudioUrl;
         }
       });
 
-      if (newAudioUrl != null && newAudioUrl!.isNotEmpty) {
+      if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
         try {
-          await _audioPlayer.setSource(UrlSource(newAudioUrl!));
+          await _audioPlayer.setSource(UrlSource(newAudioUrl));
           if (shouldAutoPlayNew) await _audioPlayer.resume();
           if (mounted) setState(() => _isPlaying = shouldAutoPlayNew);
         } catch (_) {
@@ -3103,7 +1529,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     } catch (e) {
       if (mounted) {
         final msg = e.toString();
-        if (msg.contains('403') && (msg.contains('1 story per day') || msg.contains('story per day'))) {
+        if (msg.contains('403') &&
+            (msg.contains('1 story per day') ||
+                msg.contains('story per day'))) {
           AppToast.info(context, _nextResetMessage());
         } else {
           AppToast.error(
@@ -3120,19 +1548,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   void _onDeepenTap() {
     if (_isDeepening) return;
-    // Check subscription; send non-subscribers to the subscription page.
     _checkSubscriptionThenDeepen();
   }
 
   Future<void> _checkSubscriptionThenDeepen() async {
     bool isSubscribed = false;
-    int? userId;
     try {
-      userId = await SupabaseService.getCurrentUserTableId();
+      final userId = await SupabaseService.getCurrentUserTableId();
       if (userId != null) {
         final profile = await BackendClient.getUserProfile(userId);
-        final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-            ?.toString().toLowerCase().trim();
+        final status = (profile['rc_subscription_status'] ??
+                profile['rc_subscription_Status'])
+            ?.toString()
+            .toLowerCase()
+            .trim();
         isSubscribed = status == 'active' || status == 'trial';
       }
     } catch (_) {}
@@ -3148,126 +1577,110 @@ class _PlayerWidgetState extends State<PlayerWidget>
     );
   }
 
-  Widget _buildDeepenButton() {
-    final isDisabled = _isDeepening;
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isDisabled ? null : _onDeepenTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Opacity(
-            opacity: isDisabled ? 0.7 : 1,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    _PlayerColors.goldPale,
-                    _PlayerColors.surface,
-                  ],
-                ),
-                border: Border.all(
-                  color: _PlayerColors.goldLight,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1A1C1917),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
+  @override
+  Widget build(BuildContext context) {
+    final hasUrl = _playUrl != null && _playUrl!.isNotEmpty;
+    final canSkipStory = hasUrl && _currentStoryId != null;
+
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      child: Scaffold(
+        key: scaffoldKey,
+        backgroundColor: _sleepModeActive
+            ? PlayerColors.sleepDark
+            : PlayerColors.surface,
+        body: Stack(
+          key: _playerBodyStackKey,
+          clipBehavior: Clip.none,
+          children: [
+            if (_sleepModeActive)
+              const Positioned.fill(
+                child: ColoredBox(color: PlayerColors.sleepDark),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '✨',
-                    style: GoogleFonts.outfit(fontSize: 14),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Deepen This Manifestation',
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _PlayerColors.goldDark,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '→',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _PlayerColors.goldDark,
-                    ),
-                  ),
-                ],
-              ),
+            SafeArea(
+              top: true,
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _hasNoStory
+                      ? const PlayerNoStoryState()
+                      : Padding(
+                          padding: const EdgeInsetsDirectional.fromSTEB(
+                            20,
+                            0,
+                            20,
+                            0,
+                          ),
+                          child: PlayerBody(
+                            settingsButtonKey: _settingsCoachmarkButtonKey,
+                            sleepModeActive: _sleepModeActive,
+                            categoryHeaderLine: _categoryHeaderLine,
+                            title: _title ?? 'A Love That Was\nAlready Yours',
+                            durationLabel: _durationLabel,
+                            subtitle: _subtitle,
+                            voiceLabel: _voiceLabel,
+                            isGeneratingVoice: _isGeneratingVoice,
+                            showSettingsCoachmark: _showSettingsCoachmark,
+                            waveformController: _waveformController,
+                            onSettingsTap: _onSettingsTap,
+                            position: _position,
+                            effectiveDuration: _effectiveDuration,
+                            isPlaying: _isPlaying,
+                            hasUrl: hasUrl,
+                            canSkipStory: canSkipStory,
+                            audioPlayer: _audioPlayer,
+                            onTogglePlayPause: hasUrl ? _togglePlayPause : null,
+                            onSkipBackward: hasUrl ? _skipBackward : null,
+                            onSkipForward: hasUrl ? _skipForward : null,
+                            onSkipToPreviousStory: canSkipStory
+                                ? _skipToPreviousStory
+                                : null,
+                            onSkipToNextStory:
+                                canSkipStory ? _skipToNextStory : null,
+                            sleepSpeedLabel: _sleepSpeedLabel,
+                            sleepTimerText: _sleepTimerText,
+                            isDeepening: _isDeepening,
+                            onDeepenTap: _onDeepenTap,
+                            storyPreviewText: _storyPreviewText,
+                          ),
+                        ),
             ),
-          ),
+            if (_isGeneratingVoice)
+              const PlayerBlockingOverlay(
+                message:
+                    'Updating your story with the selected voice. This can take 30-45 seconds.',
+                hint: "Please keep the app open and don't lock your screen.",
+              ),
+            if (_isDeepening)
+              const PlayerBlockingOverlay(
+                message:
+                    'Deepening your manifestation. This can take up to 60 ~ 90 seconds.',
+                hint: "Please keep the app open and don't lock your screen.",
+              ),
+            if (_showSettingsCoachmark)
+              Positioned.fill(
+                child: PlayerSettingsCoachmarkOverlay(
+                  stackKey: _playerBodyStackKey,
+                  settingsTargetKey: _settingsCoachmarkButtonKey,
+                  onGotIt: () => _dismissSettingsCoachmark(),
+                  onSettingsTap: () async {
+                    await _dismissSettingsCoachmark();
+                    if (mounted) _openSettingsModal();
+                  },
+                ),
+              )
+            else if (_showDoneLibraryCoachmark)
+              Positioned.fill(
+                child: PlayerDoneLibraryCoachmarkOverlay(
+                  stackKey: _playerBodyStackKey,
+                  doneTabTargetKey: doneLibraryCoachmarkTabKey,
+                  onGotIt: () => _dismissDoneLibraryCoachmark(),
+                ),
+              ),
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildStoryPreview() {
-    final fullText = _fullStoryContent ?? _previewContent;
-    final storyText = fullText?.trim().isNotEmpty == true
-        ? fullText!
-        : 'No preview available.';
-
-    return Container(
-      margin: const EdgeInsets.only(top: 0),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _PlayerColors.warmWhite,
-        border: Border.all(color: _PlayerColors.stone),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'STORY PREVIEW',
-            style: GoogleFonts.outfit(
-              fontSize: 10,
-              letterSpacing: 1.5,
-              fontWeight: FontWeight.w600,
-              color: _PlayerColors.blush,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.45,
-            ),
-            child: SingleChildScrollView(
-              child: Text(
-                storyText,
-                style: GoogleFonts.outfit(
-                  fontSize: 14,
-                  color: _PlayerColors.inkMid,
-                  height: 1.6,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

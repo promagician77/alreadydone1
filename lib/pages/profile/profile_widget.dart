@@ -1,35 +1,23 @@
+import '/constants/legal_urls.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
-import '/constants/legal_urls.dart';
+import '/index.dart';
+import '/pages/onboarding/onboarding_state.dart';
 import '/pages/onboarding/onboarding_voice_widget.dart';
 import '/pages/subscription/subscription_widget.dart';
+import '/pages/profile/profile_colors.dart';
+import '/pages/profile/profile_utils.dart';
+import '/pages/profile/widgets/profile_body.dart';
+import '/pages/profile/widgets/profile_close_account_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/services/app_toast.dart';
-import '/widgets/pressable.dart';
 import '/services/backend_client.dart';
 import '/services/last_played_service.dart';
 import '/services/supabase_service.dart';
-import '/pages/onboarding/onboarding_state.dart';
 import 'profile_model.dart';
 import 'profile_modals/profile_modals.dart';
 export 'profile_model.dart';
-
-/// Design tokens from HTML (04 — Profile & Settings)
-class _ProfileColors {
-  static const warmWhite = Color(0xFFF9F7F4);
-  static const surface = Color(0xFFFEFDFB);
-  static const ink = Color(0xFF1C1917);
-  static const inkMid = Color(0xFF44403C);
-  static const inkSoft = Color(0xFF78716C);
-  static const stone = Color(0xFFE8E2DA);
-  static const stoneMid = Color(0xFFD6D0C8);
-  static const gold = Color(0xFFB8861E);
-  static const goldPale = Color(0xFFFBF4E6);
-  static const logoutRed = Color(0xFFDC2626);
-  static const dangerSurface = Color(0xFFFEF2F2);
-  static const dangerBorder = Color(0xFFFECACA);
-}
 
 class ProfileWidget extends StatefulWidget {
   const ProfileWidget({super.key});
@@ -39,53 +27,6 @@ class ProfileWidget extends StatefulWidget {
 
   @override
   State<ProfileWidget> createState() => _ProfileWidgetState();
-}
-
-class _UpgradeSavingsArrow extends StatelessWidget {
-  const _UpgradeSavingsArrow({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: CustomPaint(
-        size: const Size(20, 12),
-        painter: _UpgradeSavingsArrowPainter(color: color.withValues(alpha: 0.92)),
-      ),
-    );
-  }
-}
-
-class _UpgradeSavingsArrowPainter extends CustomPainter {
-  const _UpgradeSavingsArrowPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.6
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final centerY = size.height / 2;
-    canvas.drawLine(Offset(0, centerY), Offset(size.width - 5, centerY), paint);
-
-    final arrowHead = Path()
-      ..moveTo(size.width - 9, centerY - 4)
-      ..lineTo(size.width - 1.5, centerY)
-      ..lineTo(size.width - 9, centerY + 4);
-    canvas.drawPath(arrowHead, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _UpgradeSavingsArrowPainter oldDelegate) {
-    return oldDelegate.color != color;
-  }
 }
 
 class _ProfileWidgetState extends State<ProfileWidget> {
@@ -104,39 +45,10 @@ class _ProfileWidgetState extends State<ProfileWidget> {
   }
 
   void _applySubscriptionFromProfile(Map<String, dynamic> data) {
-    final rcStatus = (data['rc_subscription_status'] ?? data['rc_subscription_Status'])
-        ?.toString()
-        .trim()
-        .toLowerCase();
-    final rcPlan = (data['rc_subscription_plan'] ?? data['rc_subscription_Plan'])
-        ?.toString()
-        .trim()
-        .toLowerCase();
-    final isWeeklyPlan = rcPlan != null && rcPlan.isNotEmpty && (rcPlan.contains('week'));
-    final isMonthlyPlan = rcPlan != null && rcPlan.isNotEmpty && rcPlan.contains('month') && !rcPlan.contains('week');
-    final isAnnualPlan = rcPlan != null &&
-        rcPlan.isNotEmpty &&
-        (rcPlan.contains('annual') ||
-            rcPlan.contains('yearly') ||
-            (rcPlan.contains('year') && !rcPlan.contains('week')));
-    final isCanceled = rcStatus == 'canceled' || rcStatus == 'cancelled';
-    _model.isSubscribedFromRC = rcStatus == 'active' || rcStatus == 'trial';
-    final onLowerTierPlan = isWeeklyPlan || isMonthlyPlan;
-    _model.showUpgradeCardFromRC =
-        _model.isSubscribedFromRC && !isCanceled && onLowerTierPlan && !isAnnualPlan;
-    if (!_model.isSubscribedFromRC || isCanceled) {
-      _model.subscriptionRowLabel = 'Free';
-    } else if (rcStatus == 'trial') {
-      _model.subscriptionRowLabel = 'Trial';
-    } else if (isMonthlyPlan) {
-      _model.subscriptionRowLabel = 'Monthly';
-    } else if (isWeeklyPlan) {
-      _model.subscriptionRowLabel = 'Weekly';
-    } else if (isAnnualPlan) {
-      _model.subscriptionRowLabel = 'Annual';
-    } else {
-      _model.subscriptionRowLabel = 'Active';
-    }
+    final info = ProfileSubscriptionUtils.fromProfile(data);
+    _model.isSubscribedFromRC = info.isSubscribedFromRC;
+    _model.showUpgradeCardFromRC = info.showUpgradeCardFromRC;
+    _model.subscriptionRowLabel = info.subscriptionRowLabel;
   }
 
   Future<void> _loadProfile() async {
@@ -157,8 +69,10 @@ class _ProfileWidgetState extends State<ProfileWidget> {
           _model.profileData = data;
           _model.profileLoading = false;
           _model.profileError = null;
-          _model.switchValue1 = _parseBool(data['is_MorningTime_Reminder'], true);
-          _model.switchValue2 = _parseBool(data['is_BedTime_Reminder'], true);
+          _model.switchValue1 =
+              ProfileUtils.parseBool(data['is_MorningTime_Reminder'], true);
+          _model.switchValue2 =
+              ProfileUtils.parseBool(data['is_BedTime_Reminder'], true);
           _applySubscriptionFromProfile(data);
         });
       }
@@ -166,7 +80,8 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       if (mounted) {
         setState(() {
           _model.profileLoading = false;
-          _model.profileError = e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
+          _model.profileError =
+              e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '');
         });
       }
     }
@@ -202,7 +117,6 @@ class _ProfileWidgetState extends State<ProfileWidget> {
         supabaseAccessToken: accessToken,
       );
       if (!mounted) return;
-      // Clear local session and return to login.
       await SupabaseService.signOut();
       if (!mounted) return;
       AppToast.success(context, 'Account closed');
@@ -244,67 +158,25 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     }
   }
 
-  bool _parseBool(dynamic value, bool defaultValue) {
-    if (value == null) return defaultValue;
-    if (value is bool) return value;
-    final s = value.toString().toLowerCase();
-    if (s == 'true' || s == '1') return true;
-    if (s == 'false' || s == '0') return false;
-    return defaultValue;
-  }
-
-  String _formatSpeed(dynamic speed) {
-    if (speed == null) return 'Normal (1.0x)';
-    final s = speed.toString().toLowerCase();
-    if (s == 'slow') return 'Slow (0.85x)';
-    if (s == 'normal') return 'Normal (1.0x)';
-    if (s == 'fast') return 'Fast (1.15x)';
-    if (s == 'very_fast') return 'Very Fast (1.35x)';
-    return 'Normal (1.0x)';
-  }
-
-  String _getSpeedValue(dynamic speed) {
-    if (speed == null) return 'normal';
-    final s = speed.toString().toLowerCase();
-    if (s == 'slow' || s == 'normal' || s == 'fast' || s == 'very_fast') return s;
-    return 'normal';
-  }
-
-  Future<void> _updateProfileAndReload(Map<String, dynamic> updates) async {
-    final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null || !mounted) return;
-    try {
-      await BackendClient.updateUserProfile(
-        userId,
-        speed: updates['speed'] as String?,
-        isMorningReminder: updates['is_MorningTime_Reminder'] as bool?,
-        isBedtimeReminder: updates['is_BedTime_Reminder'] as bool?,
-        name: updates['name'] as String?,
-        dreamPlace: updates['dream_place'] as String?,
-        energyWord: updates['energyWord'] as String?,
-        someoneYouLove: updates['lovedOne'] as String?,
-      );
-      if (mounted) _loadProfile();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update failed: ${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}')),
-        );
-      }
-    }
-  }
-
   Future<void> _onMorningReminderChanged(bool value) async {
     setState(() => _model.switchValue1 = value);
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null || !mounted) return;
     try {
       await BackendClient.updateUserProfile(userId, isMorningReminder: value);
-      if (mounted) AppToast.success(context, 'Morning reminder ${value ? 'enabled' : 'disabled'}');
+      if (mounted) {
+        AppToast.success(
+          context,
+          'Morning reminder ${value ? 'enabled' : 'disabled'}',
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _model.switchValue1 = !value);
-        AppToast.error(context, 'Failed to update: ${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}');
+        AppToast.error(
+          context,
+          'Failed to update: ${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}',
+        );
       }
     }
   }
@@ -315,11 +187,19 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     if (userId == null || !mounted) return;
     try {
       await BackendClient.updateUserProfile(userId, isBedtimeReminder: value);
-      if (mounted) AppToast.success(context, 'Bedtime reminder ${value ? 'enabled' : 'disabled'}');
+      if (mounted) {
+        AppToast.success(
+          context,
+          'Bedtime reminder ${value ? 'enabled' : 'disabled'}',
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _model.switchValue2 = !value);
-        AppToast.error(context, 'Failed to update: ${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}');
+        AppToast.error(
+          context,
+          'Failed to update: ${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}',
+        );
       }
     }
   }
@@ -341,22 +221,32 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       if (storyId == null || storyContent == null || storyContent.isEmpty) {
         final res = await BackendClient.getStories(userId);
         final list = (res['stories'] as List<dynamic>?)
-            ?.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
-            .toList() ?? [];
+                ?.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+                .toList() ??
+            [];
         if (list.isEmpty) {
-          if (mounted) AppToast.info(context, 'Create a story first before re-recording your voice.');
+          if (mounted) {
+            AppToast.info(
+              context,
+              'Create a story first before re-recording your voice.',
+            );
+          }
           return;
         }
         list.sort((a, b) {
-          final aAt = a['last_played'] ?? a['last_played_at'] ?? a['created_at'] ?? a['id'] ?? 0;
-          final bAt = b['last_played'] ?? b['last_played_at'] ?? b['created_at'] ?? b['id'] ?? 0;
+          final aAt =
+              a['last_played'] ?? a['last_played_at'] ?? a['created_at'] ?? a['id'] ?? 0;
+          final bAt =
+              b['last_played'] ?? b['last_played_at'] ?? b['created_at'] ?? b['id'] ?? 0;
           if (aAt == bAt) return 0;
           return bAt.toString().compareTo(aAt.toString());
         });
         Map<String, dynamic>? story;
         if (storyId != null) {
           for (final s in list) {
-            final id = s['id'] is int ? s['id'] as int : int.tryParse(s['id']?.toString() ?? '');
+            final id = s['id'] is int
+                ? s['id'] as int
+                : int.tryParse(s['id']?.toString() ?? '');
             if (id == storyId) {
               story = s;
               break;
@@ -364,12 +254,16 @@ class _ProfileWidgetState extends State<ProfileWidget> {
           }
         }
         story ??= list.first;
-        storyId = story['id'] is int ? story['id'] as int : int.tryParse(story['id']?.toString() ?? '');
+        storyId = story['id'] is int
+            ? story['id'] as int
+            : int.tryParse(story['id']?.toString() ?? '');
         storyContent = (story['story'] ?? story['content'])?.toString().trim();
       }
 
       if (storyId == null || storyContent == null || storyContent.isEmpty) {
-        if (mounted) AppToast.info(context, 'No story content found. Create a story first.');
+        if (mounted) {
+          AppToast.info(context, 'No story content found. Create a story first.');
+        }
         return;
       }
 
@@ -382,6 +276,50 @@ class _ProfileWidgetState extends State<ProfileWidget> {
           'Failed to load story: ${e.toString().replaceFirst(RegExp(r'^Exception:?\s*'), '')}',
         );
       }
+    }
+  }
+
+  dynamic _morningTimeIso() =>
+      _model.profileData?['morningTime_Reminder'] ??
+      _model.profileData?['morning_time'] ??
+      _model.profileData?['morning_Time'];
+
+  dynamic _bedtimeTimeIso() =>
+      _model.profileData?['bedTime_Reminder'] ??
+      _model.profileData?['bedtime_time'] ??
+      _model.profileData?['bedtime_Time'];
+
+  Future<void> _openMorningTimePicker() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+    final newTime = await showTimePickerModal(
+      context,
+      title: 'Morning Reminder Time',
+      subtitle: 'When should we send your daily story?',
+      currentTime: formatTimeFromIso(_morningTimeIso()),
+      userId: userId,
+      fieldType: TimeFieldType.morning,
+    );
+    if (mounted) {
+      if (newTime != null) AppToast.success(context, 'Morning reminder time updated');
+      _loadProfile();
+    }
+  }
+
+  Future<void> _openBedtimeTimePicker() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null || !mounted) return;
+    final newTime = await showTimePickerModal(
+      context,
+      title: 'Bedtime Reminder Time',
+      subtitle: 'When should we send your evening reflection?',
+      currentTime: formatTimeFromIso(_bedtimeTimeIso()),
+      userId: userId,
+      fieldType: TimeFieldType.bedtime,
+    );
+    if (mounted) {
+      if (newTime != null) AppToast.success(context, 'Bedtime reminder time updated');
+      _loadProfile();
     }
   }
 
@@ -402,6 +340,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     final energyWord = _model.profileData?['energyWord']?.toString() ?? 'Powerful';
     final someoneYouLove = _model.profileData?['lovedOne']?.toString() ?? '—';
     final email = _model.profileData?['email']?.toString() ?? user?.email ?? '—';
+    final profileData = _model.profileData;
 
     return Stack(
       fit: StackFit.expand,
@@ -413,7 +352,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
           },
           child: Scaffold(
             key: scaffoldKey,
-            backgroundColor: _ProfileColors.surface,
+            backgroundColor: ProfileColors.surface,
             body: SafeArea(
               top: true,
               child: _model.profileLoading
@@ -424,145 +363,199 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                             padding: const EdgeInsets.all(24),
                             child: Text(
                               _model.profileError!,
-                              style: GoogleFonts.outfit(fontSize: 13, color: _ProfileColors.inkSoft),
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                color: ProfileColors.inkSoft,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                           ),
                         )
                       : Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.only(bottom: 80),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            _buildProfileTopSection(
-                              displayName: displayName,
-                              dreamLocation: dreamLocation,
-                              energyWord: energyWord,
-                            ),
-                            const SizedBox(height: 24),
-                            _buildSettingsSection('VOICE', items: [
-                              ('Re-record My Voice', '→', () => _handleReRecordVoice()),
-                              ('Narration Speed', '${_formatSpeed(_model.profileData?['speed'])} →', () async {
-                                final userId = await SupabaseService.getCurrentUserTableId();
-                                if (userId == null || !mounted) return;
-                                showNarrationSpeedModal(
-                                  context,
-                                  userId: userId,
-                                  currentSpeed: _getSpeedValue(_model.profileData?['speed']),
-                                ).then((newSpeed) {
+                          child: ProfileBody(
+                            displayName: displayName,
+                            dreamLocation: dreamLocation,
+                            energyWord: energyWord,
+                            complete: profileData?['complete']?.toString() ?? '0',
+                            dayStreak: profileData?['day_streak']?.toString() ?? '0',
+                            active: profileData?['active']?.toString() ?? '0',
+                            voiceItems: [
+                              ('Re-record My Voice', '→', _handleReRecordVoice),
+                              (
+                                'Narration Speed',
+                                '${ProfileUtils.formatSpeed(profileData?['speed'])} →',
+                                () async {
+                                  final userId =
+                                      await SupabaseService.getCurrentUserTableId();
+                                  if (userId == null || !mounted) return;
+                                  final newSpeed = await showNarrationSpeedModal(
+                                    context,
+                                    userId: userId,
+                                    currentSpeed: ProfileUtils.getSpeedValue(
+                                      profileData?['speed'],
+                                    ),
+                                  );
                                   if (mounted) {
-                                    if (newSpeed != null) AppToast.success(context, 'Narration speed updated');
+                                    if (newSpeed != null) {
+                                      AppToast.success(
+                                        context,
+                                        'Narration speed updated',
+                                      );
+                                    }
                                     _loadProfile();
                                   }
-                                });
-                              }),
-                            ]),
-                            const SizedBox(height: 24),
-                            _buildSettingsSection('PERSONALIZATION', items: [
-                              ('Your Name', '$displayName →', () async {
-                                final userId = await SupabaseService.getCurrentUserTableId();
-                                if (userId == null || !mounted) return;
-                                showYourNameModal(
-                                  context,
-                                  userId: userId,
-                                  currentName: displayName,
-                                ).then((newName) {
-                                  if (mounted) {
-                                    if (newName != null) AppToast.success(context, 'Name updated');
-                                    _loadProfile();
-                                  }
-                                });
-                              }),
-                              ('Dream Location', '$dreamLocation →', () async {
-                                final userId = await SupabaseService.getCurrentUserTableId();
-                                if (userId == null || !mounted) return;
-                                showDreamLocationModal(
-                                  context,
-                                  userId: userId,
-                                  currentLocation: dreamLocation,
-                                ).then((newLocation) {
-                                  if (mounted) {
-                                    if (newLocation != null) AppToast.success(context, 'Dream location updated');
-                                    _loadProfile();
-                                  }
-                                });
-                              }),
-                              ('Energy Word', '$energyWord →', () async {
-                                final userId = await SupabaseService.getCurrentUserTableId();
-                                if (userId == null || !mounted) return;
-                                showEnergyWordModal(
-                                  context,
-                                  userId: userId,
-                                  currentWord: energyWord,
-                                ).then((newWord) {
-                                  if (mounted) {
-                                    if (newWord != null) AppToast.success(context, 'Energy word updated');
-                                    _loadProfile();
-                                  }
-                                });
-                              }),
-                              ('Someone You Love (Romantic)', '$someoneYouLove →', () async {
-                                final userId = await SupabaseService.getCurrentUserTableId();
-                                if (userId == null || !mounted) return;
-                                showSomeoneYouLoveModal(
-                                  context,
-                                  userId: userId,
-                                  currentValue: someoneYouLove == '—' ? '' : someoneYouLove,
-                                ).then((newValue) {
-                                  if (mounted) {
-                                    if (newValue != null) AppToast.success(context, 'Updated');
-                                    _loadProfile();
-                                  }
-                                });
-                              }),
-                            ]),
-                            const SizedBox(height: 24),
-                            _buildRemindersSection(),
-                            const SizedBox(height: 24),
-                            _buildSettingsSection('ACCOUNT', items: [
-                              ('Email', '$email →', () async {
-                                final userId = await SupabaseService.getCurrentUserTableId();
-                                if (userId == null || !mounted) return;
-                                await showVerifyPasswordModal(
-                                  context,
-                                  purpose: 'change your email',
-                                  onVerified: (_) async {
-                                    if (!mounted) return;
-                                    showChangeEmailModal(
-                                      context,
-                                      userId: userId,
-                                      currentEmail: email == '—' ? '' : email,
-                                      onSave: (_) => _loadProfile(),
-                                    );
-                                  },
-                                );
-                              }),
-                              ('Password', 'Change →', () async {
-                                await showVerifyPasswordModal(
-                                  context,
-                                  purpose: 'change your password',
-                                  onVerified: (verifiedPassword) async {
-                                    if (!mounted) return;
-                                    showChangePasswordModal(
-                                      context,
-                                      verifiedPassword: verifiedPassword,
-                                      onUpdate: (_) {},
-                                    );
-                                  },
-                                );
-                              }),
-                              ('Subscription', '${_model.subscriptionRowLabel} →', () => context.go(SubscriptionWidget.routePath)),
-                            ]),
-                            if (_showUpgradeCard) ...[
-                              const SizedBox(height: 24),
-                              _buildUpgradeCard(),
-                              const SizedBox(height: 24),
+                                },
+                              ),
                             ],
-                            const SizedBox(height: 24),
-                            _buildSettingsSection('SUPPORT', items: [
-                              // 'Help & FAQ' temporarily hidden.
+                            personalizationItems: [
+                              (
+                                'Your Name',
+                                '$displayName →',
+                                () async {
+                                  final userId =
+                                      await SupabaseService.getCurrentUserTableId();
+                                  if (userId == null || !mounted) return;
+                                  final newName = await showYourNameModal(
+                                    context,
+                                    userId: userId,
+                                    currentName: displayName,
+                                  );
+                                  if (mounted) {
+                                    if (newName != null) {
+                                      AppToast.success(context, 'Name updated');
+                                    }
+                                    _loadProfile();
+                                  }
+                                },
+                              ),
+                              (
+                                'Dream Location',
+                                '$dreamLocation →',
+                                () async {
+                                  final userId =
+                                      await SupabaseService.getCurrentUserTableId();
+                                  if (userId == null || !mounted) return;
+                                  final newLocation = await showDreamLocationModal(
+                                    context,
+                                    userId: userId,
+                                    currentLocation: dreamLocation,
+                                  );
+                                  if (mounted) {
+                                    if (newLocation != null) {
+                                      AppToast.success(
+                                        context,
+                                        'Dream location updated',
+                                      );
+                                    }
+                                    _loadProfile();
+                                  }
+                                },
+                              ),
+                              (
+                                'Energy Word',
+                                '$energyWord →',
+                                () async {
+                                  final userId =
+                                      await SupabaseService.getCurrentUserTableId();
+                                  if (userId == null || !mounted) return;
+                                  final newWord = await showEnergyWordModal(
+                                    context,
+                                    userId: userId,
+                                    currentWord: energyWord,
+                                  );
+                                  if (mounted) {
+                                    if (newWord != null) {
+                                      AppToast.success(context, 'Energy word updated');
+                                    }
+                                    _loadProfile();
+                                  }
+                                },
+                              ),
+                              (
+                                'Someone You Love (Romantic)',
+                                '$someoneYouLove →',
+                                () async {
+                                  final userId =
+                                      await SupabaseService.getCurrentUserTableId();
+                                  if (userId == null || !mounted) return;
+                                  final newValue = await showSomeoneYouLoveModal(
+                                    context,
+                                    userId: userId,
+                                    currentValue:
+                                        someoneYouLove == '—' ? '' : someoneYouLove,
+                                  );
+                                  if (mounted) {
+                                    if (newValue != null) {
+                                      AppToast.success(context, 'Updated');
+                                    }
+                                    _loadProfile();
+                                  }
+                                },
+                              ),
+                            ],
+                            morningEnabled: _model.switchValue1 ?? true,
+                            bedtimeEnabled: _model.switchValue2 ?? true,
+                            morningTimeLabel:
+                                '${formatTimeFromIso(_morningTimeIso())} →',
+                            bedtimeTimeLabel:
+                                '${formatTimeFromIso(_bedtimeTimeIso())} →',
+                            onMorningChanged: _onMorningReminderChanged,
+                            onBedtimeChanged: _onBedtimeReminderChanged,
+                            onMorningTimeTap: _openMorningTimePicker,
+                            onBedtimeTimeTap: _openBedtimeTimePicker,
+                            accountItems: [
+                              (
+                                'Email',
+                                '$email →',
+                                () async {
+                                  final userId =
+                                      await SupabaseService.getCurrentUserTableId();
+                                  if (userId == null || !mounted) return;
+                                  await showVerifyPasswordModal(
+                                    context,
+                                    purpose: 'change your email',
+                                    onVerified: (_) async {
+                                      if (!mounted) return;
+                                      showChangeEmailModal(
+                                        context,
+                                        userId: userId,
+                                        currentEmail: email == '—' ? '' : email,
+                                        onSave: (_) => _loadProfile(),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              (
+                                'Password',
+                                'Change →',
+                                () async {
+                                  await showVerifyPasswordModal(
+                                    context,
+                                    purpose: 'change your password',
+                                    onVerified: (verifiedPassword) async {
+                                      if (!mounted) return;
+                                      showChangePasswordModal(
+                                        context,
+                                        verifiedPassword: verifiedPassword,
+                                        onUpdate: (_) {},
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              (
+                                'Subscription',
+                                '${_model.subscriptionRowLabel} →',
+                                () => context.go(SubscriptionWidget.routePath),
+                              ),
+                            ],
+                            showUpgradeCard: _model.showUpgradeCardFromRC,
+                            isSubscribed: _model.isSubscribedFromRC,
+                            onUpgradeTap: () =>
+                                context.go(SubscriptionWidget.routePath),
+                            supportItems: [
                               (
                                 'Contact Us',
                                 '→',
@@ -578,713 +571,17 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                                 '→',
                                 () => launchURL(kPrivacyPolicyUri.toString()),
                               ),
-                            ]),
-                            _buildLogoutSection(),
-                          ],
-                        ),
-                      ),
-                    ),
-        ),
-      ),
-        ),
-        if (_isClosingAccount) _buildCloseAccountLoadingOverlay(),
-      ],
-    );
-  }
-
-  Widget _buildCloseAccountLoadingOverlay() {
-    return Positioned.fill(
-      child: AbsorbPointer(
-        child: Material(
-          color: Colors.black.withValues(alpha: 0.45),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(
-                  color: _ProfileColors.gold,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Closing your account…',
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileTopSection({
-    required String displayName,
-    required String dreamLocation,
-    required String energyWord,
-  }) {
-    final complete = _model.profileData?['complete']?.toString() ?? '0';
-    final dayStreak = _model.profileData?['day_streak']?.toString() ?? '0';
-    final active = _model.profileData?['active']?.toString() ?? '0';
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: _ProfileColors.gold.withValues(alpha: 0.22),
-              blurRadius: 32,
-              offset: const Offset(0, 12),
-            ),
-            BoxShadow(
-              color: _ProfileColors.ink.withValues(alpha: 0.06),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: Stack(
-            clipBehavior: Clip.hardEdge,
-            children: [
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        const Color(0xFFFFF9F3),
-                        _ProfileColors.goldPale,
-                        const Color(0xFFF7ECD8),
-                        _ProfileColors.warmWhite,
-                      ],
-                      stops: const [0.0, 0.35, 0.72, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: -36,
-                top: -44,
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _ProfileColors.gold.withValues(alpha: 0.14),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: -48,
-                bottom: -28,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _ProfileColors.surface.withValues(alpha: 0.85),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                height: 3,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        _ProfileColors.gold.withValues(alpha: 0),
-                        _ProfileColors.gold.withValues(alpha: 0.55),
-                        _ProfileColors.gold.withValues(alpha: 0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      displayName,
-                      style: GoogleFonts.outfit(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
-                        color: _ProfileColors.ink,
-                        height: 1.15,
-                        letterSpacing: -0.35,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _profileMetaChip(dreamLocation, Icons.location_on_outlined),
-                        _profileMetaChip(energyWord, Icons.bolt_rounded),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      child: Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: Colors.white.withValues(alpha: 0.65),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Expanded(child: _modernStatTile(complete, 'COMPLETE')),
-                        const SizedBox(width: 10),
-                        Expanded(child: _modernStatTile(dayStreak, 'DAY STREAK')),
-                        const SizedBox(width: 10),
-                        Expanded(child: _modernStatTile(active, 'ACTIVE')),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _profileMetaChip(String text, IconData icon) {
-    final display = text.trim().isEmpty ? '—' : text;
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 220),
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: _ProfileColors.gold),
-          const SizedBox(width: 5),
-          Expanded(
-            child: Text(
-              display,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: _ProfileColors.inkMid,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _modernStatTile(String value, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-      decoration: BoxDecoration(
-        color: _ProfileColors.warmWhite,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: _ProfileColors.ink.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 23,
-              fontWeight: FontWeight.w800,
-              color: _ProfileColors.gold,
-              height: 1,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            style: GoogleFonts.outfit(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: _ProfileColors.inkSoft,
-              letterSpacing: 0.6,
-              height: 1.15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsSection(
-    String title, {
-    required List<(String, String, VoidCallback?)> items,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: _ProfileColors.inkMid,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 14),
-        ...items.asMap().entries.map((e) {
-          final (label, value, onTap) = e.value;
-          final isLast = e.key == items.length - 1;
-          return Column(
-            children: [
-              Pressable(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: _ProfileColors.surface,
-                    border: Border.all(color: _ProfileColors.stone),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        label,
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: _ProfileColors.ink,
-                        ),
-                      ),
-                      Text(
-                        value,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: _ProfileColors.inkSoft,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (!isLast) const SizedBox(height: 8),
-            ],
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildSettingWithToggle(String label, bool value, ValueChanged<bool> onChanged) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _ProfileColors.surface,
-        border: Border.all(color: _ProfileColors.stone),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.outfit(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: _ProfileColors.ink,
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeTrackColor: _ProfileColors.gold,
-            activeThumbColor: Colors.white,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: _ProfileColors.stoneMid,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRemindersSection() {
-    final morningEnabled = _model.switchValue1 ?? true;
-    final bedtimeEnabled = _model.switchValue2 ?? true;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'REMINDERS',
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: _ProfileColors.inkMid,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 10),
-        _buildSettingWithToggle(
-          'Morning Reminder',
-          morningEnabled,
-          (v) => _onMorningReminderChanged(v),
-        ),
-        if (morningEnabled) ...[
-          const SizedBox(height: 8),
-          _buildSettingItem(
-            'Morning Time',
-          '${formatTimeFromIso(_model.profileData?['morningTime_Reminder'] ?? _model.profileData?['morning_time'] ?? _model.profileData?['morning_Time'])} →',
-          subtitle: 'Daily story notification',
-          onTap: () async {
-            final userId = await SupabaseService.getCurrentUserTableId();
-            if (userId == null || !mounted) return;
-            showTimePickerModal(
-              context,
-              title: 'Morning Reminder Time',
-              subtitle: 'When should we send your daily story?',
-              currentTime: formatTimeFromIso(_model.profileData?['morningTime_Reminder'] ?? _model.profileData?['morning_time'] ?? _model.profileData?['morning_Time']),
-              userId: userId,
-              fieldType: TimeFieldType.morning,
-            ).then((newTime) {
-              if (mounted) {
-                if (newTime != null) AppToast.success(context, 'Morning reminder time updated');
-                _loadProfile();
-              }
-            });
-          },
-        ),
-        ],
-        const SizedBox(height: 8),
-        _buildSettingWithToggle(
-          'Bedtime Reminder',
-          bedtimeEnabled,
-          (v) => _onBedtimeReminderChanged(v),
-        ),
-        if (bedtimeEnabled) ...[
-          const SizedBox(height: 8),
-          _buildSettingItem(
-            'Bedtime Time',
-          '${formatTimeFromIso(_model.profileData?['bedTime_Reminder'] ?? _model.profileData?['bedtime_time'] ?? _model.profileData?['bedtime_Time'])} →',
-          subtitle: 'Evening reflection prompt',
-          onTap: () async {
-            final userId = await SupabaseService.getCurrentUserTableId();
-            if (userId == null || !mounted) return;
-            showTimePickerModal(
-              context,
-              title: 'Bedtime Reminder Time',
-              subtitle: 'When should we send your evening reflection?',
-              currentTime: formatTimeFromIso(_model.profileData?['bedTime_Reminder'] ?? _model.profileData?['bedtime_time'] ?? _model.profileData?['bedtime_Time']),
-              userId: userId,
-              fieldType: TimeFieldType.bedtime,
-            ).then((newTime) {
-              if (mounted) {
-                if (newTime != null) AppToast.success(context, 'Bedtime reminder time updated');
-                _loadProfile();
-              }
-            });
-          },
-        ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildSettingItem(String label, String value, {String? subtitle, VoidCallback? onTap}) {
-    final content = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: _ProfileColors.ink,
-              ),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: GoogleFonts.outfit(
-                  fontSize: 11,
-                  color: _ProfileColors.inkSoft,
-                ),
-              ),
-            ],
-          ],
-        ),
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            color: _ProfileColors.inkSoft,
-          ),
-        ),
-      ],
-    );
-    final child = Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _ProfileColors.surface,
-        border: Border.all(color: _ProfileColors.stone),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: content,
-    );
-    if (onTap != null) {
-      return Pressable(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: child,
-      );
-    }
-    return child;
-  }
-
-  Widget _buildUpgradeSavingsText() {
-    final textStyle = GoogleFonts.cormorantGaramond(
-      fontSize: 20,
-      fontWeight: FontWeight.w400,
-      color: Colors.white,
-      height: 1.2,
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 0,
-          runSpacing: 4,
-          children: [
-            Text('SAVE 44%', style: textStyle),
-            const _UpgradeSavingsArrow(color: Colors.white),
-            Text('only \$8.33/month', style: textStyle),
-          ],
-        ),
-        Text('\$99.99/year', style: textStyle),
-      ],
-    );
-  }
-
-  Widget _buildUpgradeCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF4E5F9C), Color(0xFF2A3B5F)],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 18,
-            right: 18,
-            child: Text(
-              '✓',
-              style: GoogleFonts.outfit(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white.withValues(alpha: 0.2),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'UPGRADE TO ANNUAL PLAN',
-                style: GoogleFonts.outfit(
-                  fontSize: 10,
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withValues(alpha: 0.7),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildUpgradeSavingsText(),
-              const SizedBox(height: 8),
-              Text(
-                '3-day free trial · Billed annually · Cancel anytime',
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.8),
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Pressable(
-                onTap: () => context.go(SubscriptionWidget.routePath),
-                borderRadius: BorderRadius.circular(10),
-                splashColor: Colors.white.withValues(alpha: 0.2),
-                highlightColor: Colors.white.withValues(alpha: 0.1),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Text(
-                      _isSubscribed ? 'Upgrade to Annual' : 'Start Free Trial',
-                      style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool get _isSubscribed => _model.isSubscribedFromRC;
-
-  bool get _showUpgradeCard => _model.showUpgradeCardFromRC;
-
-  Widget _buildLogoutSection() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: _ProfileColors.stone)),
-            ),
-            padding: const EdgeInsets.only(top: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Pressable(
-                  onTap: _isClosingAccount ? null : _confirmCloseAccount,
-                  borderRadius: BorderRadius.circular(12),
-                  splashColor: _ProfileColors.logoutRed.withValues(alpha: 0.12),
-                  highlightColor: _ProfileColors.logoutRed.withValues(alpha: 0.06),
-                  backgroundColor: _ProfileColors.dangerSurface,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: _ProfileColors.dangerSurface,
-                      border: Border.all(color: _ProfileColors.dangerBorder, width: 1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.person_off_outlined,
-                          size: 20,
-                          color: _ProfileColors.logoutRed.withValues(
-                            alpha: _isClosingAccount ? 0.45 : 1,
+                            ],
+                            isClosingAccount: _isClosingAccount,
+                            onCloseAccount: _confirmCloseAccount,
+                            onLogout: _logout,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Close My Account',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
-                            color: _ProfileColors.logoutRed.withValues(
-                              alpha: _isClosingAccount ? 0.45 : 1,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Pressable(
-                  onTap: _logout,
-                  borderRadius: BorderRadius.circular(12),
-                  splashColor: _ProfileColors.stoneMid.withValues(alpha: 0.65),
-                  highlightColor: _ProfileColors.stone.withValues(alpha: 0.95),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: _ProfileColors.surface,
-                      border: Border.all(color: _ProfileColors.stone),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.logout_rounded,
-                          size: 20,
-                          color: _ProfileColors.inkMid,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Log Out',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
-                            color: _ProfileColors.ink,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
-          const SizedBox(height: 20),
-          Center(
-            child: Text(
-              'Version 1.0.0',
-              style: GoogleFonts.outfit(
-                fontSize: 10,
-                color: _ProfileColors.inkSoft,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+        if (_isClosingAccount) const ProfileCloseAccountOverlay(),
+      ],
     );
   }
 }
