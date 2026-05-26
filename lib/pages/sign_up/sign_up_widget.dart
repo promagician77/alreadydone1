@@ -12,7 +12,6 @@ import '/pages/password_reset/password_reset_widget.dart';
 import 'sign_up_model.dart';
 export 'sign_up_model.dart';
 
-/// Uppercases the first letter of the full string and the first letter after each whitespace.
 String _capitalizeNameWordStarts(String text) {
   if (text.isEmpty) return text;
   return text.replaceAllMapped(RegExp(r'(^|[\s])(\S)'), (m) {

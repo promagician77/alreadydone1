@@ -275,8 +275,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     }
     try {
       final res = await BackendClient.getStories(userId);
+      debugPrint('res: $res');
       final list = (res['stories'] as List<dynamic>?)
-              ?.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+              ?.map((e) =>
+                  e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{})
               .toList() ??
           [];
       list.sort((a, b) {

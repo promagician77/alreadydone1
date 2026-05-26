@@ -250,8 +250,6 @@ class BackendClient {
     return decoded is Map<String, dynamic> ? decoded : {'ok': true};
   }
 
-  /// GET api/stories?user_id=<int> - list stories for user.
-  /// Returns { "stories": [ { id, theme, story, desire_id, user_id, last_played, play_length?, playUrl, storage, desire_name, ... } ] }
   static Future<Map<String, dynamic>> getStories(int userId) async {
     final uri = resolve('/api/stories').replace(queryParameters: {'user_id': userId.toString()});
     final response = await client.get(uri).timeout(

@@ -167,6 +167,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _maybeShowSettingsCoachmark() async {
     if (!mounted) return;
+    if (_loading || _hasNoStory) return;
     if (_sleepModeActive) return;
     if (_isGeneratingVoice || _isDeepening) return;
 
@@ -219,9 +220,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
   void _afterPlayerLoadedForCoachmarks() {
     if (!mounted || _loading || _hasNoStory) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(_maybeShowDoneLibraryCoachmark());
+      if (!mounted || _loading || _hasNoStory) return;
+      unawaited(_tryShowPlayerCoachmarksAfterLayout());
     });
+  }
+
+  Future<void> _tryShowPlayerCoachmarksAfterLayout() async {
+    if (!mounted || _loading || _hasNoStory) return;
+    if (_sleepModeActive || _isGeneratingVoice || _isDeepening) return;
+
+    await SupabaseService.waitForCurrentUserId();
+    if (!mounted || _loading || _hasNoStory) return;
+
+    await _maybeShowSettingsCoachmark();
+    if (mounted) await _maybeShowDoneLibraryCoachmark();
   }
 
   Future<void> _dismissSettingsCoachmark() async {
@@ -294,13 +306,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _loadStoryData();
 
     doneLibraryCoachmarkOnDoneTabDismiss = _onDoneTabDuringLibraryCoachmark;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await SupabaseService.waitForCurrentUserId();
-      if (!mounted) return;
-      await _maybeShowSettingsCoachmark();
-      if (mounted) await _maybeShowDoneLibraryCoachmark();
-    });
   }
 
   Future<void> _loadStoryData() async {
