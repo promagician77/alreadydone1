@@ -31,7 +31,7 @@ class DesireSpeechService {
     if (!_speech.isAvailable) return false;
     if (_speech.isListening) return true;
 
-    return _speech.listen(
+    final result = await _speech.listen(
       onResult: (SpeechRecognitionResult result) {
         onTranscript(result.recognizedWords);
       },
@@ -42,6 +42,8 @@ class DesireSpeechService {
       listenFor: const Duration(minutes: 10),
       pauseFor: const Duration(seconds: 5),
     );
+    if (result is bool) return result;
+    return true;
   }
 
   Future<void> stopListening() async {
