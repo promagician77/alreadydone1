@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -6,12 +8,25 @@ import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
 import '/services/ai_consent_service.dart';
+import '/services/desire_speech_service.dart';
 import '/widgets/pressable.dart';
 import '/flutter_flow/nav/nav.dart';
 import 'onboarding_state.dart';
 import 'onboarding_personalize_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
 import 'onboarding_splash_widget.dart';
+
+const _desireNavy = Color(0xFF1E2A4A);
+const _desireRecordRed = Color(0xFFC0392B);
+
+const _categoryExamples = [
+  "The deeply loving relationship where I'm completely seen, adored, and chosen every single day. I wake up next to someone who feels like home, and I finally understand what it means to be loved exactly as I am.",
+  "The money hits my account and I feel calm, not anxious. Every bill is paid, my savings keep growing, and I buy what I want without checking the price. I'm finally free, and I get to be generous with the people I love.",
+  "I built something that matters and the world noticed. I do work I'm proud of, I'm paid what I'm worth, and I lead with confidence. People respect me, and for the first time my career feels like mine.",
+  "I wake up with energy and my body feels strong and alive. I'm at peace in my own skin, the tests came back clear, and I trust my body again. I feel healthy, vibrant, and genuinely happy to be here.",
+  "I turn the key and walk into the home that's truly mine. Sunlight fills every room, my family is safe and happy here, and I feel a deep sense of peace knowing this is ours. I'm finally home.",
+  "I finally feel like myself. The fear that used to run my life is gone, I trust my own decisions, and I'm proud of who I've become. I'm calm, confident, and at peace with exactly where I am.",
+];
 
 Widget _progressBar(int activeSegments) {
   return Padding(
@@ -80,6 +95,11 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   late OnboardingState _state;
   bool _prefillLoading = false;
   bool _isSubscribed = false;
+  final _desireFocusNode = FocusNode();
+  final _speechService = DesireSpeechService();
+  bool _isListening = false;
+  bool _fieldFocused = false;
+  String _speechBase = '';
 
   String _nextResetMessage() {
     final now = DateTime.now();
@@ -97,7 +117,84 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     super.initState();
     _state = OnboardingState.instance;
     _prefillLoading = true;
+    _desireFocusNode.addListener(() {
+      final focused = _desireFocusNode.hasFocus;
+      if (focused != _fieldFocused && mounted) {
+        setState(() => _fieldFocused = focused);
+      }
+    });
+    _speechService.onStatus = (status) {
+      if (!mounted) return;
+      if ((status == 'done' || status == 'notListening') && _isListening) {
+        setState(() => _isListening = false);
+      }
+    };
+    _speechService.onError = (_) {
+      if (!mounted) return;
+      setState(() => _isListening = false);
+      AppToast.info(context, 'Could not recognize speech. Try again.');
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybePrefillForSubscribedUser());
+  }
+
+  @override
+  void dispose() {
+    _speechService.stopListening();
+    _desireFocusNode.dispose();
+    super.dispose();
+  }
+
+  String _desireHintText() {
+    const prefix = 'Be specific. Be emotional. Make it real.\n\nExample: ';
+    return '$prefix${_categoryExamples[_state.selectedCategory]}';
+  }
+
+  Future<void> _toggleSpeech() async {
+    if (_isListening) {
+      await _speechService.stopListening();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    final available = await _speechService.initialize();
+    if (!available) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'Speech recognition is not available on this device.',
+        );
+      }
+      return;
+    }
+
+    _speechBase = _state.desireDescriptionController.text.trim();
+    final started = await _speechService.startListening(
+      onTranscript: _applySpeechTranscript,
+    );
+    if (!started) {
+      if (mounted) {
+        AppToast.info(
+          context,
+          'Microphone permission is required to dictate your manifestation.',
+        );
+      }
+      return;
+    }
+    if (mounted) setState(() => _isListening = true);
+  }
+
+  void _applySpeechTranscript(String words) {
+    if (words.trim().isEmpty) return;
+    final controller = _state.desireDescriptionController;
+    final combined =
+        _speechBase.isEmpty ? words.trim() : '${_speechBase.trim()} $words';
+    final next = _capitalizeSentences(combined.trim());
+    final offset = next.length;
+    controller.value = controller.value.copyWith(
+      text: next,
+      selection: TextSelection.collapsed(offset: offset),
+      composing: TextRange.empty,
+    );
   }
 
   bool _isSubscribedFromProfile(Map<String, dynamic> profile) {
@@ -167,6 +264,11 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   }
 
   Future<void> _handleCreateStory() async {
+    if (_isListening) {
+      await _speechService.stopListening();
+      if (mounted) setState(() => _isListening = false);
+    }
+
     final hasConsent = await AIConsentService.ensureConsent(context);
     if (!hasConsent) {
       if (mounted) {
@@ -308,8 +410,14 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back_ios_new, size: 22),
                       color: AuthTheme.gold,
-                      onPressed: () =>
-                          context.go(OnboardingPersonalizeWidget.routePath),
+                      onPressed: () async {
+                        if (_isListening) {
+                          await _speechService.stopListening();
+                        }
+                        if (context.mounted) {
+                          context.go(OnboardingPersonalizeWidget.routePath);
+                        }
+                      },
                     ),
                   ),
                 ),
@@ -405,10 +513,10 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '(Write Your Desired Manifestation Here)',
+                          '(Describe it like it\'s already yours)',
                           style: GoogleFonts.outfit(
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             color: AuthTheme.inkSoft,
                           ),
                         ),
@@ -416,44 +524,108 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                         Container(
                           constraints:
                               BoxConstraints(minHeight: inputMinHeight),
-                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AuthTheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AuthTheme.stone),
-                          ),
-                          child: TextField(
-                            controller: _state.desireDescriptionController,
-                            minLines: 7,
-                            maxLines: 12,
-                            textCapitalization: TextCapitalization.sentences,
-                            scrollPhysics: const BouncingScrollPhysics(),
-                            onChanged: (value) {
-                              final next = _capitalizeSentences(value);
-                              if (next == value) return;
-                              final controller =
-                                  _state.desireDescriptionController;
-                              final oldSelection = controller.selection;
-                              final offset = oldSelection.baseOffset
-                                  .clamp(0, next.length);
-                              controller.value = controller.value.copyWith(
-                                text: next,
-                                selection:
-                                    TextSelection.collapsed(offset: offset),
-                                composing: TextRange.empty,
-                              );
-                            },
-                            style: AuthTheme.bodyStyle.copyWith(fontSize: 14),
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Write it like it already happened. Be specific. Be emotional.\n\nExample: The deeply loving relationship where I felt completely seen, valued, and cherished every single day',
-                              hintStyle: AuthTheme.placeholderStyle
-                                  .copyWith(fontSize: 14),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
-                              isDense: true,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: _fieldFocused || _isListening
+                                  ? AuthTheme.gold
+                                  : AuthTheme.stone,
+                              width: 1.5,
                             ),
+                            boxShadow: (_fieldFocused || _isListening)
+                                ? [
+                                    BoxShadow(
+                                      color: AuthTheme.gold
+                                          .withValues(alpha: 0.10),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
                           ),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(18, 18, 18, 64),
+                                child: TextField(
+                                  controller:
+                                      _state.desireDescriptionController,
+                                  focusNode: _desireFocusNode,
+                                  minLines: 7,
+                                  maxLines: 12,
+                                  textCapitalization:
+                                      TextCapitalization.sentences,
+                                  scrollPhysics:
+                                      const BouncingScrollPhysics(),
+                                  onChanged: (value) {
+                                    final next = _capitalizeSentences(value);
+                                    if (next == value) return;
+                                    final controller =
+                                        _state.desireDescriptionController;
+                                    final oldSelection = controller.selection;
+                                    final offset = oldSelection.baseOffset
+                                        .clamp(0, next.length);
+                                    controller.value =
+                                        controller.value.copyWith(
+                                      text: next,
+                                      selection: TextSelection.collapsed(
+                                          offset: offset),
+                                      composing: TextRange.empty,
+                                    );
+                                  },
+                                  style: AuthTheme.bodyStyle
+                                      .copyWith(fontSize: 15, height: 1.55),
+                                  decoration: InputDecoration(
+                                    hintText: _desireHintText(),
+                                    hintStyle: AuthTheme.placeholderStyle
+                                        .copyWith(
+                                      fontSize: 15,
+                                      color: const Color(0xFFB6B1A7),
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                              if (_isListening)
+                                const Positioned(
+                                  left: 18,
+                                  bottom: 24,
+                                  child: _ListeningIndicator(),
+                                ),
+                              Positioned(
+                                right: 14,
+                                bottom: 14,
+                                child: _DesireMicButton(
+                                  isListening: _isListening,
+                                  onPressed: _toggleSpeech,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.mic_none,
+                              size: 13,
+                              color: AuthTheme.inkSoft.withValues(alpha: 0.9),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Tap the mic to speak instead of type',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: AuthTheme.inkSoft,
+                              ),
+                            ),
+                          ],
                         ),
                                 ],
                               ),
@@ -596,6 +768,169 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _ListeningIndicator extends StatelessWidget {
+  const _ListeningIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _ListeningBars(),
+        const SizedBox(width: 8),
+        Text(
+          'Listening...',
+          style: GoogleFonts.outfit(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: _desireRecordRed,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ListeningBars extends StatefulWidget {
+  const _ListeningBars();
+
+  @override
+  State<_ListeningBars> createState() => _ListeningBarsState();
+}
+
+class _ListeningBarsState extends State<_ListeningBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 16,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(4, (i) {
+              final phase = i * 0.15;
+              final t = (_controller.value + phase) * 2 * math.pi;
+              final height = 5 + 11 * ((math.sin(t) + 1) / 2);
+              return Container(
+                width: 3,
+                height: height.clamp(5.0, 16.0),
+                margin: EdgeInsets.only(left: i == 0 ? 0 : 3),
+                decoration: BoxDecoration(
+                  color: _desireRecordRed,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DesireMicButton extends StatefulWidget {
+  const _DesireMicButton({
+    required this.isListening,
+    required this.onPressed,
+  });
+
+  final bool isListening;
+  final VoidCallback onPressed;
+
+  @override
+  State<_DesireMicButton> createState() => _DesireMicButtonState();
+}
+
+class _DesireMicButtonState extends State<_DesireMicButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _DesireMicButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isListening && !_pulseController.isAnimating) {
+      _pulseController.repeat();
+    } else if (!widget.isListening && _pulseController.isAnimating) {
+      _pulseController
+        ..stop()
+        ..reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = widget.isListening ? _desireRecordRed : _desireNavy;
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final pulse = widget.isListening ? _pulseController.value : 0.0;
+        final shadowSpread = widget.isListening ? 16 * pulse : 0.0;
+        final shadowOpacity = widget.isListening ? 0.55 * (1 - pulse) : 0.45;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onPressed,
+            customBorder: const CircleBorder(),
+            child: Ink(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: bg,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: (widget.isListening ? _desireRecordRed : _desireNavy)
+                        .withValues(alpha: shadowOpacity),
+                    blurRadius: 14,
+                    spreadRadius: shadowSpread * 0.15,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: const Icon(Icons.mic, color: Colors.white, size: 22),
     );
   }
 }

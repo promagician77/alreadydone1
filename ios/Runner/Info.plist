@@ -60,6 +60,8 @@
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses the microphone to record your voice for personalized story narration.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>This app uses speech recognition so you can describe your manifestation by voice.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
