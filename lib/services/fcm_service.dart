@@ -70,8 +70,9 @@ class FcmService {
   static Future<void> _initLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
     );
     final initSettings = InitializationSettings(
       android: androidInit,
@@ -150,22 +151,32 @@ class FcmService {
     }
   }
 
-  static void _onForegroundMessage(RemoteMessage message) {
+  static Future<void> _onForegroundMessage(RemoteMessage message) async {
+    final data = message.data.map(
+      (key, value) => MapEntry(key, value?.toString() ?? ''),
+    );
+    final type = data['type']?.trim();
+
     final String title = message.notification?.title ??
-        message.data['title'] ??
+        data['title'] ??
         'Notification';
     final String body = message.notification?.body ??
-        message.data['body'] ??
-        message.data['message'] ??
+        data['body'] ??
+        data['message'] ??
         '';
-    debugPrint('FCM foreground: $title - $body');
-    _showLocalNotification(
-      title: title,
-      body: body,
-      data: message.data.map(
-        (key, value) => MapEntry(key, value?.toString() ?? ''),
-      ),
-    );
+
+    debugPrint('FCM foreground: $title - $body (type=$type)');
+
+    // iOS: when FCM includes a notification payload, the system banner is shown in
+    // foreground via setForegroundNotificationPresentationOptions — avoid doubling.
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        message.notification != null) {
+      return;
+    }
+
+    // Android, and iOS data-only fallback (legacy payloads): local notification.
+    await _showLocalNotification(title: title, body: body, data: data);
   }
 
   static Future<void> _showLocalNotification({
