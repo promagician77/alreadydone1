@@ -895,38 +895,74 @@ class _DesireMicButtonState extends State<_DesireMicButton>
     super.dispose();
   }
 
+  static const _buttonSize = 46.0;
+  static const _haloSize = 56.0;
+
   @override
   Widget build(BuildContext context) {
     final bg = widget.isListening ? _desireRecordRed : _desireNavy;
+    final haloColor = widget.isListening ? _desireRecordRed : _desireNavy;
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, child) {
         final pulse = widget.isListening ? _pulseController.value : 0.0;
-        final shadowSpread = widget.isListening ? 16 * pulse : 0.0;
-        final shadowOpacity = widget.isListening ? 0.55 * (1 - pulse) : 0.45;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onPressed,
-            customBorder: const CircleBorder(),
-            child: Ink(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: bg,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: (widget.isListening ? _desireRecordRed : _desireNavy)
-                        .withValues(alpha: shadowOpacity),
-                    blurRadius: 14,
-                    spreadRadius: shadowSpread * 0.15,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+        final haloExpand = widget.isListening ? 8 * pulse : 0.0;
+        final haloOpacity =
+            widget.isListening ? 0.28 + 0.22 * (1 - pulse) : 0.14;
+        final haloDiameter = _haloSize + haloExpand;
+        return SizedBox(
+          width: haloDiameter + 12,
+          height: haloDiameter + 12,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              // Circular halo — drawn outside the button so it is not clipped
+              // to the 46×46 ink bounds (which looked like a light square).
+              Container(
+                width: haloDiameter,
+                height: haloDiameter,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: haloColor.withValues(alpha: haloOpacity),
+                  boxShadow: [
+                    BoxShadow(
+                      color: haloColor.withValues(
+                        alpha: widget.isListening ? 0.35 * (1 - pulse) : 0.12,
+                      ),
+                      blurRadius: widget.isListening ? 20 : 10,
+                      spreadRadius: widget.isListening ? 2 * pulse : 0,
+                    ),
+                  ],
+                ),
               ),
-              child: child,
-            ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: widget.onPressed,
+                  customBorder: const CircleBorder(),
+                  splashColor: Colors.white.withValues(alpha: 0.22),
+                  highlightColor: Colors.white.withValues(alpha: 0.12),
+                  child: Container(
+                    width: _buttonSize,
+                    height: _buttonSize,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: bg,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: child,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
