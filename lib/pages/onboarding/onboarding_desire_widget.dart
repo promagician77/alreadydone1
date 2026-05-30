@@ -425,208 +425,264 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final inputMinHeight =
-                          (constraints.maxHeight * 0.34).clamp(140.0, 200.0);
+                      const gridSpacing = 8.0;
+                      const gridAspectRatio = 2.85;
+                      final gridWidth = constraints.maxWidth - 40;
+                      final cellWidth =
+                          (gridWidth - gridSpacing) / 2;
+                      final cellHeight = cellWidth / gridAspectRatio;
+                      final gridHeight =
+                          cellHeight * 3 + gridSpacing * 2;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
-                            child: SingleChildScrollView(
-                              keyboardDismissBehavior:
-                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                            child: Padding(
                               padding:
-                                  const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                                  const EdgeInsets.fromLTRB(20, 0, 20, 8),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
                                 children: [
-                        Text(
-                          "What's already done\nfor you?",
-                          style:
-                              AuthTheme.welcomeTitleStyle.copyWith(fontSize: 22),
-                        ),
-                        const SizedBox(height: 4),
-                        Text('Choose a category', style: AuthTheme.welcomeSubStyle),
-                        const SizedBox(height: 16),
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 8,
-                          crossAxisSpacing: 8,
-                          childAspectRatio: 2.35,
-                          children: List.generate(categories.length, (i) {
-                            final (icon, label) = categories[i];
-                            final selected = _state.selectedCategory == i;
-                            return Pressable(
-                              onTap: () =>
-                                  setState(() => _state.selectedCategory = i),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? AuthTheme.goldPale
-                                      : AuthTheme.surface,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: selected
-                                        ? AuthTheme.gold
-                                        : AuthTheme.stone,
-                                    width: selected ? 1.5 : 1,
+                                  Text(
+                                    "What's already done\nfor you?",
+                                    style: AuthTheme.welcomeTitleStyle
+                                        .copyWith(fontSize: 22),
                                   ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(icon,
-                                        style: const TextStyle(fontSize: 20)),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      label,
-                                      textAlign: TextAlign.center,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AuthTheme.ink,
-                                        height: 1.15,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Choose a category',
+                                    style: AuthTheme.welcomeSubStyle,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    height: gridHeight,
+                                    child: GridView.count(
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      crossAxisCount: 2,
+                                      mainAxisSpacing: gridSpacing,
+                                      crossAxisSpacing: gridSpacing,
+                                      childAspectRatio: gridAspectRatio,
+                                      children: List.generate(
+                                        categories.length,
+                                        (i) {
+                                          final (icon, label) =
+                                              categories[i];
+                                          final selected =
+                                              _state.selectedCategory == i;
+                                          return Pressable(
+                                            onTap: () => setState(
+                                              () => _state.selectedCategory =
+                                                  i,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 6,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: selected
+                                                    ? AuthTheme.goldPale
+                                                    : AuthTheme.surface,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: selected
+                                                      ? AuthTheme.gold
+                                                      : AuthTheme.stone,
+                                                  width:
+                                                      selected ? 1.5 : 1,
+                                                ),
+                                              ),
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    icon,
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    label,
+                                                    textAlign: TextAlign.center,
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: AuthTheme.ink,
+                                                      height: 1.1,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Describe What\'s Already Yours',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AuthTheme.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '(Describe it like it\'s already yours)',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AuthTheme.inkSoft,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          constraints:
-                              BoxConstraints(minHeight: inputMinHeight),
-                          decoration: BoxDecoration(
-                            color: AuthTheme.surface,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: _fieldFocused || _isListening
-                                  ? AuthTheme.gold
-                                  : AuthTheme.stone,
-                              width: 1.5,
-                            ),
-                            boxShadow: (_fieldFocused || _isListening)
-                                ? [
-                                    BoxShadow(
-                                      color: AuthTheme.gold
-                                          .withValues(alpha: 0.10),
-                                      blurRadius: 18,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(18, 18, 18, 64),
-                                child: TextField(
-                                  controller:
-                                      _state.desireDescriptionController,
-                                  focusNode: _desireFocusNode,
-                                  minLines: 7,
-                                  maxLines: 12,
-                                  textCapitalization:
-                                      TextCapitalization.sentences,
-                                  scrollPhysics:
-                                      const BouncingScrollPhysics(),
-                                  onChanged: (value) {
-                                    final next = _capitalizeSentences(value);
-                                    if (next == value) return;
-                                    final controller =
-                                        _state.desireDescriptionController;
-                                    final oldSelection = controller.selection;
-                                    final offset = oldSelection.baseOffset
-                                        .clamp(0, next.length);
-                                    controller.value =
-                                        controller.value.copyWith(
-                                      text: next,
-                                      selection: TextSelection.collapsed(
-                                          offset: offset),
-                                      composing: TextRange.empty,
-                                    );
-                                  },
-                                  style: AuthTheme.bodyStyle
-                                      .copyWith(fontSize: 15, height: 1.55),
-                                  decoration: InputDecoration(
-                                    hintText: _desireHintText(),
-                                    hintStyle: AuthTheme.placeholderStyle
-                                        .copyWith(
-                                      fontSize: 15,
-                                      color: const Color(0xFFB6B1A7),
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: EdgeInsets.zero,
-                                    isDense: true,
                                   ),
-                                ),
-                              ),
-                              if (_isListening)
-                                const Positioned(
-                                  left: 18,
-                                  bottom: 24,
-                                  child: _ListeningIndicator(),
-                                ),
-                              Positioned(
-                                right: 14,
-                                bottom: 14,
-                                child: _DesireMicButton(
-                                  isListening: _isListening,
-                                  onPressed: _toggleSpeech,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.mic_none,
-                              size: 13,
-                              color: AuthTheme.inkSoft.withValues(alpha: 0.9),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Tap the mic to speak instead of type',
-                              style: GoogleFonts.outfit(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: AuthTheme.inkSoft,
-                              ),
-                            ),
-                          ],
-                        ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Describe What\'s Already Yours',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AuthTheme.ink,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '(Describe it like it\'s already yours)',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AuthTheme.inkSoft,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AuthTheme.surface,
+                                        borderRadius:
+                                            BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: _fieldFocused ||
+                                                  _isListening
+                                              ? AuthTheme.gold
+                                              : AuthTheme.stone,
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: (_fieldFocused ||
+                                                _isListening)
+                                            ? [
+                                                BoxShadow(
+                                                  color: AuthTheme.gold
+                                                      .withValues(
+                                                          alpha: 0.10),
+                                                  blurRadius: 18,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              18,
+                                              14,
+                                              18,
+                                              56,
+                                            ),
+                                            child: TextField(
+                                              controller: _state
+                                                  .desireDescriptionController,
+                                              focusNode: _desireFocusNode,
+                                              expands: true,
+                                              maxLines: null,
+                                              textAlignVertical:
+                                                  TextAlignVertical.top,
+                                              textCapitalization:
+                                                  TextCapitalization
+                                                      .sentences,
+                                              scrollPhysics:
+                                                  const BouncingScrollPhysics(),
+                                              onChanged: (value) {
+                                                final next =
+                                                    _capitalizeSentences(
+                                                        value);
+                                                if (next == value) return;
+                                                final controller = _state
+                                                    .desireDescriptionController;
+                                                final oldSelection =
+                                                    controller.selection;
+                                                final offset = oldSelection
+                                                    .baseOffset
+                                                    .clamp(0, next.length);
+                                                controller.value = controller
+                                                    .value
+                                                    .copyWith(
+                                                  text: next,
+                                                  selection:
+                                                      TextSelection.collapsed(
+                                                    offset: offset,
+                                                  ),
+                                                  composing: TextRange.empty,
+                                                );
+                                              },
+                                              style: AuthTheme.bodyStyle
+                                                  .copyWith(
+                                                fontSize: 15,
+                                                height: 1.5,
+                                              ),
+                                              decoration: InputDecoration(
+                                                hintText: _desireHintText(),
+                                                hintStyle: AuthTheme
+                                                    .placeholderStyle
+                                                    .copyWith(
+                                                  fontSize: 15,
+                                                  color: const Color(
+                                                    0xFFB6B1A7,
+                                                  ),
+                                                ),
+                                                border: InputBorder.none,
+                                                contentPadding: EdgeInsets.zero,
+                                                isDense: true,
+                                              ),
+                                            ),
+                                          ),
+                                          if (_isListening)
+                                            const Positioned(
+                                              left: 18,
+                                              bottom: 20,
+                                              child: _ListeningIndicator(),
+                                            ),
+                                          Positioned(
+                                            right: 14,
+                                            bottom: 12,
+                                            child: _DesireMicButton(
+                                              isListening: _isListening,
+                                              onPressed: _toggleSpeech,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.mic_none,
+                                        size: 13,
+                                        color: AuthTheme.inkSoft
+                                            .withValues(alpha: 0.9),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          'Tap the mic to speak instead of type',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w400,
+                                            color: AuthTheme.inkSoft,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
