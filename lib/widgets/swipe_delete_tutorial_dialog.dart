@@ -29,19 +29,48 @@ class SwipeDeleteTutorial {
   SwipeDeleteTutorial._();
 
   static const String _prefsKeyPrefix = 'done_swipe_delete_tutorial_v1_';
+  static const String _pendingPrefix = 'pending_done_swipe_delete_tutorial_v1_';
 
-  static String? _storageKeyOrNull() {
+  static String? _userKeyOrNull() {
     final id = SupabaseService.currentUser?.id;
     if (id == null || id.isEmpty) return null;
-    return '$_prefsKeyPrefix${id.toLowerCase()}';
+    return id.toLowerCase();
   }
 
-  /// Call after switching to the Done tab via the bottom nav tap handler only.
-  static Future<void> maybeShowAfterDoneNavTap(BuildContext context) async {
-    final key = _storageKeyOrNull();
-    if (key == null) return;
+  static String? _seenKeyOrNull() {
+    final key = _userKeyOrNull();
+    if (key == null) return null;
+    return '$_prefsKeyPrefix$key';
+  }
+
+  static String? _pendingKeyOrNull() {
+    final key = _userKeyOrNull();
+    if (key == null) return null;
+    return '$_pendingPrefix$key';
+  }
+
+  /// Call from the Done tab tap handler before [DesiresWidget] finishes loading.
+  static Future<void> setPendingAfterDoneNavTap() async {
+    final seenKey = _seenKeyOrNull();
+    final pendingKey = _pendingKeyOrNull();
+    if (seenKey == null || pendingKey == null) return;
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(key) ?? false) return;
+    if (prefs.getBool(seenKey) ?? false) return;
+    await prefs.setBool(pendingKey, true);
+  }
+
+  /// Call after [DesiresWidget] has loaded data and laid out its content.
+  static Future<void> maybeShowWhenPageLoaded(BuildContext context) async {
+    final seenKey = _seenKeyOrNull();
+    final pendingKey = _pendingKeyOrNull();
+    if (seenKey == null || pendingKey == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(seenKey) ?? false) {
+      await prefs.setBool(pendingKey, false);
+      return;
+    }
+    final pending = prefs.getBool(pendingKey) ?? false;
+    if (!pending) return;
     if (!context.mounted) return;
 
     await showGeneralDialog<void>(
@@ -56,7 +85,8 @@ class SwipeDeleteTutorial {
       },
     );
 
-    await prefs.setBool(key, true);
+    await prefs.setBool(seenKey, true);
+    await prefs.setBool(pendingKey, false);
   }
 }
 

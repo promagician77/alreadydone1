@@ -602,9 +602,7 @@ class _NavBarPageState extends State<NavBarPage>
                         : () async {
                             await doneLibraryCoachmarkOnDoneTabDismiss?.call();
                             _onNavTap(2);
-                            await SwipeDeleteTutorial.maybeShowAfterDoneNavTap(
-                              context,
-                            );
+                            await SwipeDeleteTutorial.setPendingAfterDoneNavTap();
                           },
                     libraryCoachmarkKey: doneLibraryCoachmarkTabKey,
                   ),

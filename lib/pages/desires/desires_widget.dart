@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +11,7 @@ import '/services/app_toast.dart';
 import '/services/ai_consent_service.dart';
 import '/pages/onboarding/onboarding_state.dart';
 import '/widgets/pressable.dart';
+import '/widgets/swipe_delete_tutorial_dialog.dart';
 import 'desires_model.dart';
 export 'desires_model.dart';
 
@@ -96,7 +99,17 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   void initState() {
     super.initState();
     _model = createModel(context, () => DesiresModel());
-    _loadData();
+    _loadData().then((_) {
+      if (mounted) _afterDesiresLoadedForCoachmark();
+    });
+  }
+
+  void _afterDesiresLoadedForCoachmark() {
+    if (!mounted || _loading) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _loading) return;
+      unawaited(SwipeDeleteTutorial.maybeShowWhenPageLoaded(context));
+    });
   }
 
   Future<void> _loadData() async {
