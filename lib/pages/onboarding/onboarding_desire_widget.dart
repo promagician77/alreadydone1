@@ -158,7 +158,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   Uint8List _generatePingWav() {
     const sampleRate = 44100;
     const frequency = 880.0;
-    const numSamples = (sampleRate * 0.3).round();
+    final numSamples = (sampleRate * 0.3).round();
     final dataSize = numSamples * 2;
 
     final wav = ByteData(44 + dataSize);
