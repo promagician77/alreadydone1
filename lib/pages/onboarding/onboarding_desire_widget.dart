@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
@@ -97,6 +100,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   bool _isSubscribed = false;
   final _desireFocusNode = FocusNode();
   final _speechService = DesireSpeechService();
+  final _pingPlayer = AudioPlayer();
   bool _isListening = false;
   bool _fieldFocused = false;
   String _speechBase = '';
@@ -140,6 +144,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   @override
   void dispose() {
     _speechService.stopListening();
+    _pingPlayer.dispose();
     _desireFocusNode.dispose();
     super.dispose();
   }
@@ -149,12 +154,56 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
     return '$prefix${_categoryExamples[_state.selectedCategory]}';
   }
 
+  /// Generates a short ping tone (880 Hz, 0.3 s, exponential decay) as WAV bytes.
+  Uint8List _generatePingWav() {
+    const sampleRate = 44100;
+    const frequency = 880.0;
+    const numSamples = (sampleRate * 0.3).round();
+    final dataSize = numSamples * 2;
+
+    final wav = ByteData(44 + dataSize);
+    // RIFF
+    wav..setUint8(0, 0x52)..setUint8(1, 0x49)..setUint8(2, 0x46)..setUint8(3, 0x46);
+    wav.setUint32(4, 36 + dataSize, Endian.little);
+    // WAVE
+    wav..setUint8(8, 0x57)..setUint8(9, 0x41)..setUint8(10, 0x56)..setUint8(11, 0x45);
+    // fmt
+    wav..setUint8(12, 0x66)..setUint8(13, 0x6D)..setUint8(14, 0x74)..setUint8(15, 0x20);
+    wav.setUint32(16, 16, Endian.little);
+    wav.setUint16(20, 1, Endian.little); // PCM
+    wav.setUint16(22, 1, Endian.little); // mono
+    wav.setUint32(24, sampleRate, Endian.little);
+    wav.setUint32(28, sampleRate * 2, Endian.little);
+    wav.setUint16(32, 2, Endian.little);
+    wav.setUint16(34, 16, Endian.little);
+    // data
+    wav..setUint8(36, 0x64)..setUint8(37, 0x61)..setUint8(38, 0x74)..setUint8(39, 0x61);
+    wav.setUint32(40, dataSize, Endian.little);
+
+    for (var i = 0; i < numSamples; i++) {
+      final t = i / sampleRate;
+      final envelope = math.exp(-t * 18);
+      final sample = (envelope * 32767 * math.sin(2 * math.pi * frequency * t)).round().clamp(-32768, 32767);
+      wav.setInt16(44 + i * 2, sample, Endian.little);
+    }
+
+    return wav.buffer.asUint8List();
+  }
+
+  Future<void> _playPing() async {
+    try {
+      await _pingPlayer.play(BytesSource(_generatePingWav()));
+    } catch (_) {}
+  }
+
   Future<void> _toggleSpeech() async {
     if (_isListening) {
       await _speechService.stopListening();
       if (mounted) setState(() => _isListening = false);
       return;
     }
+
+    unawaited(_playPing());
 
     final available = await _speechService.initialize();
     if (!available) {
