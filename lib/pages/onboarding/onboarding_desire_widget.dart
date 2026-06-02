@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/pages/auth/auth_theme.dart';
@@ -192,7 +194,10 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
   Future<void> _playPing() async {
     try {
-      await _pingPlayer.play(BytesSource(_generatePingWav()));
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/ping.wav');
+      await file.writeAsBytes(_generatePingWav(), flush: true);
+      await _pingPlayer.play(DeviceFileSource(file.path));
     } catch (_) {}
   }
 
