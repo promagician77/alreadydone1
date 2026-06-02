@@ -167,15 +167,20 @@ class FcmService {
 
     debugPrint('FCM foreground: $title - $body (type=$type)');
 
-    // iOS: when FCM includes a notification payload, the system banner is shown in
-    // foreground via setForegroundNotificationPresentationOptions — avoid doubling.
+    // iOS foreground: the system banner is already shown via
+    // setForegroundNotificationPresentationOptions — skip local notification to avoid doubling.
+    // For story reminders, navigate immediately because onMessageOpenedApp does NOT fire
+    // when the app is already in the foreground (there is no iOS foreground-tap callback).
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.iOS &&
         message.notification != null) {
+      if (type == 'monday' || type == 'thursday') {
+        _handleNotificationTap(data: data);
+      }
       return;
     }
 
-    // Android, and iOS data-only fallback (legacy payloads): local notification.
+    // Android foreground, and iOS data-only fallback: local notification.
     await _showLocalNotification(title: title, body: body, data: data);
   }
 
