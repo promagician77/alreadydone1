@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
+import '/services/backend_client.dart';
 import '/utils/platform_utils.dart';
 
 class RevenueCatService {
@@ -98,6 +99,7 @@ class RevenueCatService {
         config.appUserID = appUserId.trim();
       }
       await Purchases.configure(config);
+      Purchases.addCustomerInfoUpdateListener(_onCustomerInfoUpdated);
 
       _currentUserId = appUserId?.trim();
       _configured = true;
@@ -168,6 +170,34 @@ class RevenueCatService {
     } catch (e, st) {
       _log('logOut: FAILED', error: e, stackTrace: st);
     }
+  }
+
+  /// Called by the RevenueCat SDK whenever subscription state changes (e.g. trial → paid).
+  /// Pushes the updated status to the backend so the DB stays in sync without a webhook.
+  void _onCustomerInfoUpdated(CustomerInfo info) {
+    final userId = _currentUserId;
+    if (userId == null) {
+      _log('_onCustomerInfoUpdated: skipped (no current user)');
+      return;
+    }
+    final numericId = int.tryParse(userId);
+    if (numericId == null) {
+      _log('_onCustomerInfoUpdated: skipped (non-numeric userId=$userId)');
+      return;
+    }
+    _log('_onCustomerInfoUpdated: pushing update to backend userId=$userId');
+    final payload = getSubscriptionPayloadForBackend(info);
+    BackendClient.updateUserRevenueCatSubscription(
+      numericId,
+      rcCustomerId: payload['rc_customer_id']!,
+      rcSubscriptionStatus: payload['rc_subscription_status']!,
+      rcSubscriptionPlan: payload['rc_subscription_plan']!,
+      subscriptionProvider: payload['subscription_provider']!,
+    ).then((_) {
+      _log('_onCustomerInfoUpdated: backend updated status=${payload['rc_subscription_status']}');
+    }).catchError((Object e) {
+      _log('_onCustomerInfoUpdated: backend update failed', error: e);
+    });
   }
 
   /// Whether the user has active premium access. Returns false when unsupported.
@@ -457,7 +487,7 @@ class RevenueCatService {
       'rc_customer_id': info.originalAppUserId,
       'rc_subscription_status': status,
       'rc_subscription_plan': plan,
-      'subscription_provider': 'revenue_cat',
+      'subscription_provider': 'revenuecat',
     };
     _log(
       'getSubscriptionPayloadForBackend: status=$status plan=$plan '
