@@ -245,6 +245,7 @@ class FcmService {
     if (type == 'force_update') {
       _openStoreUrl(
         iosUrl: data['ios_store_url']?.trim(),
+        androidUrl: data['android_store_url']?.trim(),
       );
       return;
     }
@@ -263,12 +264,22 @@ class FcmService {
 
   static Future<void> _openStoreUrl({
     String? iosUrl,
+    String? androidUrl,
   }) async {
-    if (iosUrl == null || iosUrl.isEmpty) return;
+    final rawUrl = (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+        ? (iosUrl?.trim() ?? androidUrl?.trim())
+        : (androidUrl?.trim() ?? iosUrl?.trim());
+    debugPrint('FCM force_update: _openStoreUrl iosUrl=$iosUrl androidUrl=$androidUrl resolved=$rawUrl');
+    if (rawUrl == null || rawUrl.isEmpty) {
+      debugPrint('FCM force_update: no store URL in notification data — set MOBILE_IOS_STORE_URL / MOBILE_ANDROID_PLAY_STORE_URL in backend .env');
+      return;
+    }
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) return;
     try {
-      await launchUrl(Uri.parse(iosUrl), mode: LaunchMode.externalApplication);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
-      debugPrint('FCM force_update: could not open store url $iosUrl: $e');
+      debugPrint('FCM force_update: could not open store url $rawUrl: $e');
     }
   }
 
