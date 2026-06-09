@@ -74,6 +74,8 @@ class FcmService {
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
+      defaultPresentBanner: true,
+      defaultPresentList: true,
     );
     final initSettings = InitializationSettings(
       android: androidInit,
@@ -177,6 +179,9 @@ class FcmService {
         message.notification != null) {
       if (type == 'monday' || type == 'thursday') {
         _handleNotificationTap(data: data);
+      } else if (type == 'force_update') {
+        // Show local notification so the user sees it even when the app is open.
+        await _showLocalNotification(title: title, body: body, data: data);
       }
       return;
     }
@@ -199,6 +204,8 @@ class FcmService {
     );
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
+      presentBanner: true,
+      presentList: true,
       presentBadge: true,
       presentSound: true,
     );
