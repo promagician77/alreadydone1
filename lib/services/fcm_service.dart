@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'
     show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '/flutter_flow/nav/nav.dart';
 import 'backend_client.dart';
 import 'supabase_service.dart';
@@ -234,6 +235,13 @@ class FcmService {
     final route = data['route']?.trim();
     final type = data['type']?.trim();
 
+    if (type == 'force_update') {
+      _openStoreUrl(
+        iosUrl: data['ios_store_url']?.trim(),
+      );
+      return;
+    }
+
     if (type == 'monday' || type == 'thursday') {
       _navigateToRoute(
         (route != null && route.isNotEmpty) ? route : _kStoryReminderRoute,
@@ -243,6 +251,17 @@ class FcmService {
 
     if (route != null && route.isNotEmpty) {
       _navigateToRoute(route);
+    }
+  }
+
+  static Future<void> _openStoreUrl({
+    String? iosUrl,
+  }) async {
+    if (iosUrl == null || iosUrl.isEmpty) return;
+    try {
+      await launchUrl(Uri.parse(iosUrl), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('FCM force_update: could not open store url $iosUrl: $e');
     }
   }
 

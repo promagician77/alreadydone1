@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '/services/server_toast.dart';
 
@@ -12,6 +13,12 @@ class BackendClient {
   BackendClient._();
 
   static bool _isAsciiQuote(int c) => c == 0x22 || c == 0x27;
+
+  static PackageInfo? _packageInfo;
+
+  static Future<PackageInfo> _getPackageInfo() async {
+    return _packageInfo ??= await PackageInfo.fromPlatform();
+  }
 
   static String _baseUrl = _defaultBaseUrl;
 
@@ -251,7 +258,12 @@ class BackendClient {
   }
 
   static Future<Map<String, dynamic>> getStories(int userId) async {
-    final uri = resolve('/api/stories').replace(queryParameters: {'user_id': userId.toString()});
+    final info = await _getPackageInfo();
+    final uri = resolve('/api/stories').replace(queryParameters: {
+      'user_id': userId.toString(),
+      'app_build': info.buildNumber,
+      'app_version': info.version,
+    });
     final response = await client.get(uri).timeout(
       const Duration(seconds: 15),
       onTimeout: () => throw Exception('Stories request timeout'),
