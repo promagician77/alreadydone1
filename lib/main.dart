@@ -17,6 +17,7 @@ import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'flutter_flow/nav/nav.dart';
 import '/widgets/app_upgrade_alert.dart';
+import '/widgets/force_update_gate.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '/env_loader.dart';
 import '/services/app_toast.dart';
@@ -292,8 +293,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         if (kIsWeb) {
           return child ?? const SizedBox.shrink();
         }
-        return AppUpgradeAlert(
-          child: child ?? const SizedBox.shrink(),
+        return ForceUpdateGate(
+          child: AppUpgradeAlert(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
