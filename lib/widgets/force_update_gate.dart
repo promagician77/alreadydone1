@@ -155,18 +155,22 @@ class _ForceUpdateGateState extends State<ForceUpdateGate>
   Widget build(BuildContext context) {
     if (!_updateRequired) return widget.child;
 
-    // Keep the app mounted underneath but fully cover it and swallow the back
-    // button so there is no way past the wall except updating.
+    // Keep the app mounted underneath but fully cover it with an opaque,
+    // input-absorbing wall. The only way forward is to update.
+    //
+    // NOTE: we deliberately do NOT use BackButtonListener / PopScope here. This
+    // widget lives in MaterialApp.router's `builder`, which is ABOVE the Router
+    // in the tree, so those APIs (which call Router.of(context)) would throw
+    // "context does not include a Router". The opaque overlay below already
+    // blocks all interaction; pressing back at most exits the app, after which
+    // relaunching re-shows this wall.
     return Stack(
       fit: StackFit.expand,
       children: [
         widget.child,
-        BackButtonListener(
-          onBackButtonPressed: () async => true, // block back
-          child: _UpdateRequiredScreen(
-            message: _payload?.message,
-            onUpdate: _openStore,
-          ),
+        _UpdateRequiredScreen(
+          message: _payload?.message,
+          onUpdate: _openStore,
         ),
       ],
     );
