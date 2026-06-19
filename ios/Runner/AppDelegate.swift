@@ -5,20 +5,21 @@ import FirebaseCore
 import FirebaseMessaging
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     FirebaseApp.configure()
-    
+    GeneratedPluginRegistrant.register(with: self)
+
     // Request notification permission
     UNUserNotificationCenter.current().delegate = self
     application.registerForRemoteNotifications()
-    
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
-  
+
   // Forward APNs token to Firebase - THIS IS THE KEY PART
   override func application(
     _ application: UIApplication,
@@ -26,10 +27,6 @@ import FirebaseMessaging
   ) {
     Messaging.messaging().apnsToken = deviceToken
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
-  }
-  
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 
   // Show notification banner, sound, badge when app is in foreground (iOS default is to hide)
