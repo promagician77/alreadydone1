@@ -81,6 +81,14 @@ class RatingPromptController {
       });
     } catch (e) {
       debugPrint('RatingPromptController: $e');
+      // #region agent log
+      agentDebugLog(
+        location: 'rating_prompt_controller.dart:evaluate:catch',
+        message: 'Rating prompt evaluation failed',
+        hypothesisId: 'H6',
+        data: {'error': e.toString()},
+      );
+      // #endregion
     } finally {
       _evaluating = false;
     }

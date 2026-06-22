@@ -615,6 +615,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     } catch (e) {
       if (!mounted) return;
+      // #region agent log
+      agentDebugLog(
+        location: 'player_widget.dart:_loadStoryData:catch',
+        message: 'Story load failed',
+        hypothesisId: 'H6',
+        data: {'error': e.toString(), 'storyId': widget.storyId},
+      );
+      // #endregion
       setState(() {
         _loadError = e.toString();
         _loading = false;

@@ -13,6 +13,8 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/services/revenuecat_service.dart';
 import '/services/fcm_service.dart';
+import '/services/supabase_service.dart';
+import '/utils/agent_debug_log.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'flutter_flow/nav/nav.dart';
@@ -218,6 +220,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+    // #region agent log
+    final session = SupabaseService.client.auth.currentSession;
+    agentDebugLog(
+      location: 'main.dart:didChangeAppLifecycleState',
+      message: 'App lifecycle changed',
+      hypothesisId: 'H6',
+      data: {
+        'state': state.name,
+        'isAuthenticated': SupabaseService.isAuthenticated,
+        'sessionExpired': session?.isExpired,
+        'hasSession': session != null,
+      },
+    );
+    // #endregion
     if (state == AppLifecycleState.resumed) {
       FcmService.onAppResumed();
     }
