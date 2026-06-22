@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '/services/onboarding_service.dart';
 import '/services/server_toast.dart';
+import '/utils/agent_debug_log.dart';
 import '/pages/legal/legal_privacy_widget.dart';
 import '/pages/legal/legal_terms_widget.dart';
 
@@ -201,6 +202,17 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       // Show routing errors explicitly instead of silently sending users home.
       errorBuilder: (context, state) {
         debugPrint('GoRouter error: ${state.error} at ${state.uri}');
+        // #region agent log
+        agentDebugLog(
+          location: 'nav.dart:errorBuilder',
+          message: 'GoRouter error - blank screen shown',
+          hypothesisId: 'H1',
+          data: {
+            'error': state.error.toString(),
+            'uri': state.uri.toString(),
+          },
+        );
+        // #endregion
         // Avoid an error screen in production UX.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ServerToast.show();

@@ -21,6 +21,7 @@ import 'player_colors.dart';
 import 'player_constants.dart';
 import 'player_story_utils.dart';
 import 'player_story_loader.dart';
+import '/utils/agent_debug_log.dart';
 import 'coachmark/done_library_coachmark_nav.dart';
 import 'coachmark/player_done_library_coachmark.dart';
 import 'coachmark/player_settings_coachmark.dart';
@@ -262,6 +263,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
   @override
   void initState() {
     super.initState();
+    // #region agent log
+    agentDebugLog(
+      location: 'player_widget.dart:initState',
+      message: 'PlayerWidget initState',
+      hypothesisId: 'H2',
+      data: {'storyId': widget.storyId},
+    );
+    // #endregion
     _backgroundSoundNameNotifier =
         ValueNotifier<String>(_currentThetaTrackName);
     _waveformController = AnimationController(
@@ -277,6 +286,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) async {
       final wasSleepMode = _sleepModeActive;
+      // #region agent log
+      agentDebugLog(
+        location: 'player_widget.dart:onPlayerComplete',
+        message: 'Playback complete event',
+        hypothesisId: 'H3',
+        data: {
+          'disposed': _disposed,
+          'mounted': mounted,
+          'sleepModeActive': _sleepModeActive,
+          'positionMs': _position.inMilliseconds,
+          'durationMs': _duration.inMilliseconds,
+          'effectiveDurationMs': _effectiveDuration.inMilliseconds,
+          'durationLabel': _durationLabel,
+        },
+      );
+      // #endregion
       if (!_disposed && mounted) {
         _stopThetaBackground();
         setState(() {
@@ -291,6 +316,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
             skipForSleepSession: wasSleepMode,
           ),
         );
+        // #region agent log
+        agentDebugLog(
+          location: 'player_widget.dart:onPlayerComplete:after',
+          message: 'Playback complete handler finished',
+          hypothesisId: 'H3',
+          data: {'mounted': mounted, 'loading': _loading},
+        );
+        // #endregion
       }
     });
     _durationChangedSub = _audioPlayer.onDurationChanged.listen((d) {
@@ -756,6 +789,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   void _endSleepSession() {
+    // #region agent log
+    agentDebugLog(
+      location: 'player_widget.dart:_endSleepSession',
+      message: 'Ending sleep session',
+      hypothesisId: 'H2',
+      data: {'mounted': mounted},
+    );
+    // #endregion
     _sleepMasterTimer?.cancel();
     _sleepMasterTimer = null;
     _sleepModeStartedAt = null;
@@ -822,6 +863,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   @override
   void dispose() {
+    // #region agent log
+    agentDebugLog(
+      location: 'player_widget.dart:dispose',
+      message: 'PlayerWidget dispose',
+      hypothesisId: 'H2',
+      data: {
+        'wasPlaying': _isPlaying,
+        'sleepModeActive': _sleepModeActive,
+        'loading': _loading,
+      },
+    );
+    // #endregion
     _disposed = true;
     _playerCompleteSub?.cancel();
     _playerCompleteSub = null;

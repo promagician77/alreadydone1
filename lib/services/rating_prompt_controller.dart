@@ -9,6 +9,7 @@ import '/flutter_flow/nav/nav.dart';
 import '/pages/player/player_modals/rating_prompt_modal.dart';
 import '/services/backend_client.dart';
 import '/services/rating_prompt_prefs.dart';
+import '/utils/agent_debug_log.dart';
 import '/services/supabase_service.dart';
 import '/utils/platform_utils.dart';
 
@@ -68,6 +69,14 @@ class RatingPromptController {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = appNavigatorKey.currentContext;
         if (ctx == null || !ctx.mounted) return;
+        // #region agent log
+        agentDebugLog(
+          location: 'rating_prompt_controller.dart:evaluate',
+          message: 'Scheduling rating prompt dialog',
+          hypothesisId: 'H5',
+          data: {'variant': variant.name, 'daysSinceStart': daysSinceStart},
+        );
+        // #endregion
         unawaited(_tryShowDialog(ctx, variant));
       });
     } catch (e) {

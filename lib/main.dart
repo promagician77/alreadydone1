@@ -26,6 +26,8 @@ import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
+import '/utils/agent_debug_log.dart';
+import '/utils/agent_debug_log.dart';
 import '/widgets/pressable.dart';
 import '/pages/player/coachmark/done_library_coachmark_nav.dart';
 import '/widgets/swipe_delete_tutorial_dialog.dart';
@@ -517,6 +519,18 @@ class _NavBarPageState extends State<NavBarPage>
     return ValueListenableBuilder<bool>(
       valueListenable: sleepModeNotifier,
       builder: (context, sleepMode, _) {
+        // #region agent log
+        agentDebugLog(
+          location: 'main.dart:NavBarPage.build',
+          message: 'NavBarPage rebuild',
+          hypothesisId: 'H2',
+          data: {
+            'currentPageName': _currentPageName,
+            'sleepMode': sleepMode,
+            'hasCurrentPage': _currentPage != null,
+          },
+        );
+        // #endregion
         return ValueListenableBuilder<bool>(
           valueListenable: navLockNotifier,
           builder: (context, navLocked, __) {
