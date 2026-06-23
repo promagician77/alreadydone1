@@ -206,7 +206,7 @@ class _LoginWidgetState extends State<LoginWidget> {
       debugPrint('Login response: $response');
       if (response.user != null && mounted) {
         AppToast.success(context, 'Welcome back!');
-        context.go('/?fromLogin=1');
+        context.go('/');
       }
       
     // After successful login, sync user's timezone with backend

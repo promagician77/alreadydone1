@@ -606,14 +606,19 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _voiceId =
             widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
         if (widget.storyId != null) _currentStoryId = widget.storyId;
+        _loading = false;
+        _loadError = null;
       });
+      _saveLastPlayed();
+      _afterPlayerLoadedForCoachmarks();
+      return;
     }
 
     try {
       final res = await SupabaseService.client
           .from('Stories')
           .select(
-              'theme, story, title, content, desire_name, category, playUrl, storage, voice_id')
+              'theme, story, content, desire_name, category, playUrl, storage, voice_id')
           .eq('id', widget.storyId!)
           .maybeSingle();
 

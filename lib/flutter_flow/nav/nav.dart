@@ -78,32 +78,33 @@ class AppStateNotifier extends ChangeNotifier {
     // Ensure token refresh is wired before we start relying on auth state.
     SupabaseService.wireUpTokenAutoRefresh();
     final sub = SupabaseService.authStateChanges.listen((state) async {
-      final isSignedIn = state.event == AuthChangeEvent.signedIn ||
-          state.event == AuthChangeEvent.initialSession;
-      if (isSignedIn && state.session != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(_keyUserHasSignedInOnce, true);
-        await SupabaseService.ensureUserProfileFromAuth();
-        TimezoneSyncService.syncInBackground();
-        await FcmService.onUserSignedIn();
-        if (RevenueCatService.instance.isSupported) {
-          RevenueCatService.logFlow(
-            'Auth',
-            'signedIn — ensureReady appUserId=${state.session!.user.id}',
-          );
-          await RevenueCatService.instance.ensureReady(
-            appUserId: state.session!.user.id,
-          );
+      if (state.event == AuthChangeEvent.signedIn ||
+          state.event == AuthChangeEvent.initialSession) {
+        if (state.session != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(_keyUserHasSignedInOnce, true);
+          await SupabaseService.ensureUserProfileFromAuth();
+          TimezoneSyncService.syncInBackground();
+          await FcmService.onUserSignedIn();
+          if (RevenueCatService.instance.isSupported) {
+            RevenueCatService.logFlow(
+              'Auth',
+              'signedIn — ensureReady appUserId=${state.session!.user.id}',
+            );
+            await RevenueCatService.instance.ensureReady(
+              appUserId: state.session!.user.id,
+            );
+          }
         }
-      } else {
-        // If session is cleared, stop any pending token refresh.
+        notifyListeners();
+      } else if (state.event == AuthChangeEvent.signedOut) {
         SupabaseService.stopTokenAutoRefresh();
         if (RevenueCatService.instance.isSupported) {
           RevenueCatService.logFlow('Auth', 'signedOut — logOut');
           await RevenueCatService.instance.logOut();
         }
+        notifyListeners();
       }
-      notifyListeners();
     });
     sub.onError((Object e, StackTrace st) async {
       debugPrint('Auth state error (e.g. invalid refresh token): $e');
@@ -147,6 +148,10 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         if (isAppSplash) return null;
 
         if (!isAuth && !isAuthRoute) {
+          // Session may still be restoring from disk after resume; avoid a
+          // brief /login → /?fromLogin=1 redirect race that blanks the UI.
+          final session = SupabaseService.client.auth.currentSession;
+          if (session != null) return null;
           return _logRedirect(LoginWidget.routePath, path, 'not_authenticated');
         }
         final isPasswordRecoveryOtp =
@@ -156,8 +161,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         if (isAuth && isAuthRoute) {
           if (isPasswordRecoveryOtp) return null;
           final subscribed = await _hasSubscribedStatusFromProfile();
-          if (subscribed)
-            return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+          if (subscribed) return _logRedirect('/', path, 'subscribed_after_auth');
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (!completed &&
               !(await OnboardingService.hasGeneratedFirstStory()) &&
@@ -174,7 +178,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           if (savedStep != null) return savedStep;
           // Check if onboarding completed without subscription
           if (!completed) return OnboardingOriginSplashWidget.routePath;
-          return path == LoginWidget.routePath ? '/?fromLogin=1' : '/';
+          return _logRedirect('/', path, 'auth_route_complete');
         }
         if (isAuth && !isOnboardingRoute) {
           final subscribed = await _hasSubscribedStatusFromProfile();
