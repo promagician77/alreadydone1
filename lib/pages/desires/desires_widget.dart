@@ -12,6 +12,7 @@ import '/services/ai_consent_service.dart';
 import '/pages/onboarding/onboarding_state.dart';
 import '/widgets/pressable.dart';
 import '/widgets/swipe_delete_tutorial_dialog.dart';
+import '/utils/agent_debug_log.dart';
 import 'desires_model.dart';
 export 'desires_model.dart';
 
@@ -98,6 +99,13 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   @override
   void initState() {
     super.initState();
+    // #region agent log
+    agentDebugLog(
+      location: 'desires_widget.dart:initState',
+      message: 'Step 1 - Done library opened',
+      hypothesisId: 'H2',
+    );
+    // #endregion
     _model = createModel(context, () => DesiresModel());
     _loadData().then((_) {
       if (mounted) _afterDesiresLoadedForCoachmark();
@@ -296,6 +304,14 @@ class _DesiresWidgetState extends State<DesiresWidget> {
       }
 
       if (mounted) {
+        // #region agent log
+        agentDebugLog(
+          location: 'desires_widget.dart:_navigateToPlayerWithVoice',
+          message: 'Navigating to player from Done library',
+          hypothesisId: 'H2',
+          data: {'storyId': storyId, 'hasPlayUrl': playUrl.isNotEmpty},
+        );
+        // #endregion
         // Same as home: avoid stacking two [NavBarPage]s (duplicate GlobalKeys on Home/Done).
         context.pushReplacementNamed(PlayerWidget.routeName, extra: {
           'storyId': storyId,
@@ -630,6 +646,14 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           if (isDeleteMode) {
             setState(() => _storyToDeleteForModal = story);
           } else if (story.id != null) {
+            // #region agent log
+            agentDebugLog(
+              location: 'desires_widget.dart:storyTap',
+              message: 'Step 2 - story selected in Done library',
+              hypothesisId: 'H2',
+              data: {'storyId': story.id, 'storyName': story.name},
+            );
+            // #endregion
             _navigateToPlayerWithVoice(
               story.id!,
               story.name,

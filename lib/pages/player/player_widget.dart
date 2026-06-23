@@ -62,7 +62,7 @@ class PlayerWidget extends StatefulWidget {
 }
 
 class _PlayerWidgetState extends State<PlayerWidget>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   String _nextResetMessage() {
     final now = DateTime.now();
     final nextMidnight =
@@ -134,6 +134,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   bool _showSettingsCoachmark = false;
   bool _showDoneLibraryCoachmark = false;
+  bool _logNextBuild = false;
 
   Duration get _expectedDuration =>
       PlayerStoryUtils.expectedDuration(_durationLabel);
@@ -278,6 +279,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       duration: const Duration(milliseconds: 1800),
     )..repeat();
     _model = createModel(context, () => PlayerModel());
+    WidgetsBinding.instance.addObserver(this);
     _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     _thetaTrackPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
@@ -341,6 +343,84 @@ class _PlayerWidgetState extends State<PlayerWidget>
     doneLibraryCoachmarkOnDoneTabDismiss = _onDoneTabDuringLibraryCoachmark;
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // #region agent log
+    agentDebugLog(
+      location: 'player_widget.dart:didChangeAppLifecycleState',
+      message: 'Player lifecycle changed',
+      hypothesisId: 'H4',
+      data: {
+        'state': state.name,
+        'mounted': mounted,
+        'disposed': _disposed,
+        'loading': _loading,
+        'hasNoStory': _hasNoStory,
+        'isPlaying': _isPlaying,
+        'sleepModeActive': _sleepModeActive,
+        'hasPlayUrl': _playUrl != null && _playUrl!.isNotEmpty,
+        'storyId': _currentStoryId ?? widget.storyId,
+        'loadError': _loadError,
+      },
+    );
+    // #endregion
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive) {
+      // #region agent log
+      agentDebugLog(
+        location: 'player_widget.dart:didChangeAppLifecycleState:background',
+        message: 'Step 6 - player going to background',
+        hypothesisId: 'H4',
+        data: {
+          'state': state.name,
+          'isPlaying': _isPlaying,
+          'audioPlayerState': _audioPlayer.state.name,
+        },
+      );
+      // #endregion
+    }
+    if (state == AppLifecycleState.resumed) {
+      _logNextBuild = true;
+      // #region agent log
+      agentDebugLog(
+        location: 'player_widget.dart:didChangeAppLifecycleState:resumed',
+        message: 'Step 7 - player resumed from background',
+        hypothesisId: 'H4',
+        data: {
+          'audioPlayerState': _audioPlayer.state.name,
+          'thetaPlayerState': _thetaTrackPlayer.state.name,
+          'positionMs': _position.inMilliseconds,
+          'hasPlayUrl': _playUrl != null && _playUrl!.isNotEmpty,
+        },
+      );
+      // #endregion
+    }
+  }
+
+  void _logBuildSnapshot(String trigger) {
+    // #region agent log
+    agentDebugLog(
+      location: 'player_widget.dart:build',
+      message: 'Player build snapshot',
+      hypothesisId: 'H5',
+      data: {
+        'trigger': trigger,
+        'loading': _loading,
+        'hasNoStory': _hasNoStory,
+        'hasPlayUrl': _playUrl != null && _playUrl!.isNotEmpty,
+        'loadError': _loadError,
+        'isPlaying': _isPlaying,
+        'sleepModeActive': _sleepModeActive,
+        'isGeneratingVoice': _isGeneratingVoice,
+        'isDeepening': _isDeepening,
+        'mounted': mounted,
+        'disposed': _disposed,
+      },
+    );
+    // #endregion
+  }
+
   Future<void> _loadStoryData() async {
     final previewFromWidget = (widget.storyPreview ?? '').trim();
     if (previewFromWidget.isNotEmpty) {
@@ -364,6 +444,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
               widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
           _loading = false;
         });
+        // #region agent log
+        agentDebugLog(
+          location: 'player_widget.dart:_loadStoryData:widgetPlayUrl',
+          message: 'Step 3 - player ready with playUrl from navigation',
+          hypothesisId: 'H5',
+          data: {
+            'storyId': widget.storyId,
+            'hasPlayUrl': widget.playUrl!.isNotEmpty,
+            'loading': false,
+          },
+        );
+        // #endregion
         _saveLastPlayed();
         _afterPlayerLoadedForCoachmarks();
         return;
@@ -883,6 +975,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       },
     );
     // #endregion
+    WidgetsBinding.instance.removeObserver(this);
     _disposed = true;
     _playerCompleteSub?.cancel();
     _playerCompleteSub = null;
@@ -921,10 +1014,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
     try {
       if (_isPlaying) {
+        // #region agent log
+        agentDebugLog(
+          location: 'player_widget.dart:_togglePlayPause',
+          message: 'Step 5 - pausing playback',
+          hypothesisId: 'H3',
+          data: {
+            'positionMs': _position.inMilliseconds,
+            'durationMs': _duration.inMilliseconds,
+            'sleepModeActive': _sleepModeActive,
+          },
+        );
+        // #endregion
         await _audioPlayer.pause();
         if (_sleepModeActive) await _thetaTrackPlayer.pause();
         if (mounted) setState(() => _isPlaying = false);
       } else {
+        // #region agent log
+        agentDebugLog(
+          location: 'player_widget.dart:_togglePlayPause',
+          message: 'Step 3 - starting playback',
+          hypothesisId: 'H3',
+          data: {
+            'positionMs': _position.inMilliseconds,
+            'durationMs': _duration.inMilliseconds,
+            'sleepModeActive': _sleepModeActive,
+          },
+        );
+        // #endregion
         await _applyMixContext();
         final effectiveDuration = _effectiveDuration;
         if (_position == Duration.zero ||
@@ -1696,6 +1813,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   @override
   Widget build(BuildContext context) {
+    if (_logNextBuild) {
+      _logNextBuild = false;
+      _logBuildSnapshot('lifecycle_resume');
+    }
     final hasUrl = _playUrl != null && _playUrl!.isNotEmpty;
     final canSkipStory = hasUrl && _currentStoryId != null;
 

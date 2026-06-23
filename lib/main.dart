@@ -135,6 +135,17 @@ void main() async {
   }, (error, stack) {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');
+    // #region agent log
+    agentDebugLog(
+      location: 'main.dart:runZonedGuarded',
+      message: 'Uncaught async error',
+      hypothesisId: 'H7',
+      data: {
+        'error': error.toString(),
+        'stack': stack.toString().split('\n').take(5).join('\n'),
+      },
+    );
+    // #endregion
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ServerToast.show();
@@ -208,11 +219,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _appStateNotifier = AppStateNotifier.instance;
     _router = createRouter(_appStateNotifier);
+    _router.routerDelegate.addListener(_onRouterDelegateChange);
     _initAuthDeepLinks();
+  }
+
+  void _onRouterDelegateChange() {
+    // #region agent log
+    agentDebugLog(
+      location: 'main.dart:_onRouterDelegateChange',
+      message: 'Route stack changed',
+      hypothesisId: 'H1',
+      data: {
+        'currentRoute': getRoute(),
+        'routeStack': getRouteStack(),
+      },
+    );
+    // #endregion
   }
 
   @override
   void dispose() {
+    _router.routerDelegate.removeListener(_onRouterDelegateChange);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

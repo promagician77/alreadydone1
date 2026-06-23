@@ -4,9 +4,9 @@ import 'dart:io' show File, FileMode, HttpClient, Platform;
 
 import 'package:flutter/foundation.dart';
 
-const _sessionId = '9fd136';
+const _sessionId = '146b1c';
 const _logPath =
-    '/home/sebastian/Documents/Already Done/.cursor/debug-9fd136.log';
+    '/home/sebastian/Documents/Already Done/.cursor/debug-146b1c.log';
 const _endpoint =
     'http://127.0.0.1:7592/ingest/4164bd9e-bdbd-463f-958c-2eb0330e149c';
 
@@ -28,7 +28,7 @@ void agentDebugLog({
     if (data != null) 'data': data,
   };
   final line = jsonEncode(payload);
-  debugPrint('[DEBUG-9fd136] $line');
+  debugPrint('[DEBUG-146b1c] $line');
 
   // #region agent log
   if (!kIsWeb) {

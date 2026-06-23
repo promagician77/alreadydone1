@@ -115,6 +115,20 @@ class AppStateNotifier extends ChangeNotifier {
   }
 }
 
+String? _logRedirect(String? target, String fromPath, String reason) {
+  if (target != null) {
+    // #region agent log
+    agentDebugLog(
+      location: 'nav.dart:redirect',
+      message: 'GoRouter redirect triggered',
+      hypothesisId: 'H1',
+      data: {'from': fromPath, 'to': target, 'reason': reason},
+    );
+    // #endregion
+  }
+  return target;
+}
+
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       initialLocation: AppSplashWidget.routePath,
       debugLogDiagnostics: true,
@@ -133,7 +147,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         if (isAppSplash) return null;
 
         if (!isAuth && !isAuthRoute) {
-          return LoginWidget.routePath;
+          return _logRedirect(LoginWidget.routePath, path, 'not_authenticated');
         }
         final isPasswordRecoveryOtp =
             path == EmailVerificationWidget.routePath &&
@@ -191,10 +205,10 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         if (isAuth && isOnboardingRoute) {
           final completed = await OnboardingService.hasCompletedOnboarding();
           if (completed && path == OnboardingSplashWidget.routePath) {
-            return '/';
+            return _logRedirect('/', path, 'onboarding_complete');
           }
           if (completed && path == OnboardingOriginSplashWidget.routePath) {
-            return '/';
+            return _logRedirect('/', path, 'onboarding_complete');
           }
         }
         return null;
