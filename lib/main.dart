@@ -28,6 +28,7 @@ import '/services/backend_client.dart';
 import '/services/supabase_service.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/nav_lock_notifier.dart';
+import '/services/shell_player_navigation.dart';
 import '/utils/agent_debug_log.dart';
 import '/utils/agent_debug_log.dart';
 import '/widgets/pressable.dart';
@@ -433,6 +434,28 @@ class _NavBarPageState extends State<NavBarPage>
     if (newManifestationCoachmarkVisible.value) {
       _newManifestationNavPulse.repeat(reverse: true);
     }
+    shellOpenPlayer = _openPlayerFromShell;
+  }
+
+  void _openPlayerFromShell(ShellPlayerExtra extra) {
+    final storyId = extra['storyId'];
+    final parsedStoryId = storyId is int
+        ? storyId
+        : int.tryParse(storyId?.toString() ?? '');
+    safeSetState(() {
+      _currentPageName = 'Player';
+      _currentPage = PlayerWidget(
+        key: ValueKey(parsedStoryId ?? extra['playUrl']),
+        storyId: parsedStoryId,
+        categoryLabel: extra['categoryLabel']?.toString(),
+        title: extra['title']?.toString(),
+        subtitle: extra['subtitle']?.toString(),
+        durationLabel: extra['durationLabel']?.toString(),
+        playUrl: extra['playUrl']?.toString(),
+        storyPreview: extra['storyPreview']?.toString(),
+        voiceId: extra['voiceId']?.toString(),
+      );
+    });
   }
 
   void _syncNewManifestationNavPulse() {
@@ -447,6 +470,9 @@ class _NavBarPageState extends State<NavBarPage>
 
   @override
   void dispose() {
+    if (shellOpenPlayer == _openPlayerFromShell) {
+      shellOpenPlayer = null;
+    }
     newManifestationCoachmarkVisible.removeListener(_syncNewManifestationNavPulse);
     _newManifestationNavPulse.dispose();
     super.dispose();

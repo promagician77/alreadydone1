@@ -12,6 +12,7 @@ import '/services/ai_consent_service.dart';
 import '/pages/onboarding/onboarding_state.dart';
 import '/widgets/pressable.dart';
 import '/widgets/swipe_delete_tutorial_dialog.dart';
+import '/services/shell_player_navigation.dart';
 import '/utils/agent_debug_log.dart';
 import 'desires_model.dart';
 export 'desires_model.dart';
@@ -307,28 +308,34 @@ class _DesiresWidgetState extends State<DesiresWidget> {
       }
 
       if (mounted) {
+        final extra = <String, dynamic>{
+          'storyId': storyId,
+          'categoryLabel': categoryLabel,
+          'title': title,
+          'subtitle': '',
+          'durationLabel': durationLabel,
+          'playUrl': playUrl,
+          if (storyPreview != null && storyPreview.isNotEmpty)
+            'storyPreview': storyPreview,
+        };
         // #region agent log
         agentDebugLog(
           location: 'desires_widget.dart:_navigateToPlayerWithVoice',
           message: 'Navigating to player from Done library',
           hypothesisId: 'H2',
-          data: {'storyId': storyId, 'hasPlayUrl': playUrl.isNotEmpty},
-        );
-        // #endregion
-        // Replace route (not pushReplacement) so only one NavBarPage exists.
-        context.go(
-          PlayerWidget.routePath,
-          extra: {
+          data: {
             'storyId': storyId,
-            'categoryLabel': categoryLabel,
-            'title': title,
-            'subtitle': '',
-            'durationLabel': durationLabel,
-            'playUrl': playUrl,
-            if (storyPreview != null && storyPreview.isNotEmpty)
-              'storyPreview': storyPreview,
+            'hasPlayUrl': playUrl.isNotEmpty,
+            'viaShell': shellOpenPlayer != null,
           },
         );
+        // #endregion
+        final openInShell = shellOpenPlayer;
+        if (openInShell != null) {
+          openInShell(extra);
+        } else {
+          context.pushReplacementNamed(PlayerWidget.routeName, extra: extra);
+        }
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));

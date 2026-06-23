@@ -19,6 +19,7 @@ import '/services/app_toast.dart';
 import '/services/backend_client.dart';
 import '/services/profile_day_streak.dart';
 import '/services/revenuecat_service.dart';
+import '/services/shell_player_navigation.dart';
 import '/services/sleep_mode_notifier.dart';
 import '/services/supabase_service.dart';
 import 'home_dashboard_colors.dart';
@@ -484,28 +485,31 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       if (mounted) {
         final storyText =
             (story['story'] ?? story['content'])?.toString().trim();
-        context.go(
-          PlayerWidget.routePath,
-          extra: {
-            'storyId': storyId,
-            'categoryLabel':
-                (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
-            'title': (story['theme'] ??
-                    story['title'] ??
-                    story['desire_name'] ??
-                    'Story')
-                .toString(),
-            'subtitle': '',
-            'durationLabel': HomeDashboardStoryUtils.durationFromStory(
-              story,
-              _model.durationCache,
-            ),
-            'playUrl': playUrl,
-            if (storyText != null && storyText.isNotEmpty)
-              'storyPreview': storyText,
-            'voiceId': voiceId,
-          },
-        );
+        final extra = <String, dynamic>{
+          'storyId': storyId,
+          'categoryLabel':
+              (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
+          'title': (story['theme'] ??
+                  story['title'] ??
+                  story['desire_name'] ??
+                  'Story')
+              .toString(),
+          'subtitle': '',
+          'durationLabel': HomeDashboardStoryUtils.durationFromStory(
+            story,
+            _model.durationCache,
+          ),
+          'playUrl': playUrl,
+          if (storyText != null && storyText.isNotEmpty)
+            'storyPreview': storyText,
+          'voiceId': voiceId,
+        };
+        final openInShell = shellOpenPlayer;
+        if (openInShell != null) {
+          openInShell(extra);
+        } else {
+          context.pushReplacementNamed(PlayerWidget.routeName, extra: extra);
+        }
       }
     } catch (e) {
       if (mounted) {
