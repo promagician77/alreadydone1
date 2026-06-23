@@ -8,7 +8,6 @@ import '/services/app_toast.dart';
 import '/services/timezone_sync_service.dart';
 import '/widgets/pressable.dart';
 import '/constants/legal_urls.dart';
-import '/pages/password_reset/password_reset_widget.dart';
 import 'sign_up_model.dart';
 export 'sign_up_model.dart';
 
@@ -159,18 +158,6 @@ class _SignUpWidgetState extends State<SignUpWidget> {
                               !_model.obscureConfirmPassword,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Pressable(
-                          onTap: _goToForgotPassword,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                            child: Text('Forgot password?', style: AuthTheme.forgotLinkStyle),
-                          ),
-                        ),
-                      ),
                       const SizedBox(height: 16),
                       _termsCheckbox(),
                       const SizedBox(height: 8),
@@ -216,17 +203,6 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       return 'Password must include at least one special character.';
     }
     return null;
-  }
-
-  void _goToForgotPassword() {
-    final email = _model.emailTextController.text.trim();
-    if (email.isNotEmpty) {
-      context.go(
-        '${PasswordResetWidget.routePath}?email=${Uri.encodeQueryComponent(email)}',
-      );
-    } else {
-      context.go(PasswordResetWidget.routePath);
-    }
   }
 
   void _onFullNameChanged(String value) {
