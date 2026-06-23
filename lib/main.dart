@@ -454,38 +454,6 @@ class _NavBarPageState extends State<NavBarPage>
 
   void _onNavTap(int index) {
     final tabKeys = ['HomeDashboard', 'Player', 'Desires', 'Profile'];
-    const paths = ['/', '/player', '/desires', '/profile'];
-    final targetPath = paths[index];
-
-    try {
-      final currentPath = GoRouterState.of(context).uri.path;
-      if (currentPath != targetPath) {
-        // #region agent log
-        agentDebugLog(
-          location: 'main.dart:_onNavTap',
-          message: 'Tab tap syncing GoRouter path',
-          hypothesisId: 'H8',
-          data: {
-            'tab': tabKeys[index],
-            'fromPath': currentPath,
-            'toPath': targetPath,
-          },
-        );
-        // #endregion
-        context.go(targetPath);
-        return;
-      }
-    } catch (e) {
-      // #region agent log
-      agentDebugLog(
-        location: 'main.dart:_onNavTap',
-        message: 'Tab tap route sync failed',
-        hypothesisId: 'H8',
-        data: {'error': e.toString(), 'tabIndex': index},
-      );
-      // #endregion
-    }
-
     safeSetState(() {
       _currentPage = null;
       _currentPageName = tabKeys[index];
