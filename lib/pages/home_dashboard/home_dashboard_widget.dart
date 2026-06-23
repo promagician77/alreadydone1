@@ -484,25 +484,28 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       if (mounted) {
         final storyText =
             (story['story'] ?? story['content'])?.toString().trim();
-        context.pushReplacementNamed(PlayerWidget.routeName, extra: {
-          'storyId': storyId,
-          'categoryLabel':
-              (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
-          'title': (story['theme'] ??
-                  story['title'] ??
-                  story['desire_name'] ??
-                  'Story')
-              .toString(),
-          'subtitle': '',
-          'durationLabel': HomeDashboardStoryUtils.durationFromStory(
-            story,
-            _model.durationCache,
-          ),
-          'playUrl': playUrl,
-          if (storyText != null && storyText.isNotEmpty)
-            'storyPreview': storyText,
-          'voiceId': voiceId,
-        });
+        context.go(
+          PlayerWidget.routePath,
+          extra: {
+            'storyId': storyId,
+            'categoryLabel':
+                (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
+            'title': (story['theme'] ??
+                    story['title'] ??
+                    story['desire_name'] ??
+                    'Story')
+                .toString(),
+            'subtitle': '',
+            'durationLabel': HomeDashboardStoryUtils.durationFromStory(
+              story,
+              _model.durationCache,
+            ),
+            'playUrl': playUrl,
+            if (storyText != null && storyText.isNotEmpty)
+              'storyPreview': storyText,
+            'voiceId': voiceId,
+          },
+        );
       }
     } catch (e) {
       if (mounted) {

@@ -201,18 +201,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late AppStateNotifier _appStateNotifier;
   late GoRouter _router;
   String getRoute([RouteMatch? routeMatch]) {
-    final RouteMatch lastMatch =
-        routeMatch ?? _router.routerDelegate.currentConfiguration.last;
-    final RouteMatchList matchList = lastMatch is ImperativeRouteMatch
-        ? lastMatch.matches
-        : _router.routerDelegate.currentConfiguration;
-    return matchList.uri.toString();
+    try {
+      final config = _router.routerDelegate.currentConfiguration;
+      if (config.matches.isEmpty) return '/';
+      final RouteMatch lastMatch = routeMatch ?? config.last;
+      final RouteMatchList matchList = lastMatch is ImperativeRouteMatch
+          ? lastMatch.matches
+          : config;
+      return matchList.uri.toString();
+    } catch (e) {
+      // #region agent log
+      agentDebugLog(
+        location: 'main.dart:getRoute',
+        message: 'getRoute failed',
+        hypothesisId: 'H8',
+        data: {'error': e.toString()},
+      );
+      // #endregion
+      return '/';
+    }
   }
 
-  List<String> getRouteStack() =>
-      _router.routerDelegate.currentConfiguration.matches
-          .map((e) => getRoute(e))
-          .toList();
+  List<String> getRouteStack() {
+    try {
+      final matches = _router.routerDelegate.currentConfiguration.matches;
+      if (matches.isEmpty) return ['/'];
+      return matches.map((e) => getRoute(e)).toList();
+    } catch (e) {
+      // #region agent log
+      agentDebugLog(
+        location: 'main.dart:getRouteStack',
+        message: 'getRouteStack failed',
+        hypothesisId: 'H8',
+        data: {'error': e.toString()},
+      );
+      // #endregion
+      return ['/'];
+    }
+  }
   @override
   void initState() {
     super.initState();
@@ -428,6 +454,38 @@ class _NavBarPageState extends State<NavBarPage>
 
   void _onNavTap(int index) {
     final tabKeys = ['HomeDashboard', 'Player', 'Desires', 'Profile'];
+    const paths = ['/', '/player', '/desires', '/profile'];
+    final targetPath = paths[index];
+
+    try {
+      final currentPath = GoRouterState.of(context).uri.path;
+      if (currentPath != targetPath) {
+        // #region agent log
+        agentDebugLog(
+          location: 'main.dart:_onNavTap',
+          message: 'Tab tap syncing GoRouter path',
+          hypothesisId: 'H8',
+          data: {
+            'tab': tabKeys[index],
+            'fromPath': currentPath,
+            'toPath': targetPath,
+          },
+        );
+        // #endregion
+        context.go(targetPath);
+        return;
+      }
+    } catch (e) {
+      // #region agent log
+      agentDebugLog(
+        location: 'main.dart:_onNavTap',
+        message: 'Tab tap route sync failed',
+        hypothesisId: 'H8',
+        data: {'error': e.toString(), 'tabIndex': index},
+      );
+      // #endregion
+    }
+
     safeSetState(() {
       _currentPage = null;
       _currentPageName = tabKeys[index];

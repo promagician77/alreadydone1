@@ -233,6 +233,9 @@ class _DesiresWidgetState extends State<DesiresWidget> {
       setState(() {
         _desireCategories = desireCategories;
         _categories = categories;
+        if (_selectedFilter > desireCategories.length) {
+          _selectedFilter = 0;
+        }
         if (categories.isNotEmpty) {
           _headerCategory = '${categories.first.eyebrow} · Already Complete';
           _headerTitle = categories.first.name;
@@ -312,16 +315,20 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           data: {'storyId': storyId, 'hasPlayUrl': playUrl.isNotEmpty},
         );
         // #endregion
-        // Same as home: avoid stacking two [NavBarPage]s (duplicate GlobalKeys on Home/Done).
-        context.pushReplacementNamed(PlayerWidget.routeName, extra: {
-          'storyId': storyId,
-          'categoryLabel': categoryLabel,
-          'title': title,
-          'subtitle': '',
-          'durationLabel': durationLabel,
-          'playUrl': playUrl,
-          if (storyPreview != null && storyPreview.isNotEmpty) 'storyPreview': storyPreview,
-        });
+        // Replace route (not pushReplacement) so only one NavBarPage exists.
+        context.go(
+          PlayerWidget.routePath,
+          extra: {
+            'storyId': storyId,
+            'categoryLabel': categoryLabel,
+            'title': title,
+            'subtitle': '',
+            'durationLabel': durationLabel,
+            'playUrl': playUrl,
+            if (storyPreview != null && storyPreview.isNotEmpty)
+              'storyPreview': storyPreview,
+          },
+        );
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -414,6 +421,20 @@ class _DesiresWidgetState extends State<DesiresWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // #region agent log
+    agentDebugLog(
+      location: 'desires_widget.dart:build',
+      message: 'Done library build',
+      hypothesisId: 'H8',
+      data: {
+        'loading': _loading,
+        'selectedFilter': _selectedFilter,
+        'categoryCount': _categories.length,
+        'desireCategoryCount': _desireCategories.length,
+        'currentRoute': GoRouterState.of(context).uri.toString(),
+      },
+    );
+    // #endregion
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();

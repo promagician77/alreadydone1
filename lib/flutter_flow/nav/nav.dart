@@ -138,6 +138,14 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       redirect: (context, state) async {
         final isAuth = appStateNotifier.isAuthenticated;
         final path = state.uri.path;
+        // GoRouter cannot match query-only locations (e.g. ?fromLogin=1).
+        if (path.isEmpty && state.uri.hasQuery) {
+          return _logRedirect(
+            '/',
+            state.uri.toString(),
+            'query_only_uri',
+          );
+        }
         final isAppSplash = path == AppSplashWidget.routePath;
         final isAuthRoute = path == LoginWidget.routePath ||
             path == SignUpWidget.routePath ||
