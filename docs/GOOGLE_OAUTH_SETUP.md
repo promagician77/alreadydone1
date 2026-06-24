@@ -48,7 +48,7 @@ Go to **APIs & Services** → **Credentials** → **Create Credentials** → **O
 
 1. Application type: **Android**.
 2. Name: e.g. "Already App – Android".
-3. **Package name**: `com.alreadydone.app` (must match `applicationId` in `android/app/build.gradle`).
+3. **Package name**: `com.alreadydone.myapp` (must match `applicationId` in `android/app/build.gradle`).
 4. **SHA-1**:
    - **Debug**: run in project root:
      ```bash
@@ -110,7 +110,7 @@ Supabase will use this for the web OAuth redirect; native Android/iOS use the sa
 
 ### Android
 
-- **Package name** in Google Cloud Android client: `com.alreadydone.app`.
+- **Package name** in Google Cloud Android client: `com.alreadydone.myapp`.
 - **SHA-1**: debug and release keystores must be added to the Android OAuth client; otherwise you get `ApiException: 10` / "sign_in_failed".
 - Deep link `alreadydone://alreadydone.app` in `AndroidManifest.xml` is used for Supabase magic links / email confirmation; Google Sign-In on Android does not use this redirect.
 
@@ -132,7 +132,7 @@ Supabase will use this for the web OAuth redirect; native Android/iOS use the sa
 
 - [ ] OAuth consent screen configured in Google Cloud.
 - [ ] **Web** OAuth client created; redirect URI = Supabase `/auth/v1/callback`.
-- [ ] **Android** OAuth client: package `com.alreadydone.app`, debug (and release) SHA-1 added.
+- [ ] **Android** OAuth client: package `com.alreadydone.myapp`, debug (and release) SHA-1 added.
 - [ ] **iOS** OAuth client: bundle ID `com.mycompany.alreadyapp`; reversed client ID as URL scheme in Xcode.
 - [ ] `.env`: `GOOGLE_WEB_CLIENT_ID` set; `GOOGLE_IOS_CLIENT_ID` set for iOS.
 - [ ] Supabase Dashboard → Auth → Google: same Web Client ID and Client Secret.
@@ -145,7 +145,7 @@ Supabase will use this for the web OAuth redirect; native Android/iOS use the sa
 | Issue | What to check |
 |-------|----------------|
 | "GOOGLE_WEB_CLIENT_ID is not set" | Add Web Client ID to `.env` and ensure the app loads `.env` (e.g. `flutter_dotenv`). |
-| Android: "ApiException: 10" / "sign_in_failed" | Package name `com.alreadydone.app` and SHA-1 (debug/release) in Google Cloud Android client. |
+| Android: "ApiException: 10" / "sign_in_failed" | Package name `com.alreadydone.myapp` and SHA-1 (debug/release) in Google Cloud Android client. |
 | iOS: Sign-in opens browser and doesn’t return | Add reversed iOS Client ID as URL scheme; set `GOOGLE_IOS_CLIENT_ID`. |
 | Web: Redirect fails | Redirect URI in Google Cloud must exactly match Supabase callback URL. |
 | Supabase "Invalid OAuth credentials" | Use the **Web** Client ID and Secret in Supabase; ensure Google provider is enabled. |

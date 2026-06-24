@@ -660,7 +660,7 @@ class SupabaseService {
     if (isAndroid && (androidClientId == null || androidClientId.isEmpty)) {
       throw Exception(
         'GOOGLE_ANDROID_CLIENT_ID is not set in .env. '
-        'Add your Google Cloud Android OAuth client ID (package com.alreadydone.app + SHA-1).',
+        'Add your Google Cloud Android OAuth client ID (package com.alreadydone.myapp + SHA-1).',
       );
     }
     if (isIOS && (iosClientId == null || iosClientId.isEmpty)) {
@@ -731,7 +731,7 @@ class SupabaseService {
         throw Exception(
           isAndroid
               ? 'Google Sign-In setup error: add your app\'s SHA-1 and package name '
-                '(com.alreadydone.app) in Google Cloud Console → Credentials → '
+                '(com.alreadydone.myapp) in Google Cloud Console → Credentials → '
                 'Create OAuth 2.0 Client ID → Android. Use Web client ID in Supabase and .env.'
               : 'Google Sign-In setup error: add iOS OAuth client ID (bundle id com.mycompany.alreadyapp) '
                 'in Google Cloud Console, set GOOGLE_IOS_CLIENT_ID in .env, and add the reversed '

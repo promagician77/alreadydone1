@@ -159,7 +159,7 @@ class RatingPromptController {
     await _openStoreListingFallback();
   }
 
-  static const _androidPackageId = 'com.mycompany.alreadyapp';
+  static const _androidPackageId = 'com.alreadydone.myapp';
 
   static Future<void> _openStoreListingFallback() async {
     try {

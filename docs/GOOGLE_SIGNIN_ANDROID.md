@@ -29,7 +29,7 @@ So: **Web client ID is for Supabase**; **Android client ID is for the native sig
 
 - Application type: **Android**.
 - Name: e.g. `Already Done Android`.
-- **Package name**: `com.alreadydone.app` (must match `applicationId` in `android/app/build.gradle`).
+- **Package name**: `com.alreadydone.myapp` (must match `applicationId` in `android/app/build.gradle`).
 - **SHA-1**: from your keystore (debug or release).
   - Debug (local):  
     `cd android && ./gradlew signingReport`  
@@ -68,5 +68,5 @@ GOOGLE_WEB_CLIENT_ID=<paste the Web client ID from Google Cloud>
 ## 4. Summary
 
 - **Web client ID** → Supabase Dashboard (Google provider) + `.env` as `GOOGLE_WEB_CLIENT_ID` (Supabase callback / token verification).
-- **Android client** → Google Cloud (Android OAuth client with package `com.alreadydone.app` and correct SHA-1); no ID in app code.
+- **Android client** → Google Cloud (Android OAuth client with package `com.alreadydone.myapp` and correct SHA-1); no ID in app code.
 - If you see **ApiException: 10** or “sign_in_failed”, check that the Android client’s package name and SHA-1 match your app and that the Web client ID in Supabase and `.env` are the same.
