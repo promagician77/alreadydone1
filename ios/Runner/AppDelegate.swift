@@ -17,7 +17,20 @@ import FirebaseMessaging
     UNUserNotificationCenter.current().delegate = self
     application.registerForRemoteNotifications()
 
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+
+    // Match AuthTheme.warmWhite (#F9F7F4) so iOS home-transition snapshots
+    // don't flash pure white around the app icon.
+    let warmWhite = UIColor(
+      red: 249.0 / 255.0,
+      green: 247.0 / 255.0,
+      blue: 244.0 / 255.0,
+      alpha: 1.0
+    )
+    window?.backgroundColor = warmWhite
+    window?.rootViewController?.view.backgroundColor = warmWhite
+
+    return result
   }
 
   // Forward APNs token to Firebase - THIS IS THE KEY PART
