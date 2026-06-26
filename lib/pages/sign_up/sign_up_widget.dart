@@ -395,6 +395,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
         String message =
             'Account created! We emailed you a verification code. Please check your email and enter the verification code below.';
+        var toastType = ToastType.success;
         try {
           await SupabaseService.sendEmailOtp(email: email);
         } catch (e) {
@@ -406,13 +407,14 @@ class _SignUpWidgetState extends State<SignUpWidget> {
           } else {
             message =
                 'Account created, but we could not send a new code. Please check your email or try again shortly.';
+            toastType = ToastType.info;
           }
         }
 
         AppToast.show(
           context,
           message,
-          type: ToastType.info,
+          type: toastType,
           duration: const Duration(seconds: 45),
         );
 
