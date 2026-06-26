@@ -35,9 +35,22 @@ class EmailVerificationWidget extends StatefulWidget {
 class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
   late EmailVerificationModel _model;
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  int _previousCodeLength = 0;
 
   void _onCodeFocusChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onCodeChanged() {
+    final length = _model.codeTextController.text.length;
+    if (!widget.isPasswordRecovery &&
+        !_model.isLoading &&
+        length == _codeDigitCount &&
+        _previousCodeLength < _codeDigitCount) {
+      FocusScope.of(context).unfocus();
+      _handleVerify();
+    }
+    _previousCodeLength = length;
   }
 
   @override
@@ -45,11 +58,13 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     super.initState();
     _model = createModel(context, () => EmailVerificationModel());
     _model.codeFocusNode.addListener(_onCodeFocusChanged);
+    _model.codeTextController.addListener(_onCodeChanged);
   }
 
   @override
   void dispose() {
     _model.codeFocusNode.removeListener(_onCodeFocusChanged);
+    _model.codeTextController.removeListener(_onCodeChanged);
     _model.dispose();
     super.dispose();
   }
