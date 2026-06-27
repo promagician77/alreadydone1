@@ -136,7 +136,7 @@ void main() async {
   }, (error, stack) {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');
-    // #region agent log
+
     agentDebugLog(
       location: 'main.dart:runZonedGuarded',
       message: 'Uncaught async error',
@@ -146,7 +146,6 @@ void main() async {
         'stack': stack.toString().split('\n').take(5).join('\n'),
       },
     );
-    // #endregion
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ServerToast.show();

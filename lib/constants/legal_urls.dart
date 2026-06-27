@@ -1,4 +1,3 @@
-/// Canonical legal/policy URLs. Keep in sync with Play Console, App Store, and the website.
 final Uri kPrivacyPolicyUri = Uri.parse(
   'https://www.alreadydone.app/policies/privacy-policy',
 );
