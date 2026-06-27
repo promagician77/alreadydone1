@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/pages/auth/auth_theme.dart';
-import '/services/supabase_service.dart';
+import '/shared/theme/auth_theme.dart';
+import '/core/di/auth_locator.dart';
 import '/services/app_toast.dart';
 import '/widgets/pressable.dart';
-import '/pages/email_verification/email_verification_widget.dart';
+import '/features/auth/presentation/pages/email_verification/email_verification_widget.dart';
 import 'password_reset_model.dart';
 export 'password_reset_model.dart';
 
@@ -167,7 +167,7 @@ class _PasswordResetWidgetState extends State<PasswordResetWidget> {
     setState(() => _model.isLoading = true);
 
     try {
-      await SupabaseService.resetPasswordForEmail(email);
+      await authRepository.resetPasswordForEmail(email);
 
       if (mounted) {
         AppToast.success(

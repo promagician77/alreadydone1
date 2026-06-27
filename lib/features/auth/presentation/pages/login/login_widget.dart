@@ -7,14 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
 
-import '/services/supabase_service.dart';
+import '/core/di/auth_locator.dart';
 import '/services/timezone_sync_service.dart';
 import '/services/app_toast.dart';
 
 import '/widgets/pressable.dart';
 
-import '/pages/auth/auth_theme.dart';
-import '/pages/password_reset/password_reset_widget.dart';
+import '/shared/theme/auth_theme.dart';
+import '/features/auth/presentation/pages/password_reset/password_reset_widget.dart';
 
 import 'login_model.dart';
 export 'login_model.dart';
@@ -224,7 +224,7 @@ class _LoginWidgetState extends State<LoginWidget> {
     setState(() => _model.isLoading = true);
 
     try {
-      final response = await SupabaseService.signIn(email: email, password: password);
+      final response = await authRepository.signIn(email: email, password: password);
 
       debugPrint('Login response: $response');
       if (response.user != null && mounted) {
@@ -252,7 +252,7 @@ class _LoginWidgetState extends State<LoginWidget> {
 
   Future<void> _handleAppleSignIn() async {
     try {
-      await SupabaseService.signInWithApple();
+      await authRepository.signInWithApple();
     } catch (e) {
       if (mounted) {
         AppToast.error(context, _socialSignInErrorMessage('Apple', e));
@@ -262,7 +262,7 @@ class _LoginWidgetState extends State<LoginWidget> {
 
   Future<void> _handleGoogleSignIn() async {
     try {
-      await SupabaseService.signInWithGoogle();
+      await authRepository.signInWithGoogle();
     } catch (e) {
       if (mounted) {
         AppToast.error(context, _socialSignInErrorMessage('Google', e));

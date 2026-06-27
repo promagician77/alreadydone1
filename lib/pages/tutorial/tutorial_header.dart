@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 import '/widgets/pressable.dart';
 
 class TutorialHeader extends StatelessWidget {

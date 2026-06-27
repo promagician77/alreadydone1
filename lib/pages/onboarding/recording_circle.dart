@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 
 /// Circular progress ring. [progress] 0..1.
 /// [size] defaults to 180; use 126 for compact voice recording screen.

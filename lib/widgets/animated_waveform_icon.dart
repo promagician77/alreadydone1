@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 
 /// Shared animated waveform icon — bars gently oscillate in height.
 /// Used across auth, onboarding splash, subscription, etc.

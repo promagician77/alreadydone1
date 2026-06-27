@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '/constants/legal_urls.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 import '/services/app_toast.dart';
 
 class LegalTermsWidget extends StatelessWidget {

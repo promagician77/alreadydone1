@@ -5,12 +5,12 @@ export '/pages/player/player_widget.dart' show PlayerWidget;
 export '/pages/profile/profile_widget.dart' show ProfileWidget;
 
 // Auth pages (sign up, login, password reset, email verification)
-export '/pages/sign_up/sign_up_widget.dart' show SignUpWidget;
+export '/features/auth/presentation/pages/sign_up/sign_up_widget.dart' show SignUpWidget;
 export '/pages/app_splash/app_splash_widget.dart' show AppSplashWidget;
-export '/pages/login/login_widget.dart' show LoginWidget;
-export '/pages/password_reset/password_reset_widget.dart'
+export '/features/auth/presentation/pages/login/login_widget.dart' show LoginWidget;
+export '/features/auth/presentation/pages/password_reset/password_reset_widget.dart'
     show PasswordResetWidget;
-export '/pages/email_verification/email_verification_widget.dart'
+export '/features/auth/presentation/pages/email_verification/email_verification_widget.dart'
     show EmailVerificationWidget;
 
 // Onboarding pages (origin splash, splash, personalize, desire, voice selection, voice)

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 
 class TutorialSectionDivider extends StatelessWidget {
   const TutorialSectionDivider({super.key, required this.label});

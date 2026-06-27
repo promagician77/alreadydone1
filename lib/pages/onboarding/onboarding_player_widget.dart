@@ -2,7 +2,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 import '/pages/player/player_modals/player_modals.dart';
 import '/services/backend_client.dart';
 import '/services/ai_consent_service.dart';

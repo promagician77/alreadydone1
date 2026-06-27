@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
+import '/core/di/auth_locator.dart';
 import '/services/supabase_service.dart';
 import '/services/app_toast.dart';
 import '/services/timezone_sync_service.dart';
@@ -375,7 +376,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
     setState(() => _model.isLoading = true);
 
     try {
-      final response = await SupabaseService.signUp(
+      final response = await authRepository.signUp(
         email: email,
         password: password,
         fullName: name,
@@ -397,7 +398,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
             'Account created! We emailed you a verification code. Please check your email and enter the verification code below.';
         var toastType = ToastType.success;
         try {
-          await SupabaseService.sendEmailOtp(email: email);
+          await authRepository.sendEmailOtp(email: email);
         } catch (e) {
           final errorText = e.toString();
           if (errorText.contains('over_email_send_rate_limit') ||
@@ -422,7 +423,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
       }
     } catch (e) {
       if (mounted) {
-        if (SupabaseService.isEmailAlreadyRegisteredError(e)) {
+        if (authRepository.isEmailAlreadyRegisteredError(e)) {
           AppToast.info(
             context,
             'This email is already registered. Please sign in instead.',
@@ -522,7 +523,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
   Future<void> _handleAppleSignIn() async {
     try {
-      await SupabaseService.signInWithApple();
+      await authRepository.signInWithApple();
     } catch (e) {
       if (mounted) {
         AppToast.error(context, 'Apple sign in error: ${e.toString()}');
@@ -532,7 +533,7 @@ class _SignUpWidgetState extends State<SignUpWidget> {
 
   Future<void> _handleGoogleSignIn() async {
     try {
-      await SupabaseService.signInWithGoogle();
+      await authRepository.signInWithGoogle();
     } catch (e) {
       if (mounted) {
         AppToast.error(context, 'Google sign in error: ${e.toString()}');

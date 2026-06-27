@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 import '/services/backend_client.dart';
+import '/core/di/auth_locator.dart';
 import '/services/supabase_service.dart' show SupabaseService;
 import '/pages/tutorial/tutorial_widget.dart';
 import '/services/app_toast.dart';
@@ -228,9 +229,9 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
   }
 
   Future<void> _handleBack() async {
-    if (widget.isPasswordRecovery && SupabaseService.isAuthenticated) {
+    if (widget.isPasswordRecovery && authRepository.isAuthenticated) {
       try {
-        await SupabaseService.signOut();
+        await authRepository.signOut();
       } catch (_) {}
     }
     if (!mounted) return;
@@ -433,11 +434,11 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
 
     try {
       final response = widget.isEmailChange
-          ? await SupabaseService.verifyEmailChangeOtp(
+          ? await authRepository.verifyEmailChangeOtp(
               email: widget.email,
               token: code,
             )
-          : await SupabaseService.verifyEmailOtp(
+          : await authRepository.verifyEmailOtp(
               email: widget.email,
               token: code,
             );
@@ -511,7 +512,7 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
     setState(() => _model.isLoading = true);
 
     try {
-      final response = await SupabaseService.verifyRecoveryOtp(
+      final response = await authRepository.verifyRecoveryOtp(
         email: widget.email,
         token: code,
       );
@@ -519,7 +520,7 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
         throw Exception('Invalid or expired code');
       }
 
-      await SupabaseService.completePasswordRecovery(newPassword: password);
+      await authRepository.completePasswordRecovery(newPassword: password);
 
       if (mounted) {
         AppToast.success(
@@ -545,11 +546,11 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
 
     try {
       if (widget.isPasswordRecovery) {
-        await SupabaseService.resetPasswordForEmail(widget.email);
+        await authRepository.resetPasswordForEmail(widget.email);
       } else if (widget.isEmailChange) {
-        await SupabaseService.updateUserEmail(widget.email);
+        await authRepository.updateUserEmail(widget.email);
       } else {
-        await SupabaseService.sendEmailOtp(email: widget.email);
+        await authRepository.sendEmailOtp(email: widget.email);
       }
       if (mounted) {
         AppToast.success(context, 'A new code has been sent to your email.');

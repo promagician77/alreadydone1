@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/constants/legal_urls.dart';
 import '/flutter_flow/flutter_flow_util.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 import '/pages/subscription/subscription_model.dart';
 import '/services/backend_client.dart';
 import '/services/revenuecat_service.dart';

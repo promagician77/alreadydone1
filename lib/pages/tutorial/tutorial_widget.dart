@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '/flutter_flow/nav/nav.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 import '/pages/onboarding/onboarding_personalize_widget.dart';
 import '/services/ai_consent_service.dart';
 import '/services/app_toast.dart';

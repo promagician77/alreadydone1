@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/pages/auth/auth_theme.dart';
+import '/shared/theme/auth_theme.dart';
 
 /// Full-screen celebratory overlay with fireworks and a message.
 /// Calls [onComplete] after [duration] then removes itself.
