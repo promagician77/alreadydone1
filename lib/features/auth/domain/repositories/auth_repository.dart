@@ -59,6 +59,12 @@ abstract class AuthRepository {
 
   Future<void> completePasswordRecovery({required String newPassword});
 
+  /// Re-authenticates with [currentPassword], then sets [newPassword].
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   Future<void> signInWithApple();
 
   Future<void> signInWithGoogle();

@@ -1,12 +1,12 @@
-export '/pages/home_dashboard/home_dashboard_widget.dart'
+export '/features/home/presentation/pages/home_dashboard/home_dashboard_widget.dart'
     show HomeDashboardWidget;
-export '/pages/desires/desires_widget.dart' show DesiresWidget;
-export '/pages/player/player_widget.dart' show PlayerWidget;
-export '/pages/profile/profile_widget.dart' show ProfileWidget;
+export '/features/desires/presentation/pages/desires/desires_widget.dart' show DesiresWidget;
+export '/features/player/presentation/pages/player/player_widget.dart' show PlayerWidget;
+export '/features/profile/presentation/pages/profile/profile_widget.dart' show ProfileWidget;
 
 // Auth pages (sign up, login, password reset, email verification)
 export '/features/auth/presentation/pages/sign_up/sign_up_widget.dart' show SignUpWidget;
-export '/pages/app_splash/app_splash_widget.dart' show AppSplashWidget;
+export '/features/app_splash/presentation/pages/app_splash/app_splash_widget.dart' show AppSplashWidget;
 export '/features/auth/presentation/pages/login/login_widget.dart' show LoginWidget;
 export '/features/auth/presentation/pages/password_reset/password_reset_widget.dart'
     show PasswordResetWidget;
@@ -14,19 +14,19 @@ export '/features/auth/presentation/pages/email_verification/email_verification_
     show EmailVerificationWidget;
 
 // Onboarding pages (origin splash, splash, personalize, desire, voice selection, voice)
-export '/pages/onboarding/onboarding_origin_splash_widget.dart'
+export '/features/onboarding/presentation/pages/onboarding/onboarding_origin_splash_widget.dart'
     show OnboardingOriginSplashWidget;
-export '/pages/onboarding/onboarding_splash_widget.dart'
+export '/features/onboarding/presentation/pages/onboarding/onboarding_splash_widget.dart'
     show OnboardingSplashWidget;
-export '/pages/onboarding/onboarding_personalize_widget.dart'
+export '/features/onboarding/presentation/pages/onboarding/onboarding_personalize_widget.dart'
     show OnboardingPersonalizeWidget;
-export '/pages/onboarding/onboarding_desire_widget.dart'
+export '/features/onboarding/presentation/pages/onboarding/onboarding_desire_widget.dart'
     show OnboardingDesireWidget;
-export '/pages/onboarding/onboarding_voice_selection_widget.dart'
+export '/features/onboarding/presentation/pages/onboarding/onboarding_voice_selection_widget.dart'
     show OnboardingVoiceSelectionWidget;
-export '/pages/onboarding/onboarding_voice_widget.dart'
+export '/features/onboarding/presentation/pages/onboarding/onboarding_voice_widget.dart'
     show OnboardingVoiceWidget;
-export '/pages/onboarding/onboarding_player_widget.dart'
+export '/features/onboarding/presentation/pages/onboarding/onboarding_player_widget.dart'
     show OnboardingPlayerWidget;
-export '/pages/tutorial/tutorial_widget.dart' show OnboardingTutorialWidget;
-export '/pages/subscription/subscription_widget.dart' show SubscriptionWidget;
+export '/features/tutorial/presentation/pages/tutorial/tutorial_widget.dart' show OnboardingTutorialWidget;
+export '/features/subscription/presentation/pages/subscription/subscription_widget.dart' show SubscriptionWidget;

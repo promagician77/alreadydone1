@@ -44,6 +44,17 @@ lib/
 6. **Move with `git mv`** to preserve history; keep each FlutterFlow page's
    `_widget` + `_model` in the same folder so same-folder imports survive.
 
+## Composition-view features (e.g. `home`)
+
+Some features are aggregator/dashboard views with **no domain data of their own** —
+they compose data owned by other features. `home` is the first example: it shows
+stories, desires and profile data. Such a feature gets a `presentation/` layer but
+**no `domain`/`data` layer**. It consumes other features' repositories (e.g.
+`profileRepository.getUserProfile`). Story/desire calls stay on the shared
+`BackendClient` until those features are migrated, then `home` switches to their
+repositories. Do NOT create a `HomeRepository` that absorbs story/desire logic —
+that data belongs to those features, not to home.
+
 ## Migrating the next feature (recipe)
 
 1. `git mv lib/pages/<x> lib/features/<x>/presentation/pages/<x>`

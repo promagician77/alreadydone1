@@ -6,7 +6,7 @@ import 'package:in_app_review/in_app_review.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '/flutter_flow/nav/nav.dart';
-import '/pages/player/player_modals/rating_prompt_modal.dart';
+import '/features/player/presentation/pages/player/player_modals/rating_prompt_modal.dart';
 import '/services/backend_client.dart';
 import '/services/rating_prompt_prefs.dart';
 import '/utils/agent_debug_log.dart';

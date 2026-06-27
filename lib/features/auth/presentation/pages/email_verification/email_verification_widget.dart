@@ -6,7 +6,7 @@ import '/shared/theme/auth_theme.dart';
 import '/services/backend_client.dart';
 import '/core/di/auth_locator.dart';
 import '/services/supabase_service.dart' show SupabaseService;
-import '/pages/tutorial/tutorial_widget.dart';
+import '/features/tutorial/presentation/pages/tutorial/tutorial_widget.dart';
 import '/services/app_toast.dart';
 import 'email_verification_model.dart';
 export 'email_verification_model.dart';

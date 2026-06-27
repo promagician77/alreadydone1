@@ -30,6 +30,7 @@ abstract class AuthRemoteDataSource {
   Future<void> resetPasswordForEmail(String email);
   Future<AuthResponse> verifyRecoveryOtp({required String email, required String token});
   Future<void> completePasswordRecovery({required String newPassword});
+  Future<void> updatePassword({required String currentPassword, required String newPassword});
   Future<void> signInWithApple();
   Future<void> signInWithGoogle();
   bool isEmailAlreadyRegisteredError(Object e);
@@ -92,6 +93,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> completePasswordRecovery({required String newPassword}) =>
       SupabaseService.completePasswordRecovery(newPassword: newPassword);
+
+  @override
+  Future<void> updatePassword({required String currentPassword, required String newPassword}) =>
+      SupabaseService.updatePassword(currentPassword: currentPassword, newPassword: newPassword);
 
   @override
   Future<void> signInWithApple() => SupabaseService.signInWithApple();

@@ -23,8 +23,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '/services/onboarding_service.dart';
 import '/services/server_toast.dart';
 import '/utils/agent_debug_log.dart';
-import '/pages/legal/legal_privacy_widget.dart';
-import '/pages/legal/legal_terms_widget.dart';
+import '/features/legal/presentation/pages/legal/legal_privacy_widget.dart';
+import '/features/legal/presentation/pages/legal/legal_terms_widget.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';

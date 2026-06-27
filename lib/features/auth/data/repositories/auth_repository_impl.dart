@@ -75,6 +75,10 @@ class AuthRepositoryImpl implements AuthRepository {
       _remote.completePasswordRecovery(newPassword: newPassword);
 
   @override
+  Future<void> updatePassword({required String currentPassword, required String newPassword}) =>
+      _remote.updatePassword(currentPassword: currentPassword, newPassword: newPassword);
+
+  @override
   Future<void> signInWithApple() => _remote.signInWithApple();
 
   @override

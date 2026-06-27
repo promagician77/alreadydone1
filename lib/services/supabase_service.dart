@@ -10,7 +10,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '/pages/onboarding/onboarding_state.dart';
+import '/shared/state/onboarding_state.dart';
 import '/services/apple_sign_in_cache.dart';
 import '/services/backend_client.dart';
 import '/services/onboarding_service.dart';

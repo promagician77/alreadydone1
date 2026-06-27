@@ -32,9 +32,9 @@ import '/services/shell_player_navigation.dart';
 import '/utils/agent_debug_log.dart';
 import '/utils/agent_debug_log.dart';
 import '/widgets/pressable.dart';
-import '/pages/player/coachmark/done_library_coachmark_nav.dart';
+import '/features/player/presentation/pages/player/coachmark/done_library_coachmark_nav.dart';
 import '/widgets/swipe_delete_tutorial_dialog.dart';
-import '/pages/home_dashboard/coachmark/new_manifestation_coachmark_nav.dart';
+import '/features/home/presentation/pages/home_dashboard/coachmark/new_manifestation_coachmark_nav.dart';
 import 'index.dart';
 
 @pragma('vm:entry-point')
