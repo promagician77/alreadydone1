@@ -1,4 +1,4 @@
-import '/constants/legal_urls.dart';
+import '/core/constants/legal_urls.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/index.dart';

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/constants/legal_urls.dart';
+import '/core/constants/legal_urls.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/shared/theme/auth_theme.dart';
 import '/features/subscription/presentation/pages/subscription/subscription_model.dart';

@@ -55,14 +55,15 @@ stories, desires and profile data. Such a feature gets a `presentation/` layer b
 repositories. Do NOT create a `HomeRepository` that absorbs story/desire logic —
 that data belongs to those features, not to home.
 
-## Layer-first folders retired (`services`, `models`, `widgets`, `utils`)
+## Layer-first folders retired (`services`, `models`, `widgets`, `utils`, `constants`)
 
 The old layer-first dumps have been categorized and removed. `lib/widgets/`
 moved to `shared/widgets/`; `lib/models/` (only `Story`) was deleted as dead
-code; and `lib/utils/` was split — `platform_utils*` (the web-safe `isIOS`/
+code; `lib/utils/` was split — `platform_utils*` (the web-safe `isIOS`/
 `isAndroid` conditional-import shim) went to `core/platform/`, and the
 agent-injected `agent_debug_log` debug logger (hardcoded local path + localhost
-endpoint) was deleted along with all its call sites.
+endpoint) was deleted along with all its call sites; and `lib/constants/`
+(app-wide `legal_urls` config) moved to `core/constants/`.
 
 ### Services categorization
 

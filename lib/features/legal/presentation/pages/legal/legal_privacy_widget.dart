@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '/constants/legal_urls.dart';
+import '/core/constants/legal_urls.dart';
 import '/shared/theme/auth_theme.dart';
 import '/shared/services/app_toast.dart';
 

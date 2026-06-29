@@ -8,7 +8,7 @@ import '/shared/services/supabase_service.dart';
 import '/shared/services/app_toast.dart';
 import '/shared/services/timezone_sync_service.dart';
 import '/shared/widgets/pressable.dart';
-import '/constants/legal_urls.dart';
+import '/core/constants/legal_urls.dart';
 import 'sign_up_model.dart';
 export 'sign_up_model.dart';
 
