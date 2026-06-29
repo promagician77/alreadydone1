@@ -5,12 +5,6 @@ import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
 import '../models/auth_user_model.dart';
 
-/// Default [AuthRepository] backed by [AuthRemoteDataSource].
-///
-/// Delegates to the data source (which wraps Supabase). Maps the Supabase
-/// `User` to the domain [AuthUser] for [currentUser]; the response-returning
-/// methods pass [AuthResponse] through unchanged for now (see the migration
-/// note on [AuthRepository]).
 class AuthRepositoryImpl implements AuthRepository {
   const AuthRepositoryImpl(this._remote);
 

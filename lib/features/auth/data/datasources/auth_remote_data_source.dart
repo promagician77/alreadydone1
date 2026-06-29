@@ -1,16 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthResponse, User;
-
 import '/services/supabase_service.dart';
 
-/// Remote data source for authentication.
-///
-/// This is a thin wrapper over [SupabaseService] (Supabase is the remote
-/// backend). It isolates the rest of the auth feature from the concrete
-/// Supabase client so the implementation can be swapped or mocked in tests.
-///
-/// `SupabaseService` deliberately stays as a shared service: it also handles
-/// profile/device concerns used by other features, so it is not absorbed into
-/// the auth feature.
 abstract class AuthRemoteDataSource {
   bool get isAuthenticated;
   User? get currentUser;
