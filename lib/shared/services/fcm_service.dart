@@ -8,8 +8,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/flutter_flow/nav/nav.dart';
-import 'backend_client.dart';
-import 'supabase_service.dart';
+import '/core/network/backend_client.dart';
+import '/shared/services/supabase_service.dart';
 
 const String _kAndroidChannelId = 'fcm_default_channel';
 const String _kAndroidChannelName = 'Notifications';
