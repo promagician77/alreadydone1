@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/constants/legal_urls.dart';
 import '/shared/theme/auth_theme.dart';
-import '/services/app_toast.dart';
+import '/shared/services/app_toast.dart';
 
 class LegalTermsWidget extends StatelessWidget {
   const LegalTermsWidget({super.key});

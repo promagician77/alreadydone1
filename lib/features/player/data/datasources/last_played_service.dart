@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import '/services/supabase_service.dart';
+import '/shared/services/supabase_service.dart';
 
 /// Persists and retrieves the last played story so the Player can resume it
 /// when opened from the navbar (no route params).

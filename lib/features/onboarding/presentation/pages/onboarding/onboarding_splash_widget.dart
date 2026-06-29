@@ -8,12 +8,12 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/shared/theme/auth_theme.dart';
 import '/features/subscription/presentation/pages/subscription/subscription_model.dart';
 import '/core/di/subscription_locator.dart';
-import '/services/revenuecat_service.dart';
-import '/services/supabase_service.dart';
-import '/services/app_toast.dart';
-import '/services/onboarding_service.dart';
+import '/features/subscription/data/datasources/revenuecat_service.dart';
+import '/shared/services/supabase_service.dart';
+import '/shared/services/app_toast.dart';
+import '/shared/services/onboarding_service.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'onboarding_desire_widget.dart';
 

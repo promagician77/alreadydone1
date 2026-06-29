@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/features/player/presentation/pages/player/coachmark/player_settings_coachmark.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 /// One-time home tip: dim + cutout over **+ Add New Manifestation**; bottom nav is outside this stack.
 class HomeNewManifestationCoachmarkOverlay extends StatefulWidget {

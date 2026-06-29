@@ -3,7 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/services/rating_prompt_prefs.dart';
+import '/features/player/data/datasources/rating_prompt_prefs.dart';
 
 /// Match [_PlayerColors] in player_widget — duplicated because that class is private.
 class _R {

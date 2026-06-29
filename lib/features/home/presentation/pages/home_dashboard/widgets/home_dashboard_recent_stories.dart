@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/features/home/presentation/pages/home_dashboard/home_dashboard_colors.dart';
 import '/features/home/presentation/pages/home_dashboard/home_dashboard_story_utils.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 class HomeDashboardRecentStories extends StatelessWidget {
   const HomeDashboardRecentStories({

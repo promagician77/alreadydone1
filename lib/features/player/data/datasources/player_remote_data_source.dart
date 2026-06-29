@@ -1,4 +1,4 @@
-import '/services/backend_client.dart';
+import '/core/network/backend_client.dart';
 
 /// Remote data source for playback/story operations — thin wrapper over the
 /// story slice of the shared [BackendClient].

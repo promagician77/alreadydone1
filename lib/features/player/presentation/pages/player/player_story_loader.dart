@@ -1,7 +1,7 @@
 import '/features/player/presentation/pages/player/player_story_utils.dart';
 import '/core/di/player_locator.dart';
 import '/core/di/profile_locator.dart';
-import '/services/supabase_service.dart';
+import '/shared/services/supabase_service.dart';
 
 /// Loads story metadata and play URLs for the player screen.
 abstract final class PlayerStoryLoader {

@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '/features/home/presentation/pages/home_dashboard/home_dashboard_colors.dart';
 import '/features/home/presentation/pages/home_dashboard/widgets/home_dashboard_progress_waveform.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 class HomeDashboardStoryCardLoading extends StatelessWidget {
   const HomeDashboardStoryCardLoading({super.key});

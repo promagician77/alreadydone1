@@ -1,4 +1,4 @@
-import '/services/backend_client.dart';
+import '/core/network/backend_client.dart';
 
 /// Remote data source for subscription ops — thin wrapper over the
 /// subscription slice of the shared [BackendClient].

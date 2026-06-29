@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/shared/widgets/modal_kit.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 /// Shows the deepened story result: theme as title and story content in a scrollable body.
 void showDeepenResultModal(

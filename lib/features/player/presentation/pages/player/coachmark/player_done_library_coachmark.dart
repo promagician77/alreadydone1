@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 import 'player_settings_coachmark.dart';
 
 const double _kCaretSize = 18;

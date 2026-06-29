@@ -5,14 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
-import '/services/sleep_mode_notifier.dart';
-import '/services/nav_lock_notifier.dart';
+import '/shared/services/sleep_mode_notifier.dart';
+import '/shared/services/nav_lock_notifier.dart';
 import '/core/di/player_locator.dart';
 import '/core/di/profile_locator.dart';
-import '/services/ai_consent_service.dart';
-import '/services/app_toast.dart';
-import '/services/rating_prompt_controller.dart';
-import '/services/supabase_service.dart';
+import '/shared/services/ai_consent_service.dart';
+import '/shared/services/app_toast.dart';
+import '/features/player/data/datasources/rating_prompt_controller.dart';
+import '/shared/services/supabase_service.dart';
 import '/index.dart';
 import 'player_modals/player_modals.dart';
 import 'player_modals/player_option_sheets.dart';
@@ -21,7 +21,6 @@ import 'player_colors.dart';
 import 'player_constants.dart';
 import 'player_story_utils.dart';
 import 'player_story_loader.dart';
-import '/utils/agent_debug_log.dart';
 import 'coachmark/done_library_coachmark_nav.dart';
 import 'coachmark/player_done_library_coachmark.dart';
 import 'coachmark/player_settings_coachmark.dart';
@@ -264,14 +263,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
   @override
   void initState() {
     super.initState();
-    // #region agent log
-    agentDebugLog(
-      location: 'player_widget.dart:initState',
-      message: 'PlayerWidget initState',
-      hypothesisId: 'H2',
-      data: {'storyId': widget.storyId},
-    );
-    // #endregion
     _backgroundSoundNameNotifier =
         ValueNotifier<String>(_currentThetaTrackName);
     _waveformController = AnimationController(
@@ -288,22 +279,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) async {
       final wasSleepMode = _sleepModeActive;
-      // #region agent log
-      agentDebugLog(
-        location: 'player_widget.dart:onPlayerComplete',
-        message: 'Playback complete event',
-        hypothesisId: 'H3',
-        data: {
-          'disposed': _disposed,
-          'mounted': mounted,
-          'sleepModeActive': _sleepModeActive,
-          'positionMs': _position.inMilliseconds,
-          'durationMs': _duration.inMilliseconds,
-          'effectiveDurationMs': _effectiveDuration.inMilliseconds,
-          'durationLabel': _durationLabel,
-        },
-      );
-      // #endregion
       if (!_disposed && mounted) {
         _stopThetaBackground();
         setState(() {
@@ -318,14 +293,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
             skipForSleepSession: wasSleepMode,
           ),
         );
-        // #region agent log
-        agentDebugLog(
-          location: 'player_widget.dart:onPlayerComplete:after',
-          message: 'Playback complete handler finished',
-          hypothesisId: 'H3',
-          data: {'mounted': mounted, 'loading': _loading},
-        );
-        // #endregion
       }
     });
     _durationChangedSub = _audioPlayer.onDurationChanged.listen((d) {
@@ -345,80 +312,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // #region agent log
-    agentDebugLog(
-      location: 'player_widget.dart:didChangeAppLifecycleState',
-      message: 'Player lifecycle changed',
-      hypothesisId: 'H4',
-      data: {
-        'state': state.name,
-        'mounted': mounted,
-        'disposed': _disposed,
-        'loading': _loading,
-        'hasNoStory': _hasNoStory,
-        'isPlaying': _isPlaying,
-        'sleepModeActive': _sleepModeActive,
-        'hasPlayUrl': _playUrl != null && _playUrl!.isNotEmpty,
-        'storyId': _currentStoryId ?? widget.storyId,
-        'loadError': _loadError,
-      },
-    );
-    // #endregion
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.inactive) {
-      // #region agent log
-      agentDebugLog(
-        location: 'player_widget.dart:didChangeAppLifecycleState:background',
-        message: 'Step 6 - player going to background',
-        hypothesisId: 'H4',
-        data: {
-          'state': state.name,
-          'isPlaying': _isPlaying,
-          'audioPlayerState': _audioPlayer.state.name,
-        },
-      );
-      // #endregion
     }
     if (state == AppLifecycleState.resumed) {
       _logNextBuild = true;
-      // #region agent log
-      agentDebugLog(
-        location: 'player_widget.dart:didChangeAppLifecycleState:resumed',
-        message: 'Step 7 - player resumed from background',
-        hypothesisId: 'H4',
-        data: {
-          'audioPlayerState': _audioPlayer.state.name,
-          'thetaPlayerState': _thetaTrackPlayer.state.name,
-          'positionMs': _position.inMilliseconds,
-          'hasPlayUrl': _playUrl != null && _playUrl!.isNotEmpty,
-        },
-      );
-      // #endregion
     }
   }
 
   void _logBuildSnapshot(String trigger) {
-    // #region agent log
-    agentDebugLog(
-      location: 'player_widget.dart:build',
-      message: 'Player build snapshot',
-      hypothesisId: 'H5',
-      data: {
-        'trigger': trigger,
-        'loading': _loading,
-        'hasNoStory': _hasNoStory,
-        'hasPlayUrl': _playUrl != null && _playUrl!.isNotEmpty,
-        'loadError': _loadError,
-        'isPlaying': _isPlaying,
-        'sleepModeActive': _sleepModeActive,
-        'isGeneratingVoice': _isGeneratingVoice,
-        'isDeepening': _isDeepening,
-        'mounted': mounted,
-        'disposed': _disposed,
-      },
-    );
-    // #endregion
   }
 
   Future<void> _loadStoryData() async {
@@ -444,18 +347,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
               widget.voiceId?.trim().isNotEmpty == true ? widget.voiceId : null;
           _loading = false;
         });
-        // #region agent log
-        agentDebugLog(
-          location: 'player_widget.dart:_loadStoryData:widgetPlayUrl',
-          message: 'Step 3 - player ready with playUrl from navigation',
-          hypothesisId: 'H5',
-          data: {
-            'storyId': widget.storyId,
-            'hasPlayUrl': widget.playUrl!.isNotEmpty,
-            'loading': false,
-          },
-        );
-        // #endregion
         _saveLastPlayed();
         _afterPlayerLoadedForCoachmarks();
         return;
@@ -712,14 +603,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     } catch (e) {
       if (!mounted) return;
-      // #region agent log
-      agentDebugLog(
-        location: 'player_widget.dart:_loadStoryData:catch',
-        message: 'Story load failed',
-        hypothesisId: 'H6',
-        data: {'error': e.toString(), 'storyId': widget.storyId},
-      );
-      // #endregion
       setState(() {
         _loadError = e.toString();
         _loading = false;
@@ -894,14 +777,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   void _endSleepSession() {
-    // #region agent log
-    agentDebugLog(
-      location: 'player_widget.dart:_endSleepSession',
-      message: 'Ending sleep session',
-      hypothesisId: 'H2',
-      data: {'mounted': mounted},
-    );
-    // #endregion
     _sleepMasterTimer?.cancel();
     _sleepMasterTimer = null;
     _sleepModeStartedAt = null;
@@ -968,18 +843,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   @override
   void dispose() {
-    // #region agent log
-    agentDebugLog(
-      location: 'player_widget.dart:dispose',
-      message: 'PlayerWidget dispose',
-      hypothesisId: 'H2',
-      data: {
-        'wasPlaying': _isPlaying,
-        'sleepModeActive': _sleepModeActive,
-        'loading': _loading,
-      },
-    );
-    // #endregion
     WidgetsBinding.instance.removeObserver(this);
     _disposed = true;
     _playerCompleteSub?.cancel();
@@ -1019,34 +882,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
     try {
       if (_isPlaying) {
-        // #region agent log
-        agentDebugLog(
-          location: 'player_widget.dart:_togglePlayPause',
-          message: 'Step 5 - pausing playback',
-          hypothesisId: 'H3',
-          data: {
-            'positionMs': _position.inMilliseconds,
-            'durationMs': _duration.inMilliseconds,
-            'sleepModeActive': _sleepModeActive,
-          },
-        );
-        // #endregion
         await _audioPlayer.pause();
         if (_sleepModeActive) await _thetaTrackPlayer.pause();
         if (mounted) setState(() => _isPlaying = false);
       } else {
-        // #region agent log
-        agentDebugLog(
-          location: 'player_widget.dart:_togglePlayPause',
-          message: 'Step 3 - starting playback',
-          hypothesisId: 'H3',
-          data: {
-            'positionMs': _position.inMilliseconds,
-            'durationMs': _duration.inMilliseconds,
-            'sleepModeActive': _sleepModeActive,
-          },
-        );
-        // #endregion
         await _applyMixContext();
         final effectiveDuration = _effectiveDuration;
         if (_position == Duration.zero ||

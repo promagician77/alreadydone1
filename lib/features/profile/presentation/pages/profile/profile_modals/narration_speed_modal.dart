@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/services/app_toast.dart';
+import '/shared/services/app_toast.dart';
 import '/core/di/profile_locator.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 import '/shared/widgets/modal_kit.dart';
 
 /// Narration Speed modal. Calls PATCH /api/users/{user_id} with the selected speed on Save.

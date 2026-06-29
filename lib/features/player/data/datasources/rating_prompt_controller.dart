@@ -7,11 +7,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/flutter_flow/nav/nav.dart';
 import '/features/player/presentation/pages/player/player_modals/rating_prompt_modal.dart';
-import '/services/backend_client.dart';
-import '/services/rating_prompt_prefs.dart';
-import '/utils/agent_debug_log.dart';
-import '/services/supabase_service.dart';
-import '/utils/platform_utils.dart';
+import '/core/network/backend_client.dart';
+import '/features/player/data/datasources/rating_prompt_prefs.dart';
+import '/shared/services/supabase_service.dart';
+import '/core/platform/platform_utils.dart';
 
 enum RatingPromptMoment { storyPlaybackComplete, deepenPlaybackComplete }
 
@@ -69,26 +68,10 @@ class RatingPromptController {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = appNavigatorKey.currentContext;
         if (ctx == null || !ctx.mounted) return;
-        // #region agent log
-        agentDebugLog(
-          location: 'rating_prompt_controller.dart:evaluate',
-          message: 'Scheduling rating prompt dialog',
-          hypothesisId: 'H5',
-          data: {'variant': variant.name, 'daysSinceStart': daysSinceStart},
-        );
-        // #endregion
         unawaited(_tryShowDialog(ctx, variant));
       });
     } catch (e) {
       debugPrint('RatingPromptController: $e');
-      // #region agent log
-      agentDebugLog(
-        location: 'rating_prompt_controller.dart:evaluate:catch',
-        message: 'Rating prompt evaluation failed',
-        hypothesisId: 'H6',
-        data: {'error': e.toString()},
-      );
-      // #endregion
     } finally {
       _evaluating = false;
     }

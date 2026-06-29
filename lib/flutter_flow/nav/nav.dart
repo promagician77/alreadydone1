@@ -13,16 +13,15 @@ import '/flutter_flow/flutter_flow_util.dart';
 import 'serialization_util.dart';
 
 import '/index.dart';
-import '/services/backend_client.dart';
-import '/services/fcm_service.dart';
-import '/services/revenuecat_service.dart';
-import '/services/supabase_service.dart';
-import '/services/timezone_sync_service.dart';
+import '/core/network/backend_client.dart';
+import '/shared/services/fcm_service.dart';
+import '/features/subscription/data/datasources/revenuecat_service.dart';
+import '/shared/services/supabase_service.dart';
+import '/shared/services/timezone_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
-import '/services/onboarding_service.dart';
-import '/services/server_toast.dart';
-import '/utils/agent_debug_log.dart';
+import '/shared/services/onboarding_service.dart';
+import '/shared/services/server_toast.dart';
 import '/features/legal/presentation/pages/legal/legal_privacy_widget.dart';
 import '/features/legal/presentation/pages/legal/legal_terms_widget.dart';
 
@@ -118,14 +117,6 @@ class AppStateNotifier extends ChangeNotifier {
 
 String? _logRedirect(String? target, String fromPath, String reason) {
   if (target != null) {
-    // #region agent log
-    agentDebugLog(
-      location: 'nav.dart:redirect',
-      message: 'GoRouter redirect triggered',
-      hypothesisId: 'H1',
-      data: {'from': fromPath, 'to': target, 'reason': reason},
-    );
-    // #endregion
   }
   return target;
 }
@@ -228,17 +219,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       // Show routing errors explicitly instead of silently sending users home.
       errorBuilder: (context, state) {
         debugPrint('GoRouter error: ${state.error} at ${state.uri}');
-        // #region agent log
-        agentDebugLog(
-          location: 'nav.dart:errorBuilder',
-          message: 'GoRouter error - blank screen shown',
-          hypothesisId: 'H1',
-          data: {
-            'error': state.error.toString(),
-            'uri': state.uri.toString(),
-          },
-        );
-        // #endregion
         // Avoid an error screen in production UX.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ServerToast.show();

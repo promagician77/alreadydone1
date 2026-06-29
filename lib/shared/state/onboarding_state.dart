@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '/services/onboarding_service.dart';
+import '/shared/services/onboarding_service.dart';
 
 /// Shared state for the onboarding flow across separate route pages.
 /// Cleared when onboarding completes.

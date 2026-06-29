@@ -8,10 +8,10 @@ import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
 
 import '/core/di/auth_locator.dart';
-import '/services/timezone_sync_service.dart';
-import '/services/app_toast.dart';
+import '/shared/services/timezone_sync_service.dart';
+import '/shared/services/app_toast.dart';
 
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 import '/shared/theme/auth_theme.dart';
 import '/features/auth/presentation/pages/password_reset/password_reset_widget.dart';

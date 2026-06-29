@@ -55,6 +55,41 @@ stories, desires and profile data. Such a feature gets a `presentation/` layer b
 repositories. Do NOT create a `HomeRepository` that absorbs story/desire logic —
 that data belongs to those features, not to home.
 
+## Layer-first folders retired (`services`, `models`, `widgets`, `utils`)
+
+The old layer-first dumps have been categorized and removed. `lib/widgets/`
+moved to `shared/widgets/`; `lib/models/` (only `Story`) was deleted as dead
+code; and `lib/utils/` was split — `platform_utils*` (the web-safe `isIOS`/
+`isAndroid` conditional-import shim) went to `core/platform/`, and the
+agent-injected `agent_debug_log` debug logger (hardcoded local path + localhost
+endpoint) was deleted along with all its call sites.
+
+### Services categorization
+
+The old layer-first `lib/services/` dump has been categorized and removed:
+
+- **Infra → `lib/core/`** — `backend_client` is now `core/network/backend_client.dart`.
+- **Cross-cutting → `lib/shared/services/`** — app-wide services owned by no single
+  feature, or depended on by other shared code: `supabase_service` (+ its
+  `apple_sign_in_cache`, `persistent_device_id_service`, `onboarding_service`
+  deps), `app_toast`, `server_toast`, `app_upgrader`, `fcm_service`,
+  `ai_consent_service`, `timezone_sync_service`, and the app-shell notifiers
+  (`nav_lock_notifier`, `shell_player_navigation`, `sleep_mode_notifier`).
+- **Feature-owned → `features/<x>/data/datasources/`** — moved into the feature
+  that owns the concern (cross-feature consumers import from there, same as
+  composition views): `player` got `last_played_service`, `rating_prompt_*`;
+  `onboarding` got `desire_speech_service`, `voice_recording_service`;
+  `subscription` got `revenuecat_service`. `profile_day_streak` (a pure parser)
+  went to `features/profile/domain/`.
+
+Rule of thumb applied: if **shared** code depends on a service, it must live in
+`shared/` (shared cannot import a feature). NOTE: `theta_wave_generator` and
+`voice_service` were moved to `player` but are currently **dead code** (zero
+importers) — delete or wire them up. The old `lib/models/` folder (just
+`Story`) and its sole consumer `story_service` were both deleted as dead code;
+re-add a proper `Story` entity under `features/player/` when story/player data
+is migrated.
+
 ## Migrating the next feature (recipe)
 
 1. `git mv lib/pages/<x> lib/features/<x>/presentation/pages/<x>`

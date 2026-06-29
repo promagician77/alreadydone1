@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
-import '/services/backend_client.dart';
-import '/utils/platform_utils.dart';
+import '/core/network/backend_client.dart';
+import '/core/platform/platform_utils.dart';
 
 class RevenueCatService {
   RevenueCatService._();

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/features/profile/presentation/pages/profile/profile_colors.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 typedef ProfileSettingItem = (String label, String value, VoidCallback? onTap);
 

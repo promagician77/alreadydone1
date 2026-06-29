@@ -1,4 +1,4 @@
-import '/services/last_played_service.dart';
+import '/features/player/data/datasources/last_played_service.dart';
 
 /// Local data source for "last played" persistence — thin wrapper over the
 /// shared [LastPlayedService] (SharedPreferences-backed).

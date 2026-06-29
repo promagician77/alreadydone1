@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '/services/supabase_service.dart';
+import '/shared/services/supabase_service.dart';
 
 class OnboardingService {
   static const _keyPrefix = 'onboarding_completed_';

@@ -1,4 +1,4 @@
-import '/services/backend_client.dart';
+import '/core/network/backend_client.dart';
 
 /// Remote data source for the desires feature — thin wrapper over the relevant
 /// slice of the shared [BackendClient].

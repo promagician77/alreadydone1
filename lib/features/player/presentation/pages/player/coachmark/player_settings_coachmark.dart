@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 abstract final class PlayerSettingsCoachmarkTokens {
   static const Color bgCard = Color(0xFFFFFDF7);

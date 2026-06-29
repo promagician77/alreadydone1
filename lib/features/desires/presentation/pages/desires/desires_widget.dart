@@ -5,17 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/index.dart';
-import '/services/supabase_service.dart';
-import '/services/backend_client.dart';
+import '/shared/services/supabase_service.dart';
+import '/core/network/backend_client.dart';
 import '/core/di/desires_locator.dart';
 import '/core/di/profile_locator.dart';
-import '/services/app_toast.dart';
-import '/services/ai_consent_service.dart';
+import '/shared/services/app_toast.dart';
+import '/shared/services/ai_consent_service.dart';
 import '/shared/state/onboarding_state.dart';
-import '/widgets/pressable.dart';
-import '/widgets/swipe_delete_tutorial_dialog.dart';
-import '/services/shell_player_navigation.dart';
-import '/utils/agent_debug_log.dart';
+import '/shared/widgets/pressable.dart';
+import '/shared/widgets/swipe_delete_tutorial_dialog.dart';
+import '/shared/services/shell_player_navigation.dart';
 import 'desires_model.dart';
 export 'desires_model.dart';
 
@@ -102,13 +101,6 @@ class _DesiresWidgetState extends State<DesiresWidget> {
   @override
   void initState() {
     super.initState();
-    // #region agent log
-    agentDebugLog(
-      location: 'desires_widget.dart:initState',
-      message: 'Step 1 - Done library opened',
-      hypothesisId: 'H2',
-    );
-    // #endregion
     _model = createModel(context, () => DesiresModel());
     _loadData().then((_) {
       if (mounted) _afterDesiresLoadedForCoachmark();
@@ -320,18 +312,6 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           if (storyPreview != null && storyPreview.isNotEmpty)
             'storyPreview': storyPreview,
         };
-        // #region agent log
-        agentDebugLog(
-          location: 'desires_widget.dart:_navigateToPlayerWithVoice',
-          message: 'Navigating to player from Done library',
-          hypothesisId: 'H2',
-          data: {
-            'storyId': storyId,
-            'hasPlayUrl': playUrl.isNotEmpty,
-            'viaShell': shellOpenPlayer != null,
-          },
-        );
-        // #endregion
         final openInShell = shellOpenPlayer;
         if (openInShell != null) {
           openInShell(extra);
@@ -430,20 +410,6 @@ class _DesiresWidgetState extends State<DesiresWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // #region agent log
-    agentDebugLog(
-      location: 'desires_widget.dart:build',
-      message: 'Done library build',
-      hypothesisId: 'H8',
-      data: {
-        'loading': _loading,
-        'selectedFilter': _selectedFilter,
-        'categoryCount': _categories.length,
-        'desireCategoryCount': _desireCategories.length,
-        'currentRoute': GoRouterState.of(context).uri.toString(),
-      },
-    );
-    // #endregion
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -676,14 +642,6 @@ class _DesiresWidgetState extends State<DesiresWidget> {
           if (isDeleteMode) {
             setState(() => _storyToDeleteForModal = story);
           } else if (story.id != null) {
-            // #region agent log
-            agentDebugLog(
-              location: 'desires_widget.dart:storyTap',
-              message: 'Step 2 - story selected in Done library',
-              hypothesisId: 'H2',
-              data: {'storyId': story.id, 'storyName': story.name},
-            );
-            // #endregion
             _navigateToPlayerWithVoice(
               story.id!,
               story.name,

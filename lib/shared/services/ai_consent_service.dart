@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '/shared/theme/auth_theme.dart';
-import '/services/supabase_service.dart';
+import '/shared/services/supabase_service.dart';
 
 class AIConsentService {
   AIConsentService._();

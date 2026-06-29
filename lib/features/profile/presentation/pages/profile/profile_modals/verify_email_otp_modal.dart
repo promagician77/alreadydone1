@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/services/app_toast.dart';
+import '/shared/services/app_toast.dart';
 import '/core/di/profile_locator.dart';
 import '/core/di/auth_locator.dart';
 import '/shared/widgets/modal_kit.dart';

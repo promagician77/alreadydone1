@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '/services/supabase_service.dart';
-import '/widgets/pressable.dart';
+import '/shared/services/supabase_service.dart';
+import '/shared/widgets/pressable.dart';
 
 /// Design tokens aligned with [desires_widget.dart] `_DesiresColors`.
 class _DoneTokens {

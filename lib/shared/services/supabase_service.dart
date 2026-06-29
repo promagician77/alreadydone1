@@ -11,10 +11,10 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '/shared/state/onboarding_state.dart';
-import '/services/apple_sign_in_cache.dart';
-import '/services/backend_client.dart';
-import '/services/onboarding_service.dart';
-import '/services/persistent_device_id_service.dart';
+import '/shared/services/apple_sign_in_cache.dart';
+import '/core/network/backend_client.dart';
+import '/shared/services/onboarding_service.dart';
+import '/shared/services/persistent_device_id_service.dart';
 
 export 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 

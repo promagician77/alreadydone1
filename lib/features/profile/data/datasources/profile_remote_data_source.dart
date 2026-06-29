@@ -1,4 +1,4 @@
-import '/services/backend_client.dart';
+import '/core/network/backend_client.dart';
 
 /// Remote data source for profile data — a thin wrapper over the profile slice
 /// of the shared [BackendClient]. `BackendClient` stays shared (it also serves

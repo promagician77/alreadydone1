@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '/services/supabase_service.dart';
+import '/shared/services/supabase_service.dart';
 
 /// Shown with [newManifestationCoachmarkVisible] while the home "new manifestation" tip is up.
 final GlobalKey newManifestationCoachmarkHomeTabKey = GlobalKey();

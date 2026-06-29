@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '/features/player/presentation/pages/player/player_colors.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 class PlayerControls extends StatelessWidget {
   const PlayerControls({

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '/services/backend_client.dart';
+import '/core/network/backend_client.dart';
 
 /// Default voice ID for TTS.
 const String kDefaultVoiceId = 'Z7RrOqZFTyLpIlzCgfsp';

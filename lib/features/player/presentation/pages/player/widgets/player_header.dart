@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/features/player/presentation/pages/player/coachmark/player_settings_coachmark.dart';
 import '/features/player/presentation/pages/player/player_colors.dart';
 import '/features/player/presentation/pages/player/widgets/player_duration_voice_row.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 class PlayerHeader extends StatelessWidget {
   const PlayerHeader({

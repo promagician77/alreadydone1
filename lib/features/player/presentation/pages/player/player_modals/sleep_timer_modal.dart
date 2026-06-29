@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/shared/widgets/modal_kit.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 class _SleepColors {
   _SleepColors._();

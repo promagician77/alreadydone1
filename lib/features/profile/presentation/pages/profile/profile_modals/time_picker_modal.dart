@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/services/app_toast.dart';
-import '/widgets/pressable.dart';
+import '/shared/services/app_toast.dart';
+import '/shared/widgets/pressable.dart';
 import '/core/di/profile_locator.dart';
 import '/shared/widgets/modal_kit.dart';
 

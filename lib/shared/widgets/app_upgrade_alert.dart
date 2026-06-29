@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:upgrader/upgrader.dart';
 
 import '/flutter_flow/nav/nav.dart';
-import '/services/app_upgrader.dart';
+import '/shared/services/app_upgrader.dart';
 
 class AppUpgradeAlert extends StatefulWidget {
   const AppUpgradeAlert({super.key, required this.child});

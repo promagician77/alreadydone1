@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '/services/backend_client.dart';
-import '/services/supabase_service.dart';
+import '/core/network/backend_client.dart';
+import '/shared/services/supabase_service.dart';
 
 class TimezoneSyncService {
   TimezoneSyncService._();

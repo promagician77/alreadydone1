@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/widgets/animated_waveform_icon.dart';
+import '/shared/widgets/animated_waveform_icon.dart';
 
 abstract class AuthTheme {
   static const Color warmWhite = Color(0xFFF9F7F4);

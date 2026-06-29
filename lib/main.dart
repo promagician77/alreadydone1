@@ -11,29 +11,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
-import '/services/revenuecat_service.dart';
-import '/services/fcm_service.dart';
-import '/services/supabase_service.dart';
-import '/utils/agent_debug_log.dart';
+import '/features/subscription/data/datasources/revenuecat_service.dart';
+import '/shared/services/fcm_service.dart';
+import '/shared/services/supabase_service.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'flutter_flow/nav/nav.dart';
-import '/widgets/app_upgrade_alert.dart';
-import '/widgets/force_update_gate.dart';
+import '/shared/widgets/app_upgrade_alert.dart';
+import '/shared/widgets/force_update_gate.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '/env_loader.dart';
-import '/services/app_toast.dart';
-import '/services/server_toast.dart';
-import '/services/backend_client.dart';
-import '/services/supabase_service.dart';
-import '/services/sleep_mode_notifier.dart';
-import '/services/nav_lock_notifier.dart';
-import '/services/shell_player_navigation.dart';
-import '/utils/agent_debug_log.dart';
-import '/utils/agent_debug_log.dart';
-import '/widgets/pressable.dart';
+import '/shared/services/app_toast.dart';
+import '/shared/services/server_toast.dart';
+import '/core/network/backend_client.dart';
+import '/shared/services/supabase_service.dart';
+import '/shared/services/sleep_mode_notifier.dart';
+import '/shared/services/nav_lock_notifier.dart';
+import '/shared/services/shell_player_navigation.dart';
+import '/shared/widgets/pressable.dart';
 import '/features/player/presentation/pages/player/coachmark/done_library_coachmark_nav.dart';
-import '/widgets/swipe_delete_tutorial_dialog.dart';
+import '/shared/widgets/swipe_delete_tutorial_dialog.dart';
 import '/features/home/presentation/pages/home_dashboard/coachmark/new_manifestation_coachmark_nav.dart';
 import 'index.dart';
 
@@ -137,16 +134,6 @@ void main() async {
     debugPrint('Uncaught error in main: $error');
     debugPrint('$stack');
 
-    agentDebugLog(
-      location: 'main.dart:runZonedGuarded',
-      message: 'Uncaught async error',
-      hypothesisId: 'H7',
-      data: {
-        'error': error.toString(),
-        'stack': stack.toString().split('\n').take(5).join('\n'),
-      },
-    );
-    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ServerToast.show();
     });
@@ -210,14 +197,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           : config;
       return matchList.uri.toString();
     } catch (e) {
-      // #region agent log
-      agentDebugLog(
-        location: 'main.dart:getRoute',
-        message: 'getRoute failed',
-        hypothesisId: 'H8',
-        data: {'error': e.toString()},
-      );
-      // #endregion
       return '/';
     }
   }
@@ -228,14 +207,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (matches.isEmpty) return ['/'];
       return matches.map((e) => getRoute(e)).toList();
     } catch (e) {
-      // #region agent log
-      agentDebugLog(
-        location: 'main.dart:getRouteStack',
-        message: 'getRouteStack failed',
-        hypothesisId: 'H8',
-        data: {'error': e.toString()},
-      );
-      // #endregion
       return ['/'];
     }
   }
@@ -250,17 +221,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   void _onRouterDelegateChange() {
-    // #region agent log
-    agentDebugLog(
-      location: 'main.dart:_onRouterDelegateChange',
-      message: 'Route stack changed',
-      hypothesisId: 'H1',
-      data: {
-        'currentRoute': getRoute(),
-        'routeStack': getRouteStack(),
-      },
-    );
-    // #endregion
   }
 
   @override
@@ -273,20 +233,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // #region agent log
     final session = SupabaseService.client.auth.currentSession;
-    agentDebugLog(
-      location: 'main.dart:didChangeAppLifecycleState',
-      message: 'App lifecycle changed',
-      hypothesisId: 'H6',
-      data: {
-        'state': state.name,
-        'isAuthenticated': SupabaseService.isAuthenticated,
-        'sessionExpired': session?.isExpired,
-        'hasSession': session != null,
-      },
-    );
-    // #endregion
     if (state == AppLifecycleState.resumed) {
       FcmService.onAppResumed();
     }
@@ -613,18 +560,6 @@ class _NavBarPageState extends State<NavBarPage>
     return ValueListenableBuilder<bool>(
       valueListenable: sleepModeNotifier,
       builder: (context, sleepMode, _) {
-        // #region agent log
-        agentDebugLog(
-          location: 'main.dart:NavBarPage.build',
-          message: 'NavBarPage rebuild',
-          hypothesisId: 'H2',
-          data: {
-            'currentPageName': _currentPageName,
-            'sleepMode': sleepMode,
-            'hasCurrentPage': _currentPage != null,
-          },
-        );
-        // #endregion
         return ValueListenableBuilder<bool>(
           valueListenable: navLockNotifier,
           builder: (context, navLocked, __) {

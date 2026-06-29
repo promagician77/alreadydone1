@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
 import '/shared/theme/auth_theme.dart';
-import '/services/ai_consent_service.dart';
-import '/services/app_toast.dart';
-import '/widgets/pressable.dart';
+import '/shared/services/ai_consent_service.dart';
+import '/shared/services/app_toast.dart';
+import '/shared/widgets/pressable.dart';
 import 'onboarding_origin_splash_model.dart';
 import 'onboarding_personalize_widget.dart';
 

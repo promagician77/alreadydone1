@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '/services/app_toast.dart';
-import '/services/supabase_service.dart';
+import '/shared/services/app_toast.dart';
+import '/shared/services/supabase_service.dart';
 import '/shared/widgets/modal_kit.dart';
 
 /// Verify current password before allowing email or password update.

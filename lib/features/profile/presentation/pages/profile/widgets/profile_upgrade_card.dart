@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/features/profile/presentation/pages/profile/widgets/profile_upgrade_savings_arrow.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 class ProfileUpgradeCard extends StatelessWidget {
   const ProfileUpgradeCard({

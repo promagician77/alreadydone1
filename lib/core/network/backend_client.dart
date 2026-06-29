@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '/services/server_toast.dart';
+import '/shared/services/server_toast.dart';
 
 class BackendClient {
   BackendClient._();

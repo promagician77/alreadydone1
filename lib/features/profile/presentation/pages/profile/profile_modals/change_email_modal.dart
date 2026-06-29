@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 import '/flutter_flow/nav/nav.dart';
-import '/services/app_toast.dart';
+import '/shared/services/app_toast.dart';
 import '/core/di/auth_locator.dart';
 import '/shared/widgets/modal_kit.dart';
 import 'verify_email_otp_modal.dart';

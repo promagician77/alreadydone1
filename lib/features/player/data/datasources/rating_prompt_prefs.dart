@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '/services/supabase_service.dart';
+import '/shared/services/supabase_service.dart';
 
 enum RatingPromptVariant { day7, day30, day90 }
 

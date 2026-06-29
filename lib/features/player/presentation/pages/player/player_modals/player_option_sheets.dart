@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '/features/player/presentation/pages/player/player_colors.dart';
 import '/features/player/presentation/pages/player/player_constants.dart';
 import '/features/player/presentation/pages/player/player_story_utils.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 /// Bottom sheets for speed, loop, and theta background selection.
 abstract final class PlayerOptionSheets {

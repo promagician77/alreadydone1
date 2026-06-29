@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/features/home/presentation/pages/home_dashboard/home_dashboard_colors.dart';
-import '/widgets/pressable.dart';
+import '/shared/widgets/pressable.dart';
 
 class HomeDashboardAddManifestationButton extends StatelessWidget {
   const HomeDashboardAddManifestationButton({

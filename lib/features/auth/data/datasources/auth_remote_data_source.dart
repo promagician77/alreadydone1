@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthResponse, User;
-import '/services/supabase_service.dart';
+import '/shared/services/supabase_service.dart';
 
 abstract class AuthRemoteDataSource {
   bool get isAuthenticated;

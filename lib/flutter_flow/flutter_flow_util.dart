@@ -12,7 +12,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../main.dart';
-import '../services/app_toast.dart';
+import '/shared/services/app_toast.dart';
 
 import 'lat_lng.dart';
 

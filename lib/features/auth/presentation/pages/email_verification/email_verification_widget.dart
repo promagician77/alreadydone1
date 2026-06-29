@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/shared/theme/auth_theme.dart';
-import '/services/backend_client.dart';
+import '/core/network/backend_client.dart';
 import '/core/di/auth_locator.dart';
-import '/services/supabase_service.dart' show SupabaseService;
+import '/shared/services/supabase_service.dart' show SupabaseService;
 import '/features/tutorial/presentation/pages/tutorial/tutorial_widget.dart';
-import '/services/app_toast.dart';
+import '/shared/services/app_toast.dart';
 import 'email_verification_model.dart';
 export 'email_verification_model.dart';
 

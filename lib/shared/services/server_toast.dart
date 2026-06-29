@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '/flutter_flow/nav/nav.dart';
-import '/services/app_toast.dart';
+import '/shared/services/app_toast.dart';
 
 class ServerToast {
   static const String message =
