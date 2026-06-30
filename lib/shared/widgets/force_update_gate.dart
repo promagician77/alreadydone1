@@ -8,17 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/core/network/backend_client.dart';
 
-/// Backend-driven hard force-update gate.
-///
-/// On launch (and whenever the app resumes) it asks the backend for the latest
-/// released build/version via `/api/mobile-app/update`. If the build the user is
-/// running is older than what the backend reports as required, it presents a
-/// full-screen, non-dismissible wall whose only action opens the app store.
-///
-/// Unlike the soft `upgrader` nudge, this cannot be bypassed: the back button is
-/// swallowed and the underlying app is fully covered. It fails open — if the
-/// backend is unreachable, disabled, or no store URL is available for the
-/// platform, the gate never blocks, so users are never locked out by mistake.
 class ForceUpdateGate extends StatefulWidget {
   const ForceUpdateGate({super.key, required this.child});
 
@@ -127,14 +116,28 @@ class _ForceUpdateGateState extends State<ForceUpdateGate>
     return 0;
   }
 
+  /// Play Store listing used when the backend doesn't supply an Android URL.
+  static const String _defaultAndroidStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.alreadydone.myapp';
+
   String? _storeUrlFor(MobileAppUpdatePayload payload) {
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    final primary = isIOS ? payload.iosStoreUrl : payload.androidStoreUrl;
-    final fallback = isIOS ? payload.androidStoreUrl : payload.iosStoreUrl;
-    final url = (primary?.trim().isNotEmpty == true)
-        ? primary!.trim()
-        : (fallback?.trim().isNotEmpty == true ? fallback!.trim() : null);
-    return url;
+    final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+    if (isAndroid) {
+      // On Android always send the user to the Play Store, preferring the
+      // backend-provided URL and falling back to the known listing.
+      final android = payload.androidStoreUrl?.trim();
+      return (android != null && android.isNotEmpty)
+          ? android
+          : _defaultAndroidStoreUrl;
+    }
+
+    // iOS (and any other non-Android platform): prefer the App Store URL.
+    final ios = payload.iosStoreUrl?.trim();
+    if (ios != null && ios.isNotEmpty) return ios;
+    final android = payload.androidStoreUrl?.trim();
+    if (android != null && android.isNotEmpty) return android;
+    return null;
   }
 
   Future<void> _openStore() async {
@@ -155,15 +158,6 @@ class _ForceUpdateGateState extends State<ForceUpdateGate>
   Widget build(BuildContext context) {
     if (!_updateRequired) return widget.child;
 
-    // Keep the app mounted underneath but fully cover it with an opaque,
-    // input-absorbing wall. The only way forward is to update.
-    //
-    // NOTE: we deliberately do NOT use BackButtonListener / PopScope here. This
-    // widget lives in MaterialApp.router's `builder`, which is ABOVE the Router
-    // in the tree, so those APIs (which call Router.of(context)) would throw
-    // "context does not include a Router". The opaque overlay below already
-    // blocks all interaction; pressing back at most exits the app, after which
-    // relaunching re-shows this wall.
     return Stack(
       fit: StackFit.expand,
       children: [
