@@ -74,8 +74,8 @@ class _PlayerDoneLibraryCoachmarkOverlayState
     final hole = _targetInStack;
     final media = MediaQuery.of(context);
     const horizontalInset = 20.0;
-    /// Space between Done tab top and the caret tip (keep small; was 12 + inflated card height).
-    const gapAboveTarget = 4.0;
+    /// Space between Done tab top and the caret tip.
+    const gapAboveTarget = 14.0;
 
     final cardLeft = horizontalInset;
     final cardWidth = media.size.width - horizontalInset * 2;
