@@ -29,6 +29,7 @@ class PlayerDoneLibraryCoachmarkOverlay extends StatefulWidget {
 class _PlayerDoneLibraryCoachmarkOverlayState
     extends State<PlayerDoneLibraryCoachmarkOverlay> {
   Rect? _targetInStack;
+  double? _stackHeight;
 
   @override
   void initState() {
@@ -59,9 +60,13 @@ class _PlayerDoneLibraryCoachmarkOverlayState
       targetRb.size.width,
       targetRb.size.height,
     );
+    final stackHeight = stackRb.size.height;
 
-    if (_targetInStack == next) return;
-    setState(() => _targetInStack = next);
+    if (_targetInStack == next && _stackHeight == stackHeight) return;
+    setState(() {
+      _targetInStack = next;
+      _stackHeight = stackHeight;
+    });
   }
 
   @override
@@ -71,15 +76,17 @@ class _PlayerDoneLibraryCoachmarkOverlayState
     const horizontalInset = 20.0;
     /// Space between Done tab top and the caret tip (keep small; was 12 + inflated card height).
     const gapAboveTarget = 4.0;
-    /// Approximate card+caret height (QUICK TIP + title + body + button + padding); avoids huge vertical gap.
-    const approxCardHeight = 200.0;
 
     final cardLeft = horizontalInset;
     final cardWidth = media.size.width - horizontalInset * 2;
 
+    /// Keep the card clear of the status bar / notch on very short screens.
+    final topInset = media.padding.top + 16;
+
     double arrowRightFromCardRight = 20;
-    double? cardTop;
-    if (hole != null) {
+    double? cardBottom;
+    double? cardMaxHeight;
+    if (hole != null && _stackHeight != null) {
       final iconCenterX = hole.center.dx;
       final arrowCenterXFromCardLeft = iconCenterX - cardLeft;
       arrowRightFromCardRight =
@@ -88,7 +95,9 @@ class _PlayerDoneLibraryCoachmarkOverlayState
           arrowRightFromCardRight.clamp(12.0, cardWidth - 12.0);
 
       final cardBottomY = hole.top - gapAboveTarget;
-      cardTop = (cardBottomY - approxCardHeight).clamp(16.0, double.infinity);
+      cardBottom = (_stackHeight! - cardBottomY).clamp(0.0, double.infinity);
+
+      cardMaxHeight = (cardBottomY - topInset).clamp(0.0, double.infinity);
     }
 
     return Stack(
@@ -115,14 +124,19 @@ class _PlayerDoneLibraryCoachmarkOverlayState
               ),
             ),
           ),
-        if (cardTop != null)
+        if (cardBottom != null)
           Positioned(
             left: cardLeft,
             right: horizontalInset,
-            top: cardTop,
-            child: _LibraryCoachmarkCard(
-              arrowRightFromCardRight: arrowRightFromCardRight,
-              onGotIt: widget.onGotIt,
+            bottom: cardBottom,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: cardMaxHeight ?? double.infinity,
+              ),
+              child: _LibraryCoachmarkCard(
+                arrowRightFromCardRight: arrowRightFromCardRight,
+                onGotIt: widget.onGotIt,
+              ),
             ),
           ),
       ],
@@ -218,10 +232,11 @@ class _LibraryCoachmarkCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Text(
                     'QUICK TIP',
                     style: GoogleFonts.outfit(
@@ -283,7 +298,8 @@ class _LibraryCoachmarkCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
