@@ -161,6 +161,9 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _isDeepening = false;
+  bool _subscriptionUpsellShown = false;
+  bool _subscriptionModalOpen = false;
+  bool? _isSubscribed;
 
   String? get _playUrl => _state.voicePlayUrl;
 
@@ -188,12 +191,12 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     // Mark that the user has generated their first story so relaunch routing works.
     OnboardingService.setFirstStoryGenerated();
     _audioPlayer.onPlayerComplete.listen((_) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-          _position = Duration.zero;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _isPlaying = false;
+        _position = Duration.zero;
+      });
+      _maybeShowSubscriptionUpsell();
     });
     _audioPlayer.onDurationChanged.listen((d) {
       if (mounted) {
@@ -226,6 +229,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       if (_isPlaying) {
         await _audioPlayer.pause();
         if (mounted) setState(() => _isPlaying = false);
+        await _maybeShowSubscriptionUpsell();
       } else {
         final atStart = _position == Duration.zero;
         final effectiveDuration = _effectiveDuration;
@@ -288,8 +292,12 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   }
 
   Future<bool> _isUserSubscribed() async {
+    if (_isSubscribed != null) return _isSubscribed!;
     final userId = await SupabaseService.getCurrentUserTableId();
-    if (userId == null) return false;
+    if (userId == null) {
+      _isSubscribed = false;
+      return false;
+    }
     try {
       final profile = await profileRepository.getUserProfile(userId);
       final status = (profile['rc_subscription_status'] ??
@@ -297,42 +305,48 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
           ?.toString()
           .toLowerCase()
           .trim();
-      return status == 'active' || status == 'trial';
+      _isSubscribed = status == 'active' || status == 'trial';
     } catch (_) {
-      return false;
+      _isSubscribed = false;
     }
+    return _isSubscribed!;
   }
 
-  Future<void> _onContinueTap() async {
-    final subscribed = await _isUserSubscribed();
-    if (!mounted) return;
-    if (subscribed) {
-      await _completeOnboarding();
+  /// Shows once after pause/stop or when playback finishes, for non-subscribers.
+  Future<void> _maybeShowSubscriptionUpsell() async {
+    if (!mounted ||
+        _subscriptionUpsellShown ||
+        _subscriptionModalOpen ||
+        _isDeepening) {
       return;
     }
-    await _showSubscriptionUpsellModal();
-  }
+    final subscribed = await _isUserSubscribed();
+    if (!mounted || subscribed) return;
 
-  Future<void> _showSubscriptionUpsellModal() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: const Color(0x801C1917),
-      builder: (modalContext) {
-        return _OnboardingSubscriptionUpsellModal(
-          onMaybeLater: () {
-            Navigator.of(modalContext).pop();
-            _completeOnboarding();
-          },
-          onSubscribe: () {
-            Navigator.of(modalContext).pop();
-            final returnTo = Uri.encodeComponent('/');
-            context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-          },
-        );
-      },
-    );
+    _subscriptionUpsellShown = true;
+    _subscriptionModalOpen = true;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: const Color(0x801C1917),
+        builder: (modalContext) {
+          return _OnboardingSubscriptionUpsellModal(
+            onMaybeLater: () => Navigator.of(modalContext).pop(),
+            onSubscribe: () {
+              Navigator.of(modalContext).pop();
+              final returnTo = Uri.encodeComponent('/');
+              context.go(
+                '${OnboardingSplashWidget.routePath}?returnTo=$returnTo',
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      _subscriptionModalOpen = false;
+    }
   }
 
   Future<void> _onDeepenTap() async {
@@ -749,7 +763,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                   color: AuthTheme.gold,
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
-                    onTap: _onContinueTap,
+                    onTap: _completeOnboarding,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
