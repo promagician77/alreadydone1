@@ -164,6 +164,12 @@ class _OnboardingGuideSheet extends StatelessWidget {
           size: 24,
           color: AuthTheme.gold,
         );
+      case OnboardingGuideIconKind.playCircle:
+        return Icon(
+          Icons.play_circle_outline_rounded,
+          size: 24,
+          color: AuthTheme.gold,
+        );
     }
   }
 

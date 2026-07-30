@@ -312,7 +312,9 @@ class _OnboardingVoiceSelectionWidgetState
     } catch (_) {}
 
     if (voiceId == null || voiceId.isEmpty) {
-      if (mounted) context.go(OnboardingVoiceWidget.routePath);
+      if (mounted) {
+        context.go('${OnboardingVoiceWidget.routePath}?guide=voiceRecord');
+      }
       return;
     }
 

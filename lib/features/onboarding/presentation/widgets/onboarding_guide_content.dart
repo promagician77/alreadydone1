@@ -4,6 +4,7 @@ enum OnboardingGuideIconKind {
   person,
   grid3x3,
   mic,
+  playCircle,
 }
 
 /// Copy and icons for onboarding guide bottom sheets (matches design reference).
@@ -61,5 +62,23 @@ class OnboardingGuideContent {
       'My Voice - clone yours in 30 seconds',
       'Pre-made voices - start instantly',
     ],
+  );
+
+  static const voiceRecord = OnboardingGuideContent(
+    iconKind: OnboardingGuideIconKind.playCircle,
+    title: 'Record your voice',
+    body:
+        'Read the passage aloud 3 times, slowly and clearly. Recording '
+        'auto-completes at 30 seconds. This is the last step before your '
+        'first story plays.',
+    bullets: [
+      'Find a quiet space',
+      'Read naturally, not dramatically',
+      'Recording stops at 30 seconds',
+    ],
+    footer:
+        "After recording, tap 'Continue' on the app screen. Your first story "
+        'will generate and play automatically.',
+    buttonText: "Got it, let's record",
   );
 }
