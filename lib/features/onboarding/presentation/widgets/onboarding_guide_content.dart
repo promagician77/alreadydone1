@@ -31,4 +31,17 @@ class OnboardingGuideContent {
       'Someone you love - a romantic interest',
     ],
   );
+
+  static const category = OnboardingGuideContent(
+    icon: Icons.grid_view_rounded,
+    title: "What's already yours?",
+    body:
+        'Pick a category, then describe your manifestation. Write it like it '
+        'already happened, or tap the navy mic to speak it.',
+    bullets: [
+      'Choose Love, Money, Career, Health, Home, or Personal Growth',
+      'Describe it in present tense',
+      'Be specific and emotional',
+    ],
+  );
 }

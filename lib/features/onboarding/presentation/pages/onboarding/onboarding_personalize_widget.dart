@@ -358,7 +358,9 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                         }
                       }
                       if (!context.mounted) return;
-                      context.push(OnboardingDesireWidget.routePath);
+                      context.push(
+                        '${OnboardingDesireWidget.routePath}?guide=category',
+                      );
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(

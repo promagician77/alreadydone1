@@ -17,6 +17,8 @@ import '/shared/services/ai_consent_service.dart';
 import '/features/onboarding/data/datasources/desire_speech_service.dart';
 import '/shared/widgets/pressable.dart';
 import '/flutter_flow/nav/nav.dart';
+import '../../widgets/onboarding_guide_content.dart';
+import '../../widgets/onboarding_guide_modal.dart';
 import '/shared/state/onboarding_state.dart';
 import 'onboarding_personalize_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
@@ -144,7 +146,18 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
       setState(() => _isListening = false);
       AppToast.info(context, 'Could not recognize speech. Try again.');
     };
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePrefillForSubscribedUser());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybePrefillForSubscribedUser();
+      _maybeShowGuideModal();
+    });
+  }
+
+  void _maybeShowGuideModal() {
+    if (!mounted) return;
+    final showGuide =
+        GoRouterState.of(context).uri.queryParameters['guide'] == 'category';
+    if (!showGuide) return;
+    OnboardingGuideModal.show(context, OnboardingGuideContent.category);
   }
 
   @override
