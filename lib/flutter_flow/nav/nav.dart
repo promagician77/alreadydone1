@@ -335,6 +335,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           builder: (context, params) => OnboardingSplashWidget(),
         ),
         FFRoute(
+          name: OnboardingWhatsNextWidget.routeName,
+          path: OnboardingWhatsNextWidget.routePath,
+          builder: (context, params) => OnboardingWhatsNextWidget(),
+        ),
+        FFRoute(
           name: SubscriptionWidget.routeName,
           path: SubscriptionWidget.routePath,
           builder: (context, params) => SubscriptionWidget(),

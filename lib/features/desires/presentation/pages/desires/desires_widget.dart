@@ -13,6 +13,7 @@ import '/shared/services/app_toast.dart';
 import '/shared/services/ai_consent_service.dart';
 import '/shared/state/onboarding_state.dart';
 import '/shared/widgets/pressable.dart';
+import '/shared/widgets/subscription_upsell_modal.dart';
 import '/shared/widgets/swipe_delete_tutorial_dialog.dart';
 import '/shared/services/shell_player_navigation.dart';
 import 'desires_model.dart';
@@ -972,8 +973,35 @@ class _DesiresWidgetState extends State<DesiresWidget> {
     }
   }
 
+  Future<bool> _isUserSubscribed() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return false;
+    try {
+      final profile = await profileRepository.getUserProfile(userId);
+      final status = (profile['rc_subscription_status'] ??
+              profile['rc_subscription_Status'])
+          ?.toString()
+          .toLowerCase()
+          .trim();
+      return status == 'active' || status == 'trial';
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Navigate to onboarding desire page (3rd step); prefill first name and someone you love from user profile.
+  /// Non-subscribers get the subscription upsell first; creating stories requires a subscription.
   Future<void> _handleAddNewManifestation() async {
+    final subscribed = await _isUserSubscribed();
+    if (!mounted) return;
+    if (!subscribed) {
+      final subscribeTapped = await showSubscriptionUpsellModal(context);
+      if (!mounted || !subscribeTapped) return;
+      final returnTo = Uri.encodeComponent(OnboardingDesireWidget.routePath);
+      context.go('${SubscriptionWidget.routePath}?returnTo=$returnTo');
+      return;
+    }
+
     final hasConsent = await AIConsentService.ensureConsent(context);
     if (!hasConsent) {
       if (mounted) {

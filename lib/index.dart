@@ -28,4 +28,6 @@ export '/features/onboarding/presentation/pages/onboarding/onboarding_voice_widg
     show OnboardingVoiceWidget;
 export '/features/onboarding/presentation/pages/onboarding/onboarding_player_widget.dart'
     show OnboardingPlayerWidget;
+export '/features/onboarding/presentation/pages/onboarding/onboarding_whats_next_widget.dart'
+    show OnboardingWhatsNextWidget;
 export '/features/subscription/presentation/pages/subscription/subscription_widget.dart' show SubscriptionWidget;

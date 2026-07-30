@@ -32,6 +32,10 @@ class OnboardingState {
 
   bool autoUploadVoiceCloneOnNextEntry = false;
 
+  /// Set by the "What's next" screen ("Hear Part 2") so the onboarding player
+  /// automatically deepens the current story when it loads.
+  bool pendingAutoDeepen = false;
+
   static const List<String> energyWords = ['Powerful', 'Peaceful', 'Abundant', 'Grateful', 'Confident'];
   static const List<String> categories = [
     'Love',
@@ -91,6 +95,7 @@ class OnboardingState {
     selectedVoiceId = null;
     recordedVoiceFilePath = null;
     autoUploadVoiceCloneOnNextEntry = false;
+    pendingAutoDeepen = false;
   }
 
   /// Persist current form values and the reached step path to SharedPreferences.
