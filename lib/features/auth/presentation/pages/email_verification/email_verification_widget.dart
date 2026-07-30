@@ -6,7 +6,7 @@ import '/shared/theme/auth_theme.dart';
 import '/core/network/backend_client.dart';
 import '/core/di/auth_locator.dart';
 import '/shared/services/supabase_service.dart' show SupabaseService;
-import '/features/tutorial/presentation/pages/tutorial/tutorial_widget.dart';
+import '/features/onboarding/presentation/pages/onboarding/onboarding_origin_splash_widget.dart';
 import '/shared/services/app_toast.dart';
 import 'email_verification_model.dart';
 export 'email_verification_model.dart';
@@ -468,7 +468,7 @@ class _EmailVerificationWidgetState extends State<EmailVerificationWidget> {
                 : 'Email verified! Welcome.',
           );
           context.go(
-              widget.isEmailChange ? '/' : OnboardingTutorialWidget.routePath);
+              widget.isEmailChange ? '/' : OnboardingOriginSplashWidget.routePath);
         }
       }
     } catch (e) {

@@ -162,12 +162,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed) return _logRedirect('/', path, 'subscribed_after_auth');
           final completed = await OnboardingService.hasCompletedOnboarding();
-          if (!completed &&
-              !(await OnboardingService.hasGeneratedFirstStory()) &&
-              (await OnboardingService.getSavedStep()) == null &&
-              !(await OnboardingService.hasSeenTutorial())) {
-            return OnboardingTutorialWidget.routePath;
-          }
           // Not subscribed: if first story already generated → paywall
           if (await OnboardingService.hasGeneratedFirstStory()) {
             return OnboardingSplashWidget.routePath;
@@ -183,14 +177,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed) return null;
           final completed = await OnboardingService.hasCompletedOnboarding();
-          // If user is new and hasn't started onboarding yet, show tutorial once.
-          if (!completed &&
-              !(await OnboardingService.hasGeneratedFirstStory()) &&
-              (await OnboardingService.getSavedStep()) == null &&
-              !(await OnboardingService.hasSeenTutorial()) &&
-              path != OnboardingTutorialWidget.routePath) {
-            return OnboardingTutorialWidget.routePath;
-          }
           // If onboarding is completed, allow the user to stay on the current route.
           // (Prevents / <-> /onboarding redirect loops when `first_story_generated` is true.)
           if (completed) return null;
@@ -332,11 +318,6 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: OnboardingOriginSplashWidget.routeName,
           path: OnboardingOriginSplashWidget.routePath,
           builder: (context, params) => OnboardingOriginSplashWidget(),
-        ),
-        FFRoute(
-          name: OnboardingTutorialWidget.routeName,
-          path: OnboardingTutorialWidget.routePath,
-          builder: (context, params) => const OnboardingTutorialWidget(),
         ),
         FFRoute(
           name: OnboardingPersonalizeWidget.routeName,
