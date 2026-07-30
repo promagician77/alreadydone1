@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
+enum OnboardingGuideIconKind {
+  person,
+  grid3x3,
+}
+
 /// Copy and icons for onboarding guide bottom sheets (matches design reference).
 class OnboardingGuideContent {
   const OnboardingGuideContent({
-    required this.icon,
+    required this.iconKind,
     required this.title,
     required this.body,
     this.bullets,
@@ -11,7 +16,7 @@ class OnboardingGuideContent {
     this.buttonText = 'Got it',
   });
 
-  final IconData icon;
+  final OnboardingGuideIconKind iconKind;
   final String title;
   final String body;
   final List<String>? bullets;
@@ -19,7 +24,7 @@ class OnboardingGuideContent {
   final String buttonText;
 
   static const personalize = OnboardingGuideContent(
-    icon: Icons.person_outline_rounded,
+    iconKind: OnboardingGuideIconKind.person,
     title: 'Make it yours',
     body:
         'Fill in your name, dream location, energy word, and someone you love. '
@@ -33,7 +38,7 @@ class OnboardingGuideContent {
   );
 
   static const category = OnboardingGuideContent(
-    icon: Icons.grid_view_rounded,
+    iconKind: OnboardingGuideIconKind.grid3x3,
     title: "What's already yours?",
     body:
         'Pick a category, then describe your manifestation. Write it like it '

@@ -144,12 +144,21 @@ class _OnboardingGuideSheet extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AuthTheme.goldLight),
       ),
-      child: Icon(
-        content.icon,
-        size: 24,
-        color: AuthTheme.gold,
-      ),
+      child: Center(child: _buildIconGlyph()),
     );
+  }
+
+  Widget _buildIconGlyph() {
+    switch (content.iconKind) {
+      case OnboardingGuideIconKind.person:
+        return Icon(
+          Icons.person_outline_rounded,
+          size: 24,
+          color: AuthTheme.gold,
+        );
+      case OnboardingGuideIconKind.grid3x3:
+        return const _Grid3x3Icon(size: 24, color: AuthTheme.gold);
+    }
   }
 
   Widget _buildBullets(List<String> bullets) {
@@ -298,4 +307,47 @@ class _OnboardingGuideSheet extends StatelessWidget {
   <path d="M5 18H3" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 ''';
+}
+
+/// 3x3 grid of rounded squares (matches Lucide Grid3x3 in design reference).
+class _Grid3x3Icon extends StatelessWidget {
+  const _Grid3x3Icon({
+    required this.size,
+    required this.color,
+  });
+
+  final double size;
+  final Color color;
+
+  static const _cells = 3;
+  static const _gap = 2.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final cell = (size - _gap * (_cells - 1)) / _cells;
+    final radius = cell * 0.22;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(_cells, (row) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(_cells, (col) {
+              return Container(
+                width: cell,
+                height: cell,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(radius),
+                ),
+              );
+            }),
+          );
+        }),
+      ),
+    );
+  }
 }
