@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/flutter_flow/flutter_flow_util.dart';
+import '/flutter_flow/nav/nav.dart';
+import '../../widgets/onboarding_guide_content.dart';
+import '../../widgets/onboarding_guide_modal.dart';
 import '/shared/theme/auth_theme.dart';
 import '/shared/widgets/pressable.dart';
 import '/shared/services/app_toast.dart';
@@ -106,7 +108,18 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
     super.initState();
     _state = OnboardingState.instance;
     _state.dreamLocationController.addListener(_onDreamLocationChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAuthProvidedName());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAuthProvidedName();
+      _maybeShowGuideModal();
+    });
+  }
+
+  void _maybeShowGuideModal() {
+    if (!mounted) return;
+    final showGuide =
+        GoRouterState.of(context).uri.queryParameters['guide'] == 'personalize';
+    if (!showGuide) return;
+    OnboardingGuideModal.show(context, OnboardingGuideContent.personalize);
   }
 
   Future<void> _loadAuthProvidedName() async {
