@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/nav/nav.dart';
@@ -108,32 +109,65 @@ class _OnboardingOriginSplashWidgetState
           ),
         );
       },
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AuthTheme.goldLight, AuthTheme.gold],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AuthTheme.gold.withValues(alpha: 0.25),
-              blurRadius: 32,
-              offset: const Offset(0, 12),
+      child: SizedBox(
+        width: 128,
+        height: 128,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            for (var i = 3; i >= 1; i--)
+              Container(
+                width: 80 + i * 22.0,
+                height: 80 + i * 22.0,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AuthTheme.gold.withValues(alpha: 0.06 + i * 0.04),
+                  ),
+                ),
+              ),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AuthTheme.goldLight, AuthTheme.gold],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AuthTheme.gold.withValues(alpha: 0.25),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: SvgPicture.string(
+                  _sparklesIconSvg,
+                  width: 36,
+                  height: 36,
+                ),
+              ),
             ),
           ],
-        ),
-        child: const Icon(
-          Icons.auto_awesome,
-          size: 36,
-          color: Colors.white,
         ),
       ),
     );
   }
+
+  /// Lucide Sparkles icon (matches design reference), not Material auto_awesome.
+  static const _sparklesIconSvg = '''
+<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .962 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.962 0z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 3v4" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 5h-4" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 17v2" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M5 18H3" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
 
   Widget _buildTitle() {
     return RichText(
