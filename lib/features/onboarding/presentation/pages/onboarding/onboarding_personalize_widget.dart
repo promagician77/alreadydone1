@@ -115,11 +115,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
   }
 
   void _maybeShowGuideModal() {
-    if (!mounted) return;
-    final showGuide =
-        GoRouterState.of(context).uri.queryParameters['guide'] == 'personalize';
-    if (!showGuide) return;
-    OnboardingGuideModal.show(context, OnboardingGuideContent.personalize);
+    OnboardingGuideModal.maybeShow(context, OnboardingGuideContent.personalize);
   }
 
   Future<void> _loadAuthProvidedName() async {
@@ -358,9 +354,7 @@ class _OnboardingPersonalizeWidgetState extends State<OnboardingPersonalizeWidge
                         }
                       }
                       if (!context.mounted) return;
-                      context.push(
-                        '${OnboardingDesireWidget.routePath}?guide=category',
-                      );
+                      context.push(OnboardingDesireWidget.routePath);
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(

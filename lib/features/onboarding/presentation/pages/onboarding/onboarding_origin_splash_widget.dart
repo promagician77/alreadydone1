@@ -231,9 +231,7 @@ class _OnboardingOriginSplashWidgetState
               return;
             }
             if (mounted) {
-              context.go(
-                '${OnboardingPersonalizeWidget.routePath}?guide=personalize',
-              );
+              context.go(OnboardingPersonalizeWidget.routePath);
             }
           },
           borderRadius: BorderRadius.circular(16),

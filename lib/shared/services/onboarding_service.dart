@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '/features/onboarding/presentation/widgets/onboarding_guide_eligibility.dart';
 import '/shared/services/supabase_service.dart';
 
 class OnboardingService {
@@ -32,6 +33,8 @@ class OnboardingService {
   static Future<void> setFirstStoryGenerated() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_firstStoryKey(), true);
+    // User finished first story playback path — stop showing tutorial guides.
+    OnboardingGuideEligibility.markHasVoicedStory();
   }
 
   /// Returns true if the user has already generated their first story.
@@ -122,5 +125,6 @@ class OnboardingService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_stepKey());
     await prefs.remove(_dataKey());
+    OnboardingGuideEligibility.clearCache();
   }
 }

@@ -4,10 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import '/shared/theme/auth_theme.dart';
 import '/shared/widgets/pressable.dart';
 import 'onboarding_guide_content.dart';
+import 'onboarding_guide_eligibility.dart';
 
 /// Bottom-sheet guide shown on top of onboarding screens (matches design reference).
 class OnboardingGuideModal {
   OnboardingGuideModal._();
+
+  /// Shows [content] only for first-time users (no story with voice_id yet).
+  static Future<void> maybeShow(
+    BuildContext context,
+    OnboardingGuideContent content,
+  ) async {
+    final shouldShow = await OnboardingGuideEligibility.shouldShowGuides();
+    if (!shouldShow || !context.mounted) return;
+    await show(context, content);
+  }
 
   static Future<void> show(
     BuildContext context,

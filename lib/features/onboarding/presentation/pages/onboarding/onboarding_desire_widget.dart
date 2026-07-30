@@ -153,11 +153,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
   }
 
   void _maybeShowGuideModal() {
-    if (!mounted) return;
-    final showGuide =
-        GoRouterState.of(context).uri.queryParameters['guide'] == 'category';
-    if (!showGuide) return;
-    OnboardingGuideModal.show(context, OnboardingGuideContent.category);
+    OnboardingGuideModal.maybeShow(context, OnboardingGuideContent.category);
   }
 
   @override
@@ -434,9 +430,7 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
         await _state.persistToPrefs(OnboardingVoiceSelectionWidget.routePath);
         if (mounted) {
-          context.go(
-            '${OnboardingVoiceSelectionWidget.routePath}?guide=voiceSelect',
-          );
+          context.go(OnboardingVoiceSelectionWidget.routePath);
         }
       }
     } catch (e) {

@@ -87,11 +87,7 @@ class _OnboardingVoiceSelectionWidgetState
   }
 
   void _maybeShowGuideModal() {
-    if (!mounted) return;
-    final showGuide =
-        GoRouterState.of(context).uri.queryParameters['guide'] == 'voiceSelect';
-    if (!showGuide) return;
-    OnboardingGuideModal.show(context, OnboardingGuideContent.voiceSelect);
+    OnboardingGuideModal.maybeShow(context, OnboardingGuideContent.voiceSelect);
   }
 
   Future<bool> _ensureSubscribedForVoiceGeneration() async {
@@ -296,9 +292,7 @@ class _OnboardingVoiceSelectionWidgetState
     } catch (_) {}
 
     if (voiceId == null || voiceId.isEmpty) {
-      if (mounted) {
-        context.go('${OnboardingVoiceWidget.routePath}?guide=voiceRecord');
-      }
+      if (mounted) context.go(OnboardingVoiceWidget.routePath);
       return;
     }
 

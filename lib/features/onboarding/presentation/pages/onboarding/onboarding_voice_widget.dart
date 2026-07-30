@@ -182,11 +182,7 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
   }
 
   void _maybeShowGuideModal() {
-    if (!mounted) return;
-    final showGuide =
-        GoRouterState.of(context).uri.queryParameters['guide'] == 'voiceRecord';
-    if (!showGuide) return;
-    OnboardingGuideModal.show(context, OnboardingGuideContent.voiceRecord);
+    OnboardingGuideModal.maybeShow(context, OnboardingGuideContent.voiceRecord);
   }
 
   @override
