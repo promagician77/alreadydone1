@@ -31,31 +31,19 @@ class _OnboardingOriginSplashWidgetState
   late OnboardingOriginSplashModel _model;
   late AnimationController _fadeController;
   late AnimationController _shimmerController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _model = createModel(context, () => OnboardingOriginSplashModel());
-
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    );
-    _scaleAnimation = Tween<double>(begin: 0.98, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
-    );
-    _fadeController.forward();
-
+    )..forward();
     _shimmerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
+    _model = createModel(context, () => OnboardingOriginSplashModel());
   }
 
   @override
@@ -72,12 +60,13 @@ class _OnboardingOriginSplashWidgetState
       backgroundColor: AuthTheme.offWhite,
       body: SafeArea(
         child: AnimatedBuilder(
-          animation: _fadeAnimation,
+          animation: _fadeController,
           builder: (context, child) {
+            final progress = Curves.easeOut.transform(_fadeController.value);
             return Opacity(
-              opacity: _fadeAnimation.value,
+              opacity: progress,
               child: Transform.scale(
-                scale: _scaleAnimation.value,
+                scale: 0.98 + 0.02 * progress,
                 child: child,
               ),
             );
