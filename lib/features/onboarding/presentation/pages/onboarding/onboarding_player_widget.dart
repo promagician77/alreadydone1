@@ -13,6 +13,7 @@ import '/shared/services/onboarding_service.dart';
 import '/shared/services/supabase_service.dart';
 import '/shared/widgets/pressable.dart';
 import 'onboarding_desire_widget.dart';
+import 'onboarding_splash_widget.dart';
 import '/shared/state/onboarding_state.dart';
 
 /// Formats seconds as "X min Y sec" (readable) or "0:00" (short).
@@ -284,6 +285,54 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     await NewManifestationCoachmarkPrefs.setPendingAfterOnboardingComplete();
     if (!mounted) return;
     context.go('/');
+  }
+
+  Future<bool> _isUserSubscribed() async {
+    final userId = await SupabaseService.getCurrentUserTableId();
+    if (userId == null) return false;
+    try {
+      final profile = await profileRepository.getUserProfile(userId);
+      final status = (profile['rc_subscription_status'] ??
+              profile['rc_subscription_Status'])
+          ?.toString()
+          .toLowerCase()
+          .trim();
+      return status == 'active' || status == 'trial';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _onContinueTap() async {
+    final subscribed = await _isUserSubscribed();
+    if (!mounted) return;
+    if (subscribed) {
+      await _completeOnboarding();
+      return;
+    }
+    await _showSubscriptionUpsellModal();
+  }
+
+  Future<void> _showSubscriptionUpsellModal() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color(0x801C1917),
+      builder: (modalContext) {
+        return _OnboardingSubscriptionUpsellModal(
+          onMaybeLater: () {
+            Navigator.of(modalContext).pop();
+            _completeOnboarding();
+          },
+          onSubscribe: () {
+            Navigator.of(modalContext).pop();
+            final returnTo = Uri.encodeComponent('/');
+            context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
+          },
+        );
+      },
+    );
   }
 
   Future<void> _onDeepenTap() async {
@@ -700,7 +749,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
                   color: AuthTheme.gold,
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
-                    onTap: _completeOnboarding,
+                    onTap: _onContinueTap,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -760,6 +809,283 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _OnboardingSubscriptionUpsellModal extends StatefulWidget {
+  const _OnboardingSubscriptionUpsellModal({
+    required this.onMaybeLater,
+    required this.onSubscribe,
+  });
+
+  final VoidCallback onMaybeLater;
+  final VoidCallback onSubscribe;
+
+  @override
+  State<_OnboardingSubscriptionUpsellModal> createState() =>
+      _OnboardingSubscriptionUpsellModalState();
+}
+
+class _OnboardingSubscriptionUpsellModalState
+    extends State<_OnboardingSubscriptionUpsellModal> {
+  bool _annualSelected = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 14 + bottomInset),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AuthTheme.stoneMid,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Pressable(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          color: AuthTheme.offWhite,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: AuthTheme.inkSoft,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text('Keep going.',
+                      style: GoogleFonts.cormorantGaramond(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w500,
+                        color: AuthTheme.ink,
+                        fontStyle: FontStyle.italic,
+                      )),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Subscribe to hear Part 2 or manifest\nsomething new (love, money, health, home, and more).',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      height: 1.4,
+                      color: AuthTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _planTile(
+                    title: 'Monthly',
+                    price: '\$14.99',
+                    period: '/mo',
+                    subtitle: 'Billed monthly · Cancel anytime',
+                    selected: !_annualSelected,
+                    onTap: () => setState(() => _annualSelected = false),
+                  ),
+                  const SizedBox(height: 10),
+                  _planTile(
+                    title: 'Yearly',
+                    price: '\$99.99',
+                    period: '/yr',
+                    subtitle: 'Billed annually · Cancel anytime',
+                    selected: _annualSelected,
+                    badge: 'SAVE 44%   only \$8.33/mo',
+                    onTap: () => setState(() => _annualSelected = true),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Material(
+                      color: AuthTheme.gold,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        onTap: widget.onSubscribe,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Subscribe & continue',
+                            style: GoogleFonts.outfit(
+                              fontSize: 24 / 1.6,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Pressable(
+                    onTap: widget.onMaybeLater,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 8),
+                      child: Text(
+                        'Maybe later',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          color: AuthTheme.inkSoft,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Cancel anytime · One story every 24 hours',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: AuthTheme.inkSoft,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _planTile({
+    required String title,
+    required String price,
+    required String period,
+    required String subtitle,
+    required bool selected,
+    String? badge,
+    required VoidCallback onTap,
+  }) {
+    return Pressable(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 11),
+        decoration: BoxDecoration(
+          color: selected ? AuthTheme.goldPale : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AuthTheme.gold : AuthTheme.stoneMid,
+            width: selected ? 1.5 : 1.2,
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected ? AuthTheme.gold : AuthTheme.stoneMid,
+                      width: 2,
+                    ),
+                  ),
+                  child: selected
+                      ? const Center(
+                          child: SizedBox(
+                            width: 8,
+                            height: 8,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AuthTheme.gold,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.outfit(
+                      fontSize: 28 / 2,
+                      fontWeight: FontWeight.w700,
+                      color: AuthTheme.ink,
+                    ),
+                  ),
+                ),
+                Text(
+                  price,
+                  style: GoogleFonts.outfit(
+                    fontSize: 34 / 2,
+                    fontWeight: FontWeight.w800,
+                    color: AuthTheme.ink,
+                  ),
+                ),
+                Text(
+                  period,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AuthTheme.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+            if (badge != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const SizedBox(width: 26),
+                  Text(
+                    badge,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AuthTheme.gold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 3),
+            Row(
+              children: [
+                const SizedBox(width: 26),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AuthTheme.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

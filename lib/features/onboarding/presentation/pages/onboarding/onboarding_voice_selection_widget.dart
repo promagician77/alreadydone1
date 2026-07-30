@@ -100,25 +100,9 @@ class _OnboardingVoiceSelectionWidgetState
       if (mounted) context.go('/login?welcomeBack=true');
       return false;
     }
-
-    bool isSubscribed = false;
-    try {
-      final profile = await profileRepository.getUserProfile(userId);
-      final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-          ?.toString()
-          .toLowerCase()
-          .trim();
-      isSubscribed = status == 'active' || status == 'trial';
-    } catch (_) {
-      isSubscribed = false;
-    }
-
-    if (isSubscribed) return true;
-
-    if (!mounted) return false;
-    final returnTo = Uri.encodeComponent(OnboardingVoiceSelectionWidget.routePath);
-    context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-    return false;
+    // Updated flow: allow non-subscribed users to continue to player.
+    // Subscription upsell is now shown on onboarding player as a bottom modal.
+    return true;
   }
 
   @override
