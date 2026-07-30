@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 enum OnboardingGuideIconKind {
   person,
   grid3x3,
+  mic,
 }
 
 /// Copy and icons for onboarding guide bottom sheets (matches design reference).
@@ -47,6 +48,18 @@ class OnboardingGuideContent {
       'Choose Love, Money, Career, Health, Home, or Personal Growth',
       'Describe it in present tense',
       'Be specific and emotional',
+    ],
+  );
+
+  static const voiceSelect = OnboardingGuideContent(
+    iconKind: OnboardingGuideIconKind.mic,
+    title: 'Choose your voice',
+    body:
+        'Clone your own voice for the most personal experience, or pick from '
+        'our pre-made voices to start instantly.',
+    bullets: [
+      'My Voice - clone yours in 30 seconds',
+      'Pre-made voices - start instantly',
     ],
   );
 }

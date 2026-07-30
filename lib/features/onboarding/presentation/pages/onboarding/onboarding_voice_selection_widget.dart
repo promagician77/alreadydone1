@@ -4,6 +4,9 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '/flutter_flow/flutter_flow_util.dart';
+import '/flutter_flow/nav/nav.dart';
+import '../../widgets/onboarding_guide_content.dart';
+import '../../widgets/onboarding_guide_modal.dart';
 import '/shared/theme/auth_theme.dart';
 import '/core/network/backend_client.dart';
 import '/core/di/profile_locator.dart';
@@ -75,6 +78,20 @@ class _OnboardingVoiceSelectionWidgetState
       if (t.$1 == _selectedId) return t.$2;
     }
     return 'My Voice';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowGuideModal());
+  }
+
+  void _maybeShowGuideModal() {
+    if (!mounted) return;
+    final showGuide =
+        GoRouterState.of(context).uri.queryParameters['guide'] == 'voiceSelect';
+    if (!showGuide) return;
+    OnboardingGuideModal.show(context, OnboardingGuideContent.voiceSelect);
   }
 
   Future<bool> _ensureSubscribedForVoiceGeneration() async {

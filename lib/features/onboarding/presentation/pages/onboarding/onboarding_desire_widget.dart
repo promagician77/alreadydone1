@@ -434,7 +434,9 @@ class _OnboardingDesireWidgetState extends State<OnboardingDesireWidget> {
 
         await _state.persistToPrefs(OnboardingVoiceSelectionWidget.routePath);
         if (mounted) {
-          context.go(OnboardingVoiceSelectionWidget.routePath);
+          context.go(
+            '${OnboardingVoiceSelectionWidget.routePath}?guide=voiceSelect',
+          );
         }
       }
     } catch (e) {

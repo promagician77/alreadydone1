@@ -158,6 +158,12 @@ class _OnboardingGuideSheet extends StatelessWidget {
         );
       case OnboardingGuideIconKind.grid3x3:
         return const _Grid3x3Icon(size: 24, color: AuthTheme.gold);
+      case OnboardingGuideIconKind.mic:
+        return Icon(
+          Icons.mic_none_rounded,
+          size: 24,
+          color: AuthTheme.gold,
+        );
     }
   }
 
