@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Keeps story audio playing while the screen is off/locked (MediaPlayer PARTIAL_WAKE_LOCK). -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- audio_service: media-playback foreground service backing the lock-screen controls. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
 
 
     <application
@@ -52,6 +55,28 @@
             </intent-filter>
 
         </activity>
+
+        <!-- audio_service: hosts playback so it survives backgrounding and
+             renders the media notification / lock-screen controls. -->
+        <service
+            android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true"
+            tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
+        <!-- audio_service: routes headset/bluetooth media buttons. -->
+        <receiver
+            android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+            android:exported="true"
+            tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
 
         <!-- FCM: use this channel for notifications (app creates it at runtime) -->
         <meta-data

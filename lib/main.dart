@@ -26,6 +26,7 @@ import '/shared/services/server_toast.dart';
 import '/core/network/backend_client.dart';
 import '/shared/services/supabase_service.dart';
 import '/shared/services/sleep_mode_notifier.dart';
+import '/shared/services/story_audio_handler.dart';
 import '/shared/services/nav_lock_notifier.dart';
 import '/shared/services/shell_player_navigation.dart';
 import '/shared/widgets/pressable.dart';
@@ -68,6 +69,12 @@ Future<void> _initializeAppCritical() async {
   debugPrint('🔍 Initializing AuthListener...');
   AppStateNotifier.instance.initAuthListener();
   debugPrint('✅ AuthListener initialized successfully');
+
+  // Must run before runApp: the media session owns the story players, and
+  // pages resolve them synchronously in initState.
+  debugPrint('🔍 Initializing AudioService...');
+  await initStoryAudio();
+  debugPrint('✅ AudioService initialized');
 }
 
 Future<void> _initializeAppDeferred() async {

@@ -22,6 +22,7 @@ import '/features/profile/domain/profile_day_streak.dart';
 import '/features/subscription/data/datasources/revenuecat_service.dart';
 import '/shared/services/shell_player_navigation.dart';
 import '/shared/services/sleep_mode_notifier.dart';
+import '/shared/services/story_audio_handler.dart';
 import '/shared/services/supabase_service.dart';
 import 'home_dashboard_colors.dart';
 import 'home_dashboard_model.dart';
@@ -44,7 +45,19 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey _homeBodyStackKey = GlobalKey();
   final GlobalKey _addManifestationButtonKey = GlobalKey();
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  /// Shared with the media session — never constructed or disposed here, so
+  /// playback started from Home also gets lock-screen controls.
+  AudioPlayer get _audioPlayer => storyAudio.voicePlayer;
+
+  static const String _ownerTag = 'home';
+
+  /// True when the shared player is playing audio this page started.
+  bool get _ownsPlayback => storyAudio.currentOwner == _ownerTag;
+
+  StreamSubscription<void>? _completeSub;
+  StreamSubscription<Duration>? _durationSub;
+  StreamSubscription<Duration>? _positionSub;
+
   late final AnimationController _idleWaveController;
   late final AnimationController _manifestCoachPulseController;
   bool _showNewManifestationCoachmark = false;
@@ -55,11 +68,7 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     super.initState();
     _model = createModel(context, () => HomeDashboardModel());
     _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
-    // Keeps playback alive when the screen is locked / app is backgrounded.
-    // Android: PARTIAL_WAKE_LOCK. iOS: relies on the `audio` UIBackgroundMode.
-    _audioPlayer.setAudioContext(
-      AudioContextConfig(respectSilence: false, stayAwake: true).build(),
-    );
+    storyAudio.applyAudioContext();
     _idleWaveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -71,8 +80,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     newManifestationCoachmarkVisible.addListener(_syncManifestCoachPulse);
     newManifestationCoachmarkOnHomeTabDuringCoachmark =
         _onHomeTabDuringCoachmark;
-    _audioPlayer.onPlayerComplete.listen((_) {
-      if (mounted) {
+    // The player is shared with the Player page now, so ignore events for
+    // audio this page did not start, and cancel on dispose — the player
+    // outlives the widget and would otherwise keep these alive forever.
+    _completeSub = _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted && _ownsPlayback) {
         safeSetState(() {
           _model.isPlaying = false;
           _model.playingStoryId = null;
@@ -80,9 +92,9 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         });
       }
     });
-    _audioPlayer.onDurationChanged.listen((d) {
+    _durationSub = _audioPlayer.onDurationChanged.listen((d) {
       final sid = _model.playingStoryId;
-      if (sid != null && mounted) {
+      if (sid != null && mounted && _ownsPlayback) {
         final expectedSeconds =
             HomeDashboardStoryUtils.storyDurationSecondsById(
                   sid,
@@ -98,8 +110,10 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         });
       }
     });
-    _audioPlayer.onPositionChanged.listen((p) {
-      if (mounted) safeSetState(() => _model.playbackPosition = p);
+    _positionSub = _audioPlayer.onPositionChanged.listen((p) {
+      if (mounted && _ownsPlayback) {
+        safeSetState(() => _model.playbackPosition = p);
+      }
     });
     _loadData().then((_) {
       if (mounted) unawaited(_maybeShowNewManifestationCoachmark());
@@ -338,7 +352,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     newManifestationCoachmarkVisible.value = false;
     _manifestCoachPulseController.dispose();
     _idleWaveController.dispose();
-    _audioPlayer.dispose();
+    // The player belongs to the media session and outlives this page, so only
+    // the subscriptions are torn down here.
+    _completeSub?.cancel();
+    _durationSub?.cancel();
+    _positionSub?.cancel();
     _model.dispose();
     super.dispose();
   }
@@ -395,12 +413,14 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   Future<void> _toggleStoryPlayPause(Map<String, dynamic> story) async {
     final storyId = HomeDashboardStoryUtils.storyIdFromMap(story);
     if (storyId == null) return;
-    if (_model.playingStoryId == storyId && _model.isPlaying) {
+    // Only pause/resume in place while this page still owns the shared player;
+    // otherwise fall through and load the story from the start.
+    if (_ownsPlayback && _model.playingStoryId == storyId && _model.isPlaying) {
       await _audioPlayer.pause();
       if (mounted) safeSetState(() => _model.isPlaying = false);
       return;
     }
-    if (_model.playingStoryId == storyId) {
+    if (_ownsPlayback && _model.playingStoryId == storyId) {
       await _audioPlayer.resume();
       if (mounted) safeSetState(() => _model.isPlaying = true);
       return;
@@ -429,6 +449,15 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
       _model.playbackDuration = Duration(seconds: expectedSeconds);
     });
     final urlToPlay = HomeDashboardStoryUtils.cacheBustUrlIfSafe(playUrl);
+    storyAudio.currentOwner = _ownerTag;
+    storyAudio.setNowPlaying(
+      id: urlToPlay,
+      title: (story['theme'] ?? story['title'] ?? story['desire_name'] ?? 'Your Story')
+          .toString(),
+      album: (story['desire_name'] ?? story['category'] ?? 'Story').toString(),
+      duration:
+          expectedSeconds > 0 ? Duration(seconds: expectedSeconds) : null,
+    );
     await _audioPlayer.play(
       UrlSource(urlToPlay),
       mode: PlayerMode.mediaPlayer,

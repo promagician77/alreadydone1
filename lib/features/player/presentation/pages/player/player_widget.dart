@@ -6,6 +6,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import 'package:flutter/material.dart';
 import '/shared/services/sleep_mode_notifier.dart';
+import '/shared/services/story_audio_handler.dart';
 import '/shared/services/nav_lock_notifier.dart';
 import '/core/di/player_locator.dart';
 import '/core/di/profile_locator.dart';
@@ -76,9 +77,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey _playerBodyStackKey = GlobalKey();
   final GlobalKey _settingsCoachmarkButtonKey = GlobalKey();
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  /// Shared with the media session — never construct or dispose these here, or
+  /// the lock-screen controls lose their player.
+  AudioPlayer get _audioPlayer => storyAudio.voicePlayer;
 
-  final AudioPlayer _thetaTrackPlayer = AudioPlayer();
+  AudioPlayer get _thetaTrackPlayer => storyAudio.thetaPlayer;
 
   StreamSubscription? _playerCompleteSub;
   StreamSubscription? _durationChangedSub;
@@ -247,20 +250,53 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (mounted) await _maybeShowDoneLibraryCoachmark();
   }
 
-  AudioContext _buildMixAudioContext() {
-    return AudioContextConfig(
-      focus: AudioContextConfigFocus.mixWithOthers,
-      respectSilence: false,
-      // Keeps playback alive when the screen is locked / app is backgrounded.
-      // Android: PARTIAL_WAKE_LOCK. iOS: relies on the `audio` UIBackgroundMode.
-      stayAwake: true,
-    ).build();
+  Future<void> _applyMixContext() => storyAudio.applyAudioContext();
+
+  /// Pushes the current story to the lock screen / notification shade. Call
+  /// before any playback starts, and again whenever the loaded story changes.
+  void _publishNowPlaying() {
+    final url = _playUrl?.trim();
+    if (url == null || url.isEmpty) return;
+    storyAudio.currentOwner = _ownerTag;
+    storyAudio.setNowPlaying(
+      id: url,
+      title: _title ?? 'Your Story',
+      album: _categoryLabel,
+      artist: _voiceLabel,
+      duration:
+          _effectiveDuration > Duration.zero ? _effectiveDuration : null,
+      hasStoryNav: _currentStoryId != null,
+    );
   }
 
-  Future<void> _applyMixContext() async {
-    final ctx = _buildMixAudioContext();
-    await _audioPlayer.setAudioContext(ctx);
-    await _thetaTrackPlayer.setAudioContext(ctx);
+  static const String _ownerTag = 'player';
+
+  /// Wires the lock-screen buttons to the same code paths as the on-screen
+  /// controls, so sleep-mode volumes and story switching stay consistent.
+  void _bindRemoteControls() {
+    storyAudio
+      ..onPlayRequested = () async {
+        if (!_isPlaying) await _togglePlayPause();
+      }
+      ..onPauseRequested = () async {
+        if (_isPlaying) await _togglePlayPause();
+      }
+      ..onSkipNextRequested = () async {
+        if (_currentStoryId != null) await _skipToNextStory();
+      }
+      ..onSkipPreviousRequested = () async {
+        if (_currentStoryId != null) await _skipToPreviousStory();
+      }
+      ..onSeekRequested = (position) => _audioPlayer.seek(position);
+  }
+
+  void _unbindRemoteControls() {
+    storyAudio
+      ..onPlayRequested = null
+      ..onPauseRequested = null
+      ..onSkipNextRequested = null
+      ..onSkipPreviousRequested = null
+      ..onSeekRequested = null;
   }
 
   @override
@@ -279,6 +315,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _thetaTrackPlayer.setReleaseMode(ReleaseMode.loop);
 
     _applyMixContext();
+    _bindRemoteControls();
 
     _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) async {
       final wasSleepMode = _sleepModeActive;
@@ -666,6 +703,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted || _disposed) return;
         await _applyMixContext();
+        _publishNowPlaying();
         await _audioPlayer.play(
           PlayerStoryUtils.urlSource(url, contentType: _playContentType),
           mode: PlayerMode.mediaPlayer,
@@ -688,6 +726,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
       sleepModeNotifier.value = true;
       _sleepModeStartedAt = DateTime.now();
     });
+
+    _publishNowPlaying();
 
     await _audioPlayer.setReleaseMode(
         _loopEnabled ? ReleaseMode.loop : ReleaseMode.stop);
@@ -789,6 +829,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _audioPlayer.setPlaybackRate(_normalPlaybackRate);
     _audioPlayer.setVolume(1.0);
     _audioPlayer.stop();
+    unawaited(storyAudio.clearNowPlaying());
 
     _stopThetaBackground();
 
@@ -865,8 +906,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _loopNotifier.dispose();
     _speedLabelNotifier.dispose();
     _backgroundSoundNameNotifier.dispose();
-    _audioPlayer.dispose();
-    _thetaTrackPlayer.dispose();
+    // The players belong to the media session and outlive this page, so they
+    // are not disposed here — narration keeps playing after navigating away.
+    // Dropping the callbacks makes the handler fall back to driving the player
+    // directly, which keeps the lock-screen buttons working.
+    _unbindRemoteControls();
     _model.dispose();
     doneLibraryCoachmarkOnDoneTabDismiss = null;
     doneLibraryCoachmarkVisible.value = false;
@@ -890,6 +934,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         if (mounted) setState(() => _isPlaying = false);
       } else {
         await _applyMixContext();
+        _publishNowPlaying();
         final effectiveDuration = _effectiveDuration;
         if (_position == Duration.zero ||
             (effectiveDuration > Duration.zero &&
@@ -1080,6 +1125,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         voiceId: storyVoiceId,
       );
 
+      _publishNowPlaying();
       await _audioPlayer.stop();
       await _audioPlayer.setSource(
         PlayerStoryUtils.urlSource(playUrl, contentType: _playContentType),
@@ -1194,6 +1240,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _normalPlaybackRate = selected;
       });
       _speedLabelNotifier.value = _normalSpeedLabel;
+      storyAudio.updateSpeed(_normalPlaybackRate);
       if (!_sleepModeActive && _isPlaying) {
         await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
       }
@@ -1249,6 +1296,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _normalPlaybackRate = selected;
       });
       _speedLabelNotifier.value = _normalSpeedLabel;
+      storyAudio.updateSpeed(_normalPlaybackRate);
       if (_sleepModeActive) {
         await _audioPlayer.setPlaybackRate(_normalPlaybackRate);
       }
@@ -1588,6 +1636,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       });
 
       if (newAudioUrl != null && newAudioUrl.isNotEmpty) {
+        _publishNowPlaying();
         try {
           final source = PlayerStoryUtils.urlSource(
             newAudioUrl,

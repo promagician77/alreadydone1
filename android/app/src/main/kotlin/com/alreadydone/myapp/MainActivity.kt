@@ -1,6 +1,9 @@
 package com.alreadydone.myapp
 
-import io.flutter.embedding.android.FlutterFragmentActivity
+import com.ryanheise.audioservice.AudioServiceFragmentActivity
 
-class MainActivity : FlutterFragmentActivity() {
+// AudioServiceFragmentActivity extends FlutterFragmentActivity, so plugins that
+// require a FragmentActivity keep working while audio_service can bind playback
+// to this activity.
+class MainActivity : AudioServiceFragmentActivity() {
 }
