@@ -19,7 +19,6 @@ import '/shared/services/ai_consent_service.dart';
 import '/shared/widgets/pressable.dart';
 import '/shared/state/onboarding_state.dart';
 import 'onboarding_player_widget.dart';
-import 'onboarding_splash_widget.dart';
 import 'onboarding_voice_selection_widget.dart';
 import 'celebration_overlay.dart';
 import '/shared/widgets/recording_circle.dart';
@@ -164,20 +163,6 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    final shouldAutoUpload = _state.autoUploadVoiceCloneOnNextEntry;
-    _state.autoUploadVoiceCloneOnNextEntry = false;
-    final savedPath = _state.recordedVoiceFilePath;
-    if (shouldAutoUpload && savedPath != null && savedPath.isNotEmpty) {
-      final saved = File(savedPath);
-      if (saved.existsSync()) {
-        _recordedFile = saved;
-        _isComplete = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _uploadAndContinue();
-        });
-      }
-    }
-
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowGuideModal());
   }
 
@@ -271,23 +256,6 @@ class _OnboardingVoiceWidgetState extends State<OnboardingVoiceWidget>
     final userId = await SupabaseService.getCurrentUserTableId();
     if (userId == null) {
       AppToast.error(context, 'Please sign in to upload your voice.');
-      return;
-    }
-
-    bool isSubscribed = false;
-    try {
-      final profile = await profileRepository.getUserProfile(userId);
-      final status = (profile['rc_subscription_status'] ?? profile['rc_subscription_Status'])
-          ?.toString()
-          .toLowerCase()
-          .trim();
-      isSubscribed = status == 'active' || status == 'trial';
-    } catch (_) {}
-    if (!isSubscribed) {
-      if (!mounted) return;
-      _state.autoUploadVoiceCloneOnNextEntry = true;
-      final returnTo = Uri.encodeComponent(OnboardingVoiceWidget.routePath);
-      context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
       return;
     }
 
