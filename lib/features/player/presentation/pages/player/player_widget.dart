@@ -251,6 +251,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return AudioContextConfig(
       focus: AudioContextConfigFocus.mixWithOthers,
       respectSilence: false,
+      // Keeps playback alive when the screen is locked / app is backgrounded.
+      // Android: PARTIAL_WAKE_LOCK. iOS: relies on the `audio` UIBackgroundMode.
+      stayAwake: true,
     ).build();
   }
 

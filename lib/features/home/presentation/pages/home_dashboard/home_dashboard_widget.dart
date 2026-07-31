@@ -55,6 +55,11 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     super.initState();
     _model = createModel(context, () => HomeDashboardModel());
     _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
+    // Keeps playback alive when the screen is locked / app is backgrounded.
+    // Android: PARTIAL_WAKE_LOCK. iOS: relies on the `audio` UIBackgroundMode.
+    _audioPlayer.setAudioContext(
+      AudioContextConfig(respectSilence: false, stayAwake: true).build(),
+    );
     _idleWaveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
