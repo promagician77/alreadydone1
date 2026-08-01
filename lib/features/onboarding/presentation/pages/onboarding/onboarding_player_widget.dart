@@ -192,6 +192,15 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     _audioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
     // Mark that the user has generated their first story so relaunch routing works.
     OnboardingService.setFirstStoryGenerated();
+    // Prefetch so pause/complete can open the upsell without waiting on profile I/O.
+    _isUserSubscribed();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      final playing = state == PlayerState.playing;
+      if (_isPlaying != playing) {
+        setState(() => _isPlaying = playing);
+      }
+    });
     _audioPlayer.onPlayerComplete.listen((_) {
       if (!mounted) return;
       setState(() {
@@ -234,29 +243,34 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       return;
     }
 
-    try {
-      if (_isPlaying) {
+    // Don't resume while the upsell is opening / visible.
+    if (!_isPlaying && _subscriptionModalOpen) return;
+
+    if (_isPlaying) {
+      // Always pause + attempt upsell; don't let a pause platform error skip the modal.
+      try {
         await _audioPlayer.pause();
-        if (mounted) setState(() => _isPlaying = false);
-        await _maybeShowSubscriptionUpsell();
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() => _isPlaying = false);
+      await _maybeShowSubscriptionUpsell();
+      return;
+    }
+
+    try {
+      final atStart = _position == Duration.zero;
+      final effectiveDuration = _effectiveDuration;
+      final atEnd =
+          effectiveDuration > Duration.zero && _position >= effectiveDuration;
+      if (atStart || atEnd) {
+        await _audioPlayer.play(
+          UrlSource(url),
+          mode: PlayerMode.mediaPlayer,
+        );
       } else {
-        final atStart = _position == Duration.zero;
-        final effectiveDuration = _effectiveDuration;
-        final atEnd =
-            effectiveDuration > Duration.zero && _position >= effectiveDuration;
-        if (atStart || atEnd) {
-          await _audioPlayer.play(
-            UrlSource(url),
-            mode: PlayerMode.mediaPlayer,
-          );
-          if (mounted) setState(() {
-            _isPlaying = true;
-          });
-        } else {
-          await _audioPlayer.resume();
-          if (mounted) setState(() => _isPlaying = true);
-        }
+        await _audioPlayer.resume();
       }
+      if (mounted) setState(() => _isPlaying = true);
     } catch (e) {
       if (mounted) {
         AppToast.error(context, 'Playback failed: $e');
@@ -321,7 +335,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     return _isSubscribed!;
   }
 
-  /// Shows once after pause/stop or when playback finishes, for non-subscribers.
+  /// Shows once after pause or when playback finishes, for non-subscribers.
   Future<void> _maybeShowSubscriptionUpsell() async {
     if (!mounted ||
         _subscriptionUpsellShown ||
@@ -329,18 +343,19 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
         _isDeepening) {
       return;
     }
-    final subscribed = await _isUserSubscribed();
-    if (!mounted || subscribed) return;
-
-    _subscriptionUpsellShown = true;
+    // Claim the gate before the profile await so pause + complete can't race.
     _subscriptionModalOpen = true;
     var subscribeTapped = false;
     try {
+      final subscribed = await _isUserSubscribed();
+      if (!mounted || subscribed) return;
+
+      _subscriptionUpsellShown = true;
       subscribeTapped = await showSubscriptionUpsellModal(context);
     } finally {
       _subscriptionModalOpen = false;
     }
-    if (!mounted) return;
+    if (!mounted || !_subscriptionUpsellShown) return;
 
     if (subscribeTapped) {
       // Paywall; after a successful subscribe it returns to "What's next".
