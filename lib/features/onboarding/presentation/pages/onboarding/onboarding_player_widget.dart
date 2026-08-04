@@ -14,7 +14,6 @@ import '/shared/services/supabase_service.dart';
 import '/shared/widgets/pressable.dart';
 import '/shared/widgets/subscription_upsell_modal.dart';
 import '/features/desires/presentation/pages/desires/desires_widget.dart';
-import 'onboarding_splash_widget.dart';
 import 'onboarding_whats_next_widget.dart';
 import '/shared/state/onboarding_state.dart';
 
@@ -336,6 +335,7 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
   }
 
   /// Shows once after pause or when playback finishes, for non-subscribers.
+  /// Subscribe succeeds in-sheet → What's Next; decline → Desires library.
   Future<void> _maybeShowSubscriptionUpsell() async {
     if (!mounted ||
         _subscriptionUpsellShown ||
@@ -345,31 +345,32 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
     }
     // Claim the gate before the profile await so pause + complete can't race.
     _subscriptionModalOpen = true;
-    var subscribeTapped = false;
+    SubscriptionUpsellOutcome? outcome;
     try {
       final subscribed = await _isUserSubscribed();
       if (!mounted || subscribed) return;
 
       _subscriptionUpsellShown = true;
-      subscribeTapped = await showSubscriptionUpsellModal(context);
+      outcome = await showSubscriptionUpsellModal(context);
     } finally {
       _subscriptionModalOpen = false;
     }
-    if (!mounted || !_subscriptionUpsellShown) return;
+    if (!mounted || !_subscriptionUpsellShown || outcome == null) return;
 
-    if (subscribeTapped) {
-      // Paywall; after a successful subscribe it returns to "What's next".
-      final returnTo = Uri.encodeComponent(OnboardingWhatsNextWidget.routePath);
-      context.go('${OnboardingSplashWidget.routePath}?returnTo=$returnTo');
-    } else {
-      // Declined: finish onboarding and show the library with their first story.
-      try {
-        await _audioPlayer.stop();
-      } catch (_) {}
-      await OnboardingService.setOnboardingCompleted();
-      await NewManifestationCoachmarkPrefs.setPendingAfterOnboardingComplete();
-      if (mounted) context.go(DesiresWidget.routePath);
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
+
+    if (outcome == SubscriptionUpsellOutcome.subscribed) {
+      _isSubscribed = true;
+      if (mounted) context.go(OnboardingWhatsNextWidget.routePath);
+      return;
     }
+
+    // Declined: finish onboarding and show the library with their first story.
+    await OnboardingService.setOnboardingCompleted();
+    await NewManifestationCoachmarkPrefs.setPendingAfterOnboardingComplete();
+    if (mounted) context.go(DesiresWidget.routePath);
   }
 
   Future<void> _onDeepenTap() async {

@@ -16,9 +16,8 @@ const _line = Color(0xFFE6E2D9);
 const _bg = Color(0xFFF5F3EE);
 const _surface = Colors.white;
 
-/// Shown right after a successful subscription from the onboarding player
-/// upsell: lets the user continue with Part 2 (deepen) or start a new
-/// manifestation.
+/// Shown right after a successful in-sheet subscription from the onboarding
+/// player upsell: continue with Part 2 (deepen) or start a new manifestation.
 class OnboardingWhatsNextWidget extends StatelessWidget {
   const OnboardingWhatsNextWidget({super.key});
 

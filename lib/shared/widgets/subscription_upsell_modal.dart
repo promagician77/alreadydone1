@@ -1,39 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/features/subscription/data/datasources/subscription_checkout.dart';
+import '/shared/services/app_toast.dart';
+import '/shared/services/onboarding_service.dart';
 import '/shared/widgets/pressable.dart';
 
+/// Result of the onboarding subscription upsell sheet.
+enum SubscriptionUpsellOutcome {
+  /// User subscribed successfully in the modal.
+  subscribed,
+
+  /// User tapped Maybe later / close / barrier (skip subscribe).
+  declined,
+}
+
 /// Shows the "Keep going." subscription upsell bottom sheet.
-/// Returns true when the user tapped "Subscribe & continue"; false when they
-/// dismissed it (Maybe later, close button, or barrier tap).
-Future<bool> showSubscriptionUpsellModal(BuildContext context) async {
-  var subscribeTapped = false;
-  await showModalBottomSheet<void>(
+/// Purchase happens in-sheet; on success the caller should go to What's Next.
+Future<SubscriptionUpsellOutcome> showSubscriptionUpsellModal(
+  BuildContext context,
+) async {
+  final outcome = await showModalBottomSheet<SubscriptionUpsellOutcome>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: const Color(0x801C1917),
-    builder: (modalContext) {
-      return SubscriptionUpsellModal(
-        onMaybeLater: () => Navigator.of(modalContext).pop(),
-        onSubscribe: () {
-          subscribeTapped = true;
-          Navigator.of(modalContext).pop();
-        },
-      );
-    },
+    isDismissible: true,
+    enableDrag: true,
+    builder: (modalContext) => const SubscriptionUpsellModal(),
   );
-  return subscribeTapped;
+  return outcome ?? SubscriptionUpsellOutcome.declined;
 }
 
 class SubscriptionUpsellModal extends StatefulWidget {
-  const SubscriptionUpsellModal({
-    super.key,
-    required this.onMaybeLater,
-    required this.onSubscribe,
-  });
-
-  final VoidCallback onMaybeLater;
-  final VoidCallback onSubscribe;
+  const SubscriptionUpsellModal({super.key});
 
   @override
   State<SubscriptionUpsellModal> createState() =>
@@ -52,155 +51,240 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
   static const _bg = Color(0xFFF5F3EE);
 
   bool _annualSelected = true;
+  bool _isPurchasing = false;
+
+  void _pop(SubscriptionUpsellOutcome outcome) {
+    if (!mounted || _isPurchasing) return;
+    Navigator.of(context).pop(outcome);
+  }
+
+  Future<void> _handleSubscribe() async {
+    if (_isPurchasing) return;
+    setState(() => _isPurchasing = true);
+
+    final wantAnnual = _annualSelected;
+    final result = await SubscriptionCheckout.purchase(
+      wantAnnual: wantAnnual,
+      logScope: 'OnboardingUpsell',
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case SubscriptionCheckoutResult.success:
+        AppToast.success(
+          context,
+          wantAnnual ? '3-day free trial started!' : 'Subscription active!',
+        );
+        await OnboardingService.setOnboardingCompleted();
+        if (!mounted) return;
+        setState(() => _isPurchasing = false);
+        Navigator.of(context).pop(SubscriptionUpsellOutcome.subscribed);
+        return;
+      case SubscriptionCheckoutResult.unsupported:
+        AppToast.error(
+          context,
+          'Subscriptions are available on the App Store (iPhone/iPad) and Google Play (Android). Please use a supported device.',
+        );
+      case SubscriptionCheckoutResult.notSignedIn:
+        AppToast.error(context, 'Please sign in to subscribe');
+      case SubscriptionCheckoutResult.packageNotFound:
+        AppToast.error(context, 'Plans not available. Please try later.');
+      case SubscriptionCheckoutResult.cancelled:
+        AppToast.info(
+          context,
+          'Subscription not started. Tap again and complete both Apple ID and the subscription step.',
+        );
+      case SubscriptionCheckoutResult.failed:
+        AppToast.error(context, 'Payment failed. Please try again.');
+    }
+
+    if (mounted) setState(() => _isPurchasing = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1C1917).withValues(alpha: 0.15),
-                blurRadius: 40,
-                offset: const Offset(0, -12),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: Stack(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(20, 20, 20, 24 + bottomInset),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1C1917).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildMiniWave(),
-                      const SizedBox(height: 14),
-                      _buildTitle(),
-                      const SizedBox(height: 8),
-                      _buildSubtitle(),
-                      const SizedBox(height: 20),
-                      _planTile(
-                        title: 'Monthly',
-                        price: '\$14.99',
-                        period: '/mo',
-                        subtitle: 'Billed monthly · Cancel anytime',
-                        selected: !_annualSelected,
-                        onTap: () => setState(() => _annualSelected = false),
-                      ),
-                      const SizedBox(height: 10),
-                      _planTile(
-                        title: 'Yearly',
-                        price: '\$99.99',
-                        period: '/yr',
-                        subtitle: 'Billed annually · Cancel anytime',
-                        selected: _annualSelected,
-                        showSaveBadge: true,
-                        onTap: () => setState(() => _annualSelected = true),
-                      ),
-                      const SizedBox(height: 16),
-                      Pressable(
-                        onTap: widget.onSubscribe,
-                        borderRadius: BorderRadius.circular(14),
-                        scaleDownTo: 0.98,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          decoration: BoxDecoration(
-                            color: _gold,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _gold.withValues(alpha: 0.35),
-                                blurRadius: 14,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            'Subscribe & continue',
-                            style: GoogleFonts.outfit(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Pressable(
-                        onTap: widget.onMaybeLater,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 8,
-                          ),
-                          child: Text(
-                            'Maybe later',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: _inkSoft,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Cancel anytime · One story every 24 hours',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w400,
-                          color: _inkSoft,
-                          letterSpacing: 0.2,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
+    final ctaLabel = _annualSelected
+        ? 'Start 3-Day Free Trial'
+        : 'Subscribe & continue';
+
+    return PopScope(
+      canPop: !_isPurchasing,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1C1917).withValues(alpha: 0.15),
+                  blurRadius: 40,
+                  offset: const Offset(0, -12),
                 ),
-                Positioned(
-                  top: 14,
-                  right: 14,
-                  child: Pressable(
-                    onTap: () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(15),
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: const BoxDecoration(
-                        color: _bg,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        size: 14,
-                        color: _inkSoft,
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Stack(
+                children: [
+                  Padding(
+                    padding:
+                        EdgeInsets.fromLTRB(20, 20, 20, 24 + bottomInset),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1C1917)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildMiniWave(),
+                        const SizedBox(height: 14),
+                        _buildTitle(),
+                        const SizedBox(height: 8),
+                        _buildSubtitle(),
+                        const SizedBox(height: 20),
+                        _planTile(
+                          title: 'Monthly',
+                          price: '\$14.99',
+                          period: '/mo',
+                          subtitle: 'Billed monthly · Cancel anytime',
+                          selected: !_annualSelected,
+                          onTap: _isPurchasing
+                              ? null
+                              : () => setState(() => _annualSelected = false),
+                        ),
+                        const SizedBox(height: 10),
+                        _planTile(
+                          title: 'Yearly',
+                          price: '\$99.99',
+                          period: '/yr',
+                          subtitle: 'Billed annually · Cancel anytime',
+                          selected: _annualSelected,
+                          showSaveBadge: true,
+                          onTap: _isPurchasing
+                              ? null
+                              : () => setState(() => _annualSelected = true),
+                        ),
+                        const SizedBox(height: 16),
+                        Pressable(
+                          onTap: _isPurchasing ? null : _handleSubscribe,
+                          borderRadius: BorderRadius.circular(14),
+                          scaleDownTo: 0.98,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            decoration: BoxDecoration(
+                              color: _isPurchasing ? _goldDark : _gold,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _gold.withValues(alpha: 0.35),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: _isPurchasing
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    ctaLabel,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Pressable(
+                          onTap: _isPurchasing
+                              ? null
+                              : () => _pop(SubscriptionUpsellOutcome.declined),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 8,
+                            ),
+                            child: Text(
+                              'Maybe later',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: _inkSoft,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Cancel anytime · One story every 24 hours',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w400,
+                            color: _inkSoft,
+                            letterSpacing: 0.2,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 14,
+                    right: 14,
+                    child: Pressable(
+                      onTap: _isPurchasing
+                          ? null
+                          : () => _pop(SubscriptionUpsellOutcome.declined),
+                      borderRadius: BorderRadius.circular(15),
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: const BoxDecoration(
+                          color: _bg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: _inkSoft,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  if (_isPurchasing)
+                    Positioned.fill(
+                      child: AbsorbPointer(
+                        child: ColoredBox(
+                          color: Colors.white.withValues(alpha: 0.35),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -323,7 +407,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
     required String subtitle,
     required bool selected,
     bool showSaveBadge = false,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return Pressable(
       onTap: onTap,
