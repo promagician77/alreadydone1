@@ -377,9 +377,11 @@ class RevenueCatService {
     }
     _log('purchasePackage: START ${summarizePackage(package)}');
     try {
+      // purchases_flutter 9.x returns PurchaseResult; callers need CustomerInfo.
       final result = await Purchases.purchasePackage(package);
-      _log('purchasePackage: SUCCESS ${summarizeCustomerInfo(result)}');
-      return result;
+      final info = result.customerInfo;
+      _log('purchasePackage: SUCCESS ${summarizeCustomerInfo(info)}');
+      return info;
     } on PlatformException catch (e, st) {
       final code = PurchasesErrorHelper.getErrorCode(e);
       if (code == PurchasesErrorCode.purchaseCancelledError) {
