@@ -162,6 +162,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed) return _logRedirect('/', path, 'subscribed_after_auth');
           final completed = await OnboardingService.hasCompletedOnboarding();
+          // Completed (or returning user with stories) → home, not paywall/onboarding.
+          if (completed) return _logRedirect('/', path, 'auth_route_complete');
           // Not subscribed: if first story already generated → paywall
           if (await OnboardingService.hasGeneratedFirstStory()) {
             return OnboardingSplashWidget.routePath;
@@ -169,9 +171,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           // Resume mid-onboarding if a step was saved
           final savedStep = await OnboardingService.getSavedStep();
           if (savedStep != null) return savedStep;
-          // Check if onboarding completed without subscription
-          if (!completed) return OnboardingOriginSplashWidget.routePath;
-          return _logRedirect('/', path, 'auth_route_complete');
+          return OnboardingOriginSplashWidget.routePath;
         }
         if (isAuth && !isOnboardingRoute) {
           final subscribed = await _hasSubscribedStatusFromProfile();

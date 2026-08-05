@@ -72,10 +72,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
 
     switch (result) {
       case SubscriptionCheckoutResult.success:
-        AppToast.success(
-          context,
-          wantAnnual ? '3-day free trial started!' : 'Subscription active!',
-        );
+        AppToast.success(context, 'Subscription active!');
         await OnboardingService.setOnboardingCompleted();
         if (!mounted) return;
         setState(() => _isPurchasing = false);
@@ -105,9 +102,8 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final ctaLabel = _annualSelected
-        ? 'Start 3-Day Free Trial'
-        : 'Subscribe & continue';
+    final ctaLabel =
+        _annualSelected ? 'Subscribe to Yearly' : 'Subscribe to Monthly';
 
     return PopScope(
       canPop: !_isPurchasing,

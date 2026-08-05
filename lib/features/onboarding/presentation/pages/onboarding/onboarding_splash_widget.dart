@@ -96,7 +96,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                         const SizedBox(height: 20),
                         _buildWelcomeHero(),
                         const SizedBox(height: 16),
-                        _buildTrialBadge(),
+                        _buildPlanPromoBadge(),
                         const SizedBox(height: 20),
                         _buildPricingCards(),
                         const SizedBox(height: 20),
@@ -184,7 +184,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     );
   }
 
-  Widget _buildTrialBadge() {
+  Widget _buildPlanPromoBadge() {
     final annualSelected = _model.selectedPlan == 1;
     return Center(
       child: Container(
@@ -207,8 +207,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         ),
         child: Text(
           annualSelected
-              ? '✨ Start Your 3-Day Free Trial (Annual Plan)'
-              : '✨ Annual plan includes a 3-day free trial',
+              ? '✨ Best value — Yearly plan (save 44%)'
+              : '✨ Switch to Yearly and save 44%',
           style: GoogleFonts.outfit(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -228,7 +228,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           price: '\$14.99',
           period: '/month',
           isRecommended: false,
-          savingsLabel: 'No free trial',
+          savingsLabel: 'Billed monthly',
           features: const [
             'Daily manifestation stories',
             'Clone your own voice',
@@ -420,10 +420,10 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildCtaButton() {
-    final hasAnnualTrial = _model.selectedPlan == 1;
+    final wantAnnual = _model.selectedPlan == 1;
     final label = _model.isSubscribed
         ? 'Update Plan'
-        : (hasAnnualTrial ? 'Start 3-Day Free Trial' : 'Start Subscription');
+        : (wantAnnual ? 'Subscribe to Yearly' : 'Start Subscription');
     return _ctaButton(
       label: label,
       onTap: _handleConfirmPayment,
@@ -450,11 +450,10 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Future<void> _handleConfirmPayment() async {
     if (_model.isPaymentLoading) return;
-    final isStartTrial = _model.selectedPlan == 1;
 
     RevenueCatService.logFlow(
       'OnboardingPay',
-      '_handleConfirmPayment: start isStartTrial=$isStartTrial selectedPlan=${_model.selectedPlan}',
+      '_handleConfirmPayment: start selectedPlan=${_model.selectedPlan}',
     );
     if (!RevenueCatService.instance.isSupported) {
       RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: not supported');
@@ -537,10 +536,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       }
 
       RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: success');
-      AppToast.success(
-        context,
-        isStartTrial ? '3-day free trial started!' : 'Subscription active!',
-      );
+      AppToast.success(context, 'Subscription active!');
       await OnboardingService.setOnboardingCompleted();
       if (!mounted) return;
       _goAfterSubscribe(context);
@@ -585,10 +581,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                   'OnboardingPay',
                   'cancel workaround: recovered active subscription',
                 );
-                AppToast.success(
-                  context,
-                  isStartTrial ? '3-day free trial started!' : 'Subscription active!',
-                );
+                AppToast.success(context, 'Subscription active!');
                 await OnboardingService.setOnboardingCompleted();
                 if (!mounted) return;
                 _goAfterSubscribe(context);
@@ -610,7 +603,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
         );
         AppToast.info(
           context,
-          'Subscription not started. Tap Start Free Trial again and complete both Apple ID and the subscription step.',
+          'Subscription not started. Tap Subscribe again and complete both Apple ID and the subscription step.',
         );
       } else {
         RevenueCatService.logFlow(
@@ -713,8 +706,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
 
   Widget _buildSecondaryText() {
     return Text(
-      'Monthly: \$14.99 (no free trial).\n'
-      'Annual: 3 days free, then \$99.99/year ([SAVE 44%] -> only \$8.33/month).\n'
+      'Monthly: \$14.99.\n'
+      'Annual: \$99.99/year ([SAVE 44%] -> only \$8.33/month).\n'
       'Cancel anytime in settings.',
       style: GoogleFonts.outfit(
         fontSize: 11,

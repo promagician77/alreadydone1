@@ -146,7 +146,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       const SizedBox(height: 24),
                       _buildHero(),
                       const SizedBox(height: 24),
-                      _buildTrialBadge(),
+                      _buildPlanPromoBadge(),
                       const SizedBox(height: 20),
                       if (!_model.subscriptionStateLoaded)
                         _buildPricingCardsLoadingPlaceholder()
@@ -233,7 +233,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     );
   }
 
-  Widget _buildTrialBadge() {
+  Widget _buildPlanPromoBadge() {
     final annualSelected = _model.selectedPlan == 1;
     return Container(
       padding: const EdgeInsets.all(12),
@@ -254,8 +254,8 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       ),
       child: Text(
         annualSelected
-            ? '✨ Annual: 3-day free trial · \$99.99/year'
-            : 'Monthly: \$14.99 — no free trial',
+            ? '✨ Annual: \$99.99/year — save 44%'
+            : '✨ Monthly: \$14.99/month',
         style: GoogleFonts.outfit(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -301,7 +301,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             price: '\$99.99',
             period: '/year',
             savings: '[SAVE 44%] -> only \$8.33/month',
-            breakdown: '3-day free trial · Billed annually · Cancel anytime',
+            breakdown: 'Billed annually · Cancel anytime',
             features: features,
             isSelected: _model.selectedPlan == 1,
             onTap: () => safeSetState(() => _model.selectedPlan = 1),
@@ -312,7 +312,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             plan: 'Monthly',
             price: '\$14.99',
             period: '/month',
-            savings: 'No free trial',
+            savings: 'Billed monthly',
             breakdown: 'Billed monthly · Cancel anytime',
             features: features,
             isPopular: false,
@@ -332,7 +332,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             plan: 'Monthly',
             price: '\$14.99',
             period: '/month',
-            savings: 'No free trial',
+            savings: 'Billed monthly',
             breakdown: 'Billed monthly · Cancel anytime',
             features: features,
             isSelected: _model.selectedPlan == 0,
@@ -345,7 +345,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
             price: '\$99.99',
             period: '/year',
             savings: '[SAVE 44%] -> only \$8.33/month',
-            breakdown: '3-day free trial · Billed annually · Cancel anytime',
+            breakdown: 'Billed annually · Cancel anytime',
             features: features,
             isSelected: _model.selectedPlan == 1,
             onTap: () => safeSetState(() => _model.selectedPlan = 1),
@@ -362,7 +362,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           plan: 'Monthly',
           price: '\$14.99',
           period: '/month',
-          savings: 'No free trial',
+          savings: 'Billed monthly',
           breakdown: 'Billed monthly · Cancel anytime',
           features: features,
           isPopular: false,
@@ -375,7 +375,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
           price: '\$99.99',
           period: '/year',
           savings: '[SAVE 44%] -> only \$8.33/month',
-          breakdown: '3-day free trial · Billed annually · Cancel anytime',
+          breakdown: 'Billed annually · Cancel anytime',
           features: features,
           isPopular: true,
           isSelected: _model.selectedPlan == 1,
@@ -618,12 +618,12 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         onTap: _handleChangeToAnnual,
       );
     }
-    final isStartTrial = _model.selectedPlan == 1;
+    final wantAnnual = _model.selectedPlan == 1;
     final label = _model.isSubscribed && !_model.isCanceled && _model.isLegacyWeeklyPlan
-        ? (isStartTrial ? 'Start 3-Day Free Trial' : 'Subscribe to Monthly')
+        ? (wantAnnual ? 'Subscribe to Yearly' : 'Subscribe to Monthly')
         : (_model.isSubscribed
             ? 'Upgrade the Plan'
-            : (isStartTrial ? 'Start 3-Day Free Trial' : 'Start Subscription'));
+            : (wantAnnual ? 'Subscribe to Yearly' : 'Start Subscription'));
     return _ctaButton(
       label: label,
       onTap: () => _handleConfirmPayment(),
@@ -768,11 +768,10 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
 
   Future<void> _handleConfirmPayment() async {
     if (_model.isPaymentLoading) return;
-    final isStartTrial = _model.selectedPlan == 1;
 
     RevenueCatService.logFlow(
       'Subscription',
-      '_handleConfirmPayment: start isStartTrial=$isStartTrial selectedPlan=${_model.selectedPlan}',
+      '_handleConfirmPayment: start selectedPlan=${_model.selectedPlan}',
     );
     if (!RevenueCatService.instance.isSupported) {
       RevenueCatService.logFlow('Subscription', '_handleConfirmPayment: not supported');
@@ -850,7 +849,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
       }
 
       RevenueCatService.logFlow('Subscription', '_handleConfirmPayment: success');
-      AppToast.success(context, isStartTrial ? '3-day free trial started!' : 'Subscription active!');
+      AppToast.success(context, 'Subscription active!');
       _goAfterSubscribe(context);
     } on PlatformException catch (e) {
       RevenueCatService.logFlow(
@@ -971,7 +970,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         children: [
           const TextSpan(
             text:
-                'Monthly: \$14.99 (no free trial). Annual: 3 days free, then \$99.99/year ([SAVE 44%] -> only \$8.33/month). Cancel anytime in settings. By continuing, you agree to our ',
+                'Monthly: \$14.99. Annual: \$99.99/year ([SAVE 44%] -> only \$8.33/month). Cancel anytime in settings. By continuing, you agree to our ',
           ),
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,

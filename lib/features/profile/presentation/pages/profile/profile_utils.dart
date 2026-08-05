@@ -74,8 +74,6 @@ abstract final class ProfileSubscriptionUtils {
     String subscriptionRowLabel;
     if (!isSubscribedFromRC || isCanceled) {
       subscriptionRowLabel = 'Free';
-    } else if (rcStatus == 'trial') {
-      subscriptionRowLabel = 'Trial';
     } else if (isMonthlyPlan) {
       subscriptionRowLabel = 'Monthly';
     } else if (isWeeklyPlan) {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '/core/network/backend_client.dart';
 import '/features/onboarding/presentation/widgets/onboarding_guide_eligibility.dart';
 import '/shared/services/supabase_service.dart';
 
@@ -8,6 +9,10 @@ class OnboardingService {
   static const _stepPrefix = 'onboarding_step_';
   static const _dataPrefix = 'onboarding_data_';
   static const _firstStoryPrefix = 'first_story_generated_';
+
+  /// In-memory cache so redirect checks don't hit the network repeatedly.
+  static bool? _completedCache;
+  static String? _completedCacheUserId;
 
   static String _storageKey() {
     final userId = SupabaseService.currentUser?.id;
@@ -29,6 +34,16 @@ class OnboardingService {
     return '$_firstStoryPrefix${userId?.toLowerCase() ?? 'guest'}';
   }
 
+  static void _clearCompletedCache() {
+    _completedCache = null;
+    _completedCacheUserId = null;
+  }
+
+  static void _setCompletedCache(bool value) {
+    _completedCache = value;
+    _completedCacheUserId = SupabaseService.currentUser?.id;
+  }
+
   /// Mark that the user has generated their first story (used for relaunch routing).
   static Future<void> setFirstStoryGenerated() async {
     final prefs = await SharedPreferences.getInstance();
@@ -40,14 +55,27 @@ class OnboardingService {
   /// Returns true if the user has already generated their first story.
   static Future<bool> hasGeneratedFirstStory() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_firstStoryKey()) ?? false;
+    if (prefs.getBool(_firstStoryKey()) ?? false) return true;
+
+    // Fresh install wipes prefs; derive from server stories for returning users.
+    if (await _hasExistingStories()) {
+      await setFirstStoryGenerated();
+      return true;
+    }
+    return false;
   }
 
   /// Check if user has completed onboarding. Uses Supabase Users table as source
   /// of truth (persists across devices), with SharedPreferences as local cache.
+  /// Returning users who already have stories are treated as completed even if
+  /// the flag was never set / local prefs were wiped on reinstall.
   static Future<bool> hasCompletedOnboarding() async {
     final user = SupabaseService.currentUser;
     if (user == null) return false;
+
+    if (_completedCache != null && _completedCacheUserId == user.id) {
+      return _completedCache!;
+    }
 
     // 1. Check Supabase Users table (source of truth across devices/sessions)
     try {
@@ -61,14 +89,44 @@ class OnboardingService {
         if (rows.isNotEmpty) {
           final first = rows.first;
           final completed = first is Map ? first['onboarding_completed'] : null;
-          if (completed == true) return true;
+          if (completed == true) {
+            _setCompletedCache(true);
+            return true;
+          }
         }
       }
     } catch (_) {}
 
     // 2. Fallback to local SharedPreferences (e.g. before Users table has column)
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_storageKey()) ?? false;
+    if (prefs.getBool(_storageKey()) ?? false) {
+      _setCompletedCache(true);
+      return true;
+    }
+
+    // 3. Returning users: any existing story means onboarding is done.
+    // Backfill flag so later launches (and other devices after sync) skip onboarding.
+    if (await _hasExistingStories()) {
+      await setOnboardingCompleted();
+      await setFirstStoryGenerated();
+      return true;
+    }
+
+    _setCompletedCache(false);
+    return false;
+  }
+
+  /// True when the current user already has at least one story on the server.
+  static Future<bool> _hasExistingStories() async {
+    try {
+      final userId = await SupabaseService.getCurrentUserTableId();
+      if (userId == null) return false;
+      final res = await BackendClient.getStories(userId);
+      final list = (res['stories'] as List<dynamic>?) ?? const [];
+      return list.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> setOnboardingCompleted() async {
@@ -88,6 +146,7 @@ class OnboardingService {
     // Clear in-progress step/data on completion
     await prefs.remove(_stepKey());
     await prefs.remove(_dataKey());
+    _setCompletedCache(true);
   }
 
   /// Save the current onboarding step route path and form data.
@@ -125,6 +184,7 @@ class OnboardingService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_stepKey());
     await prefs.remove(_dataKey());
+    _clearCompletedCache();
     OnboardingGuideEligibility.clearCache();
   }
 }

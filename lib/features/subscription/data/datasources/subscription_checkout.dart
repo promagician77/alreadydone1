@@ -48,7 +48,7 @@ class SubscriptionCheckout {
     );
   }
 
-  /// Purchases monthly (`wantAnnual: false`) or annual/trial (`wantAnnual: true`).
+  /// Purchases monthly (`wantAnnual: false`) or annual (`wantAnnual: true`).
   static Future<SubscriptionCheckoutResult> purchase({
     required bool wantAnnual,
     required String logScope,

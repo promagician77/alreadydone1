@@ -79,7 +79,7 @@ class ProfileUpgradeCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '3-day free trial · Billed annually · Cancel anytime',
+                'Billed annually · Cancel anytime',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.8),
@@ -104,7 +104,7 @@ class ProfileUpgradeCard extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      isSubscribed ? 'Upgrade to Annual' : 'Start Free Trial',
+                      isSubscribed ? 'Upgrade to Annual' : 'Start Subscription',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
