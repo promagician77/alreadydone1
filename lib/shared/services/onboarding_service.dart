@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/core/network/backend_client.dart';
 import '/features/onboarding/presentation/widgets/onboarding_guide_eligibility.dart';
+import '/features/player/data/datasources/last_played_service.dart';
 import '/shared/services/supabase_service.dart';
 
 class OnboardingService {
@@ -9,10 +10,13 @@ class OnboardingService {
   static const _stepPrefix = 'onboarding_step_';
   static const _dataPrefix = 'onboarding_data_';
   static const _firstStoryPrefix = 'first_story_generated_';
+  static const _listenedPrefix = 'first_story_listened_';
 
   /// In-memory cache so redirect checks don't hit the network repeatedly.
   static bool? _completedCache;
   static String? _completedCacheUserId;
+  static bool? _createdAndListenedCache;
+  static String? _createdAndListenedCacheUserId;
 
   static String _storageKey() {
     final userId = SupabaseService.currentUser?.id;
@@ -34,9 +38,16 @@ class OnboardingService {
     return '$_firstStoryPrefix${userId?.toLowerCase() ?? 'guest'}';
   }
 
+  static String _listenedKey() {
+    final userId = SupabaseService.currentUser?.id;
+    return '$_listenedPrefix${userId?.toLowerCase() ?? 'guest'}';
+  }
+
   static void _clearCompletedCache() {
     _completedCache = null;
     _completedCacheUserId = null;
+    _createdAndListenedCache = null;
+    _createdAndListenedCacheUserId = null;
   }
 
   static void _setCompletedCache(bool value) {
@@ -52,6 +63,20 @@ class OnboardingService {
     OnboardingGuideEligibility.markHasVoicedStory();
   }
 
+  /// Mark that the user has listened to (started/played) their first story.
+  static Future<void> setFirstStoryListened() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_listenedKey(), true);
+    final userId = SupabaseService.currentUser?.id;
+    _createdAndListenedCache = null;
+    _createdAndListenedCacheUserId = null;
+    // Invalidate completed cache so next check can promote to completed.
+    if (_completedCacheUserId == userId) {
+      _completedCache = null;
+      _completedCacheUserId = null;
+    }
+  }
+
   /// Returns true if the user has already generated their first story.
   static Future<bool> hasGeneratedFirstStory() async {
     final prefs = await SharedPreferences.getInstance();
@@ -65,10 +90,80 @@ class OnboardingService {
     return false;
   }
 
-  /// Check if user has completed onboarding. Uses Supabase Users table as source
-  /// of truth (persists across devices), with SharedPreferences as local cache.
-  /// Returning users who already have stories are treated as completed even if
-  /// the flag was never set / local prefs were wiped on reinstall.
+  /// Chris's warm-lead gate: user has both created and listened to a first story.
+  ///
+  /// Never-subscribed users who fail this check should enter the new onboarding
+  /// flow and get a free first story.
+  static Future<bool> hasCreatedAndListenedToFirstStory() async {
+    final user = SupabaseService.currentUser;
+    if (user == null) return false;
+
+    if (_createdAndListenedCache != null &&
+        _createdAndListenedCacheUserId == user.id) {
+      return _createdAndListenedCache!;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final localGenerated = prefs.getBool(_firstStoryKey()) ?? false;
+    final localListened = prefs.getBool(_listenedKey()) ?? false;
+    if (localGenerated && localListened) {
+      _createdAndListenedCache = true;
+      _createdAndListenedCacheUserId = user.id;
+      return true;
+    }
+
+    final stories = await _fetchStories();
+    final hasCreated = stories.isNotEmpty || localGenerated;
+    if (!hasCreated) {
+      _createdAndListenedCache = false;
+      _createdAndListenedCacheUserId = user.id;
+      return false;
+    }
+
+    if (localListened) {
+      await setFirstStoryGenerated();
+      _createdAndListenedCache = true;
+      _createdAndListenedCacheUserId = user.id;
+      return true;
+    }
+
+    for (final item in stories) {
+      if (item is! Map) continue;
+      final lastPlayed = item['last_played'] ?? item['last_played_at'];
+      final raw = lastPlayed?.toString().trim();
+      if (raw != null && raw.isNotEmpty) {
+        await setFirstStoryGenerated();
+        await setFirstStoryListened();
+        _createdAndListenedCache = true;
+        _createdAndListenedCacheUserId = user.id;
+        return true;
+      }
+    }
+
+    // Same-device returning users who played via the main player.
+    final localLastPlayed = await LastPlayedService.loadLastPlayed();
+    if (localLastPlayed != null) {
+      await setFirstStoryGenerated();
+      await setFirstStoryListened();
+      _createdAndListenedCache = true;
+      _createdAndListenedCacheUserId = user.id;
+      return true;
+    }
+
+    if (stories.isNotEmpty) {
+      await setFirstStoryGenerated();
+    }
+    _createdAndListenedCache = false;
+    _createdAndListenedCacheUserId = user.id;
+    return false;
+  }
+
+  /// Check if user has completed onboarding.
+  ///
+  /// Completion requires creating and listening to a first story (warm-lead
+  /// criterion). A completed flag alone with existing stories but no listen
+  /// does not count — those users re-enter the new onboarding for a free story.
+  /// A completed flag with no stories still counts (e.g. subscribed on paywall).
   static Future<bool> hasCompletedOnboarding() async {
     final user = SupabaseService.currentUser;
     if (user == null) return false;
@@ -77,7 +172,15 @@ class OnboardingService {
       return _completedCache!;
     }
 
-    // 1. Check Supabase Users table (source of truth across devices/sessions)
+    // 1. Created + listened (source of truth for warm-lead / free-story routing)
+    if (await hasCreatedAndListenedToFirstStory()) {
+      await setOnboardingCompleted();
+      return true;
+    }
+
+    final hasStories = await _hasExistingStories();
+
+    // 2. Flag set without stories (e.g. subscribed during onboarding paywall)
     try {
       final email = user.email;
       if (email != null && email.isNotEmpty) {
@@ -89,7 +192,7 @@ class OnboardingService {
         if (rows.isNotEmpty) {
           final first = rows.first;
           final completed = first is Map ? first['onboarding_completed'] : null;
-          if (completed == true) {
+          if (completed == true && !hasStories) {
             _setCompletedCache(true);
             return true;
           }
@@ -97,18 +200,10 @@ class OnboardingService {
       }
     } catch (_) {}
 
-    // 2. Fallback to local SharedPreferences (e.g. before Users table has column)
+    // 3. Local flag without stories
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_storageKey()) ?? false) {
+    if ((prefs.getBool(_storageKey()) ?? false) && !hasStories) {
       _setCompletedCache(true);
-      return true;
-    }
-
-    // 3. Returning users: any existing story means onboarding is done.
-    // Backfill flag so later launches (and other devices after sync) skip onboarding.
-    if (await _hasExistingStories()) {
-      await setOnboardingCompleted();
-      await setFirstStoryGenerated();
       return true;
     }
 
@@ -118,14 +213,18 @@ class OnboardingService {
 
   /// True when the current user already has at least one story on the server.
   static Future<bool> _hasExistingStories() async {
+    final stories = await _fetchStories();
+    return stories.isNotEmpty;
+  }
+
+  static Future<List<dynamic>> _fetchStories() async {
     try {
       final userId = await SupabaseService.getCurrentUserTableId();
-      if (userId == null) return false;
+      if (userId == null) return const [];
       final res = await BackendClient.getStories(userId);
-      final list = (res['stories'] as List<dynamic>?) ?? const [];
-      return list.isNotEmpty;
+      return (res['stories'] as List<dynamic>?) ?? const [];
     } catch (_) {
-      return false;
+      return const [];
     }
   }
 

@@ -267,6 +267,8 @@ class _OnboardingPlayerWidgetState extends State<OnboardingPlayerWidget> {
       } else {
         await _audioPlayer.resume();
       }
+      // Warm-lead gate: created + listened unlocks leaving the free onboarding flow.
+      await OnboardingService.setFirstStoryListened();
       if (mounted) setState(() => _isPlaying = true);
     } catch (e) {
       if (mounted) {

@@ -36,7 +36,8 @@ const kTransitionInfoKey = '__transition_info__';
 GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 /// True if user profile (Supabase users table) has rc_subscription_status of "active" or "trial".
-/// Used after sign-in/sign-up to send subscribed users to home and others to onboarding flow.
+/// Used after sign-in/sign-up: subscribed → home; never-subscribed without
+/// created+listened first story → new onboarding (free first story).
 Future<bool> _hasSubscribedStatusFromProfile() async {
   try {
     final userId = await SupabaseService.getCurrentUserTableId();
@@ -161,14 +162,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           if (isPasswordRecoveryOtp) return null;
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed) return _logRedirect('/', path, 'subscribed_after_auth');
-          final completed = await OnboardingService.hasCompletedOnboarding();
-          // Completed (or returning user with stories) → home, not paywall/onboarding.
-          if (completed) return _logRedirect('/', path, 'auth_route_complete');
-          // Not subscribed: if first story already generated → paywall
-          if (await OnboardingService.hasGeneratedFirstStory()) {
-            return OnboardingSplashWidget.routePath;
+          // Warm leads (never subscribed): new onboarding + free first story until
+          // they have both created AND listened to a first story.
+          if (await OnboardingService.hasCreatedAndListenedToFirstStory()) {
+            return _logRedirect('/', path, 'created_and_listened');
           }
-          // Resume mid-onboarding if a step was saved
           final savedStep = await OnboardingService.getSavedStep();
           if (savedStep != null) return savedStep;
           return OnboardingOriginSplashWidget.routePath;
@@ -176,28 +174,25 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         if (isAuth && !isOnboardingRoute) {
           final subscribed = await _hasSubscribedStatusFromProfile();
           if (subscribed) return null;
-          final completed = await OnboardingService.hasCompletedOnboarding();
-          // If onboarding is completed, allow the user to stay on the current route.
-          // (Prevents / <-> /onboarding redirect loops when `first_story_generated` is true.)
-          if (completed) return null;
-          // Not subscribed: if first story already generated → paywall
-          if (await OnboardingService.hasGeneratedFirstStory()) {
-            return OnboardingSplashWidget.routePath;
+          // Never-subscribed users who haven't created+listened stay in onboarding
+          // (free first story). Do not divert to paywall on first_story_generated.
+          if (await OnboardingService.hasCreatedAndListenedToFirstStory()) {
+            return null;
           }
-          if (!completed) {
-            // Resume mid-onboarding if a step was saved
-            final savedStep = await OnboardingService.getSavedStep();
-            if (savedStep != null) return savedStep;
-            return OnboardingOriginSplashWidget.routePath;
-          }
+          final savedStep = await OnboardingService.getSavedStep();
+          if (savedStep != null) return savedStep;
+          return OnboardingOriginSplashWidget.routePath;
         }
         if (isAuth && isOnboardingRoute) {
-          final completed = await OnboardingService.hasCompletedOnboarding();
-          if (completed && path == OnboardingSplashWidget.routePath) {
-            return _logRedirect('/', path, 'onboarding_complete');
-          }
-          if (completed && path == OnboardingOriginSplashWidget.routePath) {
-            return _logRedirect('/', path, 'onboarding_complete');
+          final subscribed = await _hasSubscribedStatusFromProfile();
+          if (subscribed ||
+              await OnboardingService.hasCreatedAndListenedToFirstStory()) {
+            if (path == OnboardingSplashWidget.routePath) {
+              return _logRedirect('/', path, 'onboarding_complete');
+            }
+            if (path == OnboardingOriginSplashWidget.routePath) {
+              return _logRedirect('/', path, 'onboarding_complete');
+            }
           }
         }
         return null;

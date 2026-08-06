@@ -14,6 +14,7 @@ import '/shared/services/ai_consent_service.dart';
 import '/shared/services/app_toast.dart';
 import '/features/player/data/datasources/rating_prompt_controller.dart';
 import '/shared/services/supabase_service.dart';
+import '/shared/services/onboarding_service.dart';
 import '/shared/widgets/subscription_upsell_modal.dart';
 import '/index.dart';
 import 'player_modals/player_modals.dart';
@@ -695,6 +696,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
       storyContent: _fullStoryContent,
       voiceId: _voiceId,
     );
+    // Warm-lead gate: playing a story counts as "listened".
+    OnboardingService.setFirstStoryListened();
   }
 
   void _maybeAutoPlayAndActivateSleepMode() {
