@@ -14,6 +14,7 @@ import '/shared/services/ai_consent_service.dart';
 import '/shared/services/app_toast.dart';
 import '/features/player/data/datasources/rating_prompt_controller.dart';
 import '/shared/services/supabase_service.dart';
+import '/shared/widgets/subscription_upsell_modal.dart';
 import '/index.dart';
 import 'player_modals/player_modals.dart';
 import 'player_modals/player_option_sheets.dart';
@@ -105,6 +106,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   bool _isGeneratingVoice = false;
 
   bool _isDeepening = false;
+  bool _subscriptionModalOpen = false;
+  bool? _isSubscribed;
 
   static final Map<String, String> _voicePlayUrlCache = {};
 
@@ -989,11 +992,56 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Future<void> _skipToPreviousStory() async {
+    if (!await _ensureSubscribedForStorySkip()) return;
     await _skipToAdjacentStory(previous: true);
   }
 
   Future<void> _skipToNextStory() async {
+    if (!await _ensureSubscribedForStorySkip()) return;
     await _skipToAdjacentStory(previous: false);
+  }
+
+  Future<bool> _isUserSubscribed() async {
+    if (_isSubscribed != null) return _isSubscribed!;
+    try {
+      final userId = await SupabaseService.getCurrentUserTableId();
+      if (userId == null) {
+        _isSubscribed = false;
+        return false;
+      }
+      final profile = await profileRepository.getUserProfile(userId);
+      final status = (profile['rc_subscription_status'] ??
+              profile['rc_subscription_Status'])
+          ?.toString()
+          .toLowerCase()
+          .trim();
+      _isSubscribed = status == 'active' || status == 'trial';
+    } catch (_) {
+      _isSubscribed = false;
+    }
+    return _isSubscribed!;
+  }
+
+  /// Next/previous story is gated for non-subscribers via the upsell sheet.
+  /// Subscribe in-sheet → allow the skip; decline → stay on current story.
+  Future<bool> _ensureSubscribedForStorySkip() async {
+    if (_subscriptionModalOpen) return false;
+    final subscribed = await _isUserSubscribed();
+    if (!mounted) return false;
+    if (subscribed) return true;
+
+    _subscriptionModalOpen = true;
+    try {
+      final outcome = await showSubscriptionUpsellModal(context);
+      if (!mounted) return false;
+      if (outcome == SubscriptionUpsellOutcome.subscribed) {
+        _isSubscribed = true;
+        return true;
+      }
+      return false;
+    } finally {
+      _subscriptionModalOpen = false;
+    }
   }
 
   Future<void> _skipToAdjacentStory({required bool previous}) async {
