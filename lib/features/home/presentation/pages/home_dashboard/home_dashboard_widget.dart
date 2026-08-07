@@ -16,6 +16,7 @@ import '/features/home/presentation/pages/home_dashboard/widgets/home_dashboard_
 import '/features/home/presentation/pages/home_dashboard/widgets/home_dashboard_hero.dart';
 import '/shared/services/ai_consent_service.dart';
 import '/shared/services/app_toast.dart';
+import '/shared/services/onboarding_service.dart';
 import '/core/network/backend_client.dart';
 import '/core/di/profile_locator.dart';
 import '/features/profile/domain/profile_day_streak.dart';
@@ -24,6 +25,7 @@ import '/shared/services/shell_player_navigation.dart';
 import '/shared/services/sleep_mode_notifier.dart';
 import '/shared/services/story_audio_handler.dart';
 import '/shared/services/supabase_service.dart';
+import '/shared/widgets/subscription_upsell_modal.dart';
 import 'home_dashboard_colors.dart';
 import 'home_dashboard_model.dart';
 export 'home_dashboard_model.dart';
@@ -62,6 +64,9 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
   late final AnimationController _manifestCoachPulseController;
   bool _showNewManifestationCoachmark = false;
   int _playNonce = 0;
+
+  /// Once per app launch — home remounts on tab switches, so this must be static.
+  static bool _relaunchSubscriptionReminderShown = false;
 
   @override
   void initState() {
@@ -115,8 +120,14 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
         safeSetState(() => _model.playbackPosition = p);
       }
     });
-    _loadData().then((_) {
-      if (mounted) unawaited(_maybeShowNewManifestationCoachmark());
+    _loadData().then((_) async {
+      if (!mounted) return;
+      await _maybeShowNewManifestationCoachmark();
+      if (!mounted) return;
+      // After coachmark (or if none), remind never-subscribed warm leads.
+      if (!_showNewManifestationCoachmark) {
+        await _maybeShowRelaunchSubscriptionReminder();
+      }
     });
   }
 
@@ -145,6 +156,44 @@ class _HomeDashboardWidgetState extends State<HomeDashboardWidget>
     setState(() => _showNewManifestationCoachmark = false);
     newManifestationCoachmarkVisible.value = false;
     await NewManifestationCoachmarkPrefs.markSeen();
+    if (mounted) unawaited(_maybeShowRelaunchSubscriptionReminder());
+  }
+
+  /// Chris: signed-up + created story + not subscribed + relaunch → home, then
+  /// show subscription modal as a reminder. Routing already sends warm leads
+  /// (created+listened, never subscribed) to `/`; this opens the upsell there.
+  Future<void> _maybeShowRelaunchSubscriptionReminder() async {
+    if (!mounted || _relaunchSubscriptionReminderShown) return;
+    if (_showNewManifestationCoachmark) return;
+
+    final profileStatus = _model.rcSubscriptionStatus?.toLowerCase().trim();
+    final profileSubscribed =
+        profileStatus == 'active' || profileStatus == 'trial';
+    if (_model.isSubscribed || profileSubscribed) return;
+
+    final hasStory = _model.stories.isNotEmpty ||
+        await OnboardingService.hasGeneratedFirstStory();
+    if (!mounted || !hasStory) return;
+
+    // Claim before the delay so a remount cannot open a second sheet.
+    _relaunchSubscriptionReminderShown = true;
+
+    // Let home paint first so the reminder feels like an overlay, not a flash.
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _showNewManifestationCoachmark) {
+      // Allow retry after coachmark dismiss (or if this instance was disposed).
+      _relaunchSubscriptionReminderShown = false;
+      return;
+    }
+
+    final outcome = await showSubscriptionUpsellModal(context);
+    if (!mounted) return;
+    if (outcome == SubscriptionUpsellOutcome.subscribed) {
+      safeSetState(() {
+        _model.isSubscribed = true;
+        _model.rcSubscriptionStatus = 'active';
+      });
+    }
   }
 
   Future<void> _onHomeTabDuringCoachmark() async {
