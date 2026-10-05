@@ -41,9 +41,6 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     }
   }
 
-  /// False until store prices / free-trial eligibility have been fetched.
-  bool _plansLoaded = false;
-
   @override
   void initState() {
     super.initState();
@@ -57,10 +54,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   Future<void> _loadPlans() async {
     final plans = await RevenueCatService.instance.getAvailablePlans();
     if (!mounted) return;
-    safeSetState(() {
-      _model.plans = plans;
-      _plansLoaded = true;
-    });
+    safeSetState(() => _model.plans = plans);
   }
 
   /// Derive subscription/plan state from user profile so the correct theme shows:
@@ -128,15 +122,12 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   bool get _hidePurchaseCta =>
       _isRenewing && (_model.isMonthlyPlan || _model.isLegacyAnnualPlan);
 
-  /// Store offer for the selected plan; null until loaded or when unavailable.
-  PlanOffer? get _selectedOffer =>
-      _model.plans[_model.selectedPlan ?? SubscriptionPlan.monthly];
-
-  /// Free trial to advertise for [plan]: only to users without a running
-  /// subscription, and only when the store says they would actually get it.
+  /// Free trial to advertise for [plan]. None for a running subscription; for a
+  /// canceled one only when the store confirms the user is still eligible.
   FreeTrial? _trialFor(SubscriptionPlan plan) {
     if (_isRenewing) return null;
-    return _model.plans[plan]?.freeTrial;
+    if (_model.isCanceled && _model.plans[plan] == null) return null;
+    return _model.plans.trialFor(plan);
   }
 
   @override
@@ -175,12 +166,9 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
                       const SizedBox(height: 24),
                       _buildHero(),
                       const SizedBox(height: 24),
-                      if (_model.subscriptionStateLoaded &&
-                          _selectedOffer != null) ...[
-                        _buildPlanPromoBadge(),
-                        const SizedBox(height: 20),
-                      ],
-                      if (!_model.subscriptionStateLoaded || !_plansLoaded)
+                      _buildPlanPromoBadge(),
+                      const SizedBox(height: 20),
+                      if (!_model.subscriptionStateLoaded)
                         _buildPricingCardsLoadingPlaceholder()
                       else ...[
                         _buildPricingCards(),
@@ -267,8 +255,19 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
 
   Widget _buildPlanPromoBadge() {
     final plan = _model.selectedPlan ?? SubscriptionPlan.monthly;
-    final price = '${_selectedOffer?.priceString ?? ''}${plan.periodSuffix}';
-    final trial = _trialFor(plan);
+    final price = '${_model.plans.priceString(plan)}${plan.periodSuffix}';
+    final trial = _model.subscriptionStateLoaded ? _trialFor(plan) : null;
+    final savings = plan == SubscriptionPlan.monthly
+        ? _model.plans.monthlySavingsPercent
+        : null;
+    final String label;
+    if (trial != null) {
+      label = '✨ Start your ${trial.adjective} free trial today';
+    } else if (savings != null) {
+      label = '✨ ${plan.label}: $price — save $savings%';
+    } else {
+      label = '✨ ${plan.label}: $price';
+    }
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -287,9 +286,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         ],
       ),
       child: Text(
-        trial != null
-            ? '✨ ${plan.label}: ${trial.adjective} free trial · then $price'
-            : '✨ ${plan.label}: $price',
+        label,
         style: GoogleFonts.outfit(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -324,25 +321,19 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     'Professional voices available',
   ];
 
-  /// Card for [plan] with the store price, and the free trial when it applies.
+  /// Card for [plan]. [savings] is the gold chip under the price (monthly only).
   Widget _planCard(
     SubscriptionPlan plan, {
+    String? savings,
     String? badgeLabel,
     bool isPopular = false,
   }) {
-    final offer = _model.plans[plan];
-    final trial = _trialFor(plan);
-    final savings = plan == SubscriptionPlan.monthly
-        ? _model.plans.monthlySavingsPercent
-        : null;
     return _buildPricingCard(
       plan: plan.label,
-      price: offer?.priceString ?? '—',
+      price: _model.plans.priceString(plan),
       period: plan.periodSuffix,
-      savings: savings != null ? 'SAVE $savings% vs weekly' : plan.billedLabel,
-      breakdown: trial != null
-          ? '${trial.adjective} free trial · ${plan.billedLabel} · Cancel anytime'
-          : '${plan.billedLabel} · Cancel anytime',
+      savings: savings,
+      breakdown: '${plan.billedLabel} · Cancel anytime',
       features: _planFeatures,
       isPopular: isPopular,
       isSelected: _model.selectedPlan == plan,
@@ -352,38 +343,54 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
   }
 
   Widget _buildPricingCards() {
-    // Monthly subscriber: monthly current, weekly secondary (no purchase CTA).
+    final savingsPercent = _model.plans.monthlySavingsPercent;
+    final monthlySavings =
+        savingsPercent != null ? 'Save $savingsPercent% vs weekly plan' : null;
+
+    // Monthly subscriber: monthly current first, weekly second (no purchase CTA).
     if (_isRenewing && _model.isMonthlyPlan) {
       return Column(
         children: [
-          _planCard(SubscriptionPlan.monthly, badgeLabel: 'CURRENT PLAN'),
+          _planCard(
+            SubscriptionPlan.monthly,
+            savings: monthlySavings,
+            badgeLabel: 'CURRENT PLAN',
+          ),
           const SizedBox(height: 10),
           _planCard(SubscriptionPlan.weekly),
         ],
       );
     }
 
-    // Weekly subscriber: weekly current, monthly upgrade.
+    // Weekly subscriber: weekly current first, monthly upgrade second.
     if (_isRenewing && _model.isWeeklyPlan) {
       return Column(
         children: [
           _planCard(SubscriptionPlan.weekly, badgeLabel: 'CURRENT PLAN'),
           const SizedBox(height: 10),
-          _planCard(SubscriptionPlan.monthly, badgeLabel: 'UPGRADE NOW'),
+          _planCard(
+            SubscriptionPlan.monthly,
+            savings: monthlySavings,
+            badgeLabel: 'UPGRADE NOW',
+          ),
         ],
       );
     }
 
-    // New, canceled, or legacy annual: weekly + monthly (monthly is best value).
+    // New, canceled, or legacy annual: monthly (best value) first, weekly second.
     return Column(
       children: [
         if (_isRenewing && _model.isLegacyAnnualPlan) ...[
           _buildLegacyAnnualNotice(),
           const SizedBox(height: 16),
         ],
-        _planCard(SubscriptionPlan.weekly),
+        _planCard(
+          SubscriptionPlan.monthly,
+          savings: 'BEST VALUE',
+          isPopular: true,
+        ),
         const SizedBox(height: 10),
-        _planCard(SubscriptionPlan.monthly, isPopular: true),
+        _planCard(SubscriptionPlan.weekly),
       ],
     );
   }
@@ -655,7 +662,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     final trial = _trialFor(plan);
     final String label;
     if (trial != null) {
-      label = 'Start ${trial.titleAdjective} Free Trial';
+      label = 'Start Free Trial';
     } else if (_model.isCanceled || _model.isSubscribed) {
       label = 'Upgrade the Plan';
     } else {
@@ -920,22 +927,15 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
     );
   }
 
-  /// "Weekly: 3 days free, then $4.99/week. Monthly: … " from the store prices.
-  /// Empty when no plan could be loaded.
+  /// "Free for 3 days, then $4.99/week or $14.99/month. " — without the trial
+  /// part when no free trial applies to this user.
   String _pricingDisclosure() {
-    final buffer = StringBuffer();
-    for (final plan in SubscriptionPlan.values) {
-      final offer = _model.plans[plan];
-      if (offer == null) continue;
-      final price = '${offer.priceString}${plan.periodSuffix}';
-      final trial = _trialFor(plan);
-      buffer.write(
-        trial != null
-            ? '${plan.label}: ${trial.duration} free, then $price. '
-            : '${plan.label}: $price. ',
-      );
-    }
-    return buffer.toString();
+    final plans = _model.plans;
+    final prices =
+        '${plans.priceString(SubscriptionPlan.weekly)}/week or '
+        '${plans.priceString(SubscriptionPlan.monthly)}/month. ';
+    final trial = _trialFor(_model.selectedPlan ?? SubscriptionPlan.monthly);
+    return trial != null ? 'Free for ${trial.duration}, then $prices' : prices;
   }
 
   Widget _buildLegalText() {
@@ -955,7 +955,7 @@ class _SubscriptionWidgetState extends State<SubscriptionWidget> {
         children: [
           TextSpan(
             text:
-                '${_pricingDisclosure()}Renews automatically until canceled. Cancel anytime in settings. By continuing, you agree to our ',
+                '${_pricingDisclosure()}Cancel anytime in settings. By continuing, you agree to our ',
           ),
           WidgetSpan(
             alignment: PlaceholderAlignment.baseline,

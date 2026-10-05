@@ -78,7 +78,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
     if (_isPurchasing) return;
     setState(() => _isPurchasing = true);
 
-    final trial = _plans[_selectedPlan]?.freeTrial;
+    final trial = _plans.trialFor(_selectedPlan);
     final result = await SubscriptionCheckout.purchase(
       plan: _selectedPlan,
       logScope: 'OnboardingUpsell',
@@ -123,7 +123,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final trial = _plans[_selectedPlan]?.freeTrial;
+    final trial = _plans.trialFor(_selectedPlan);
     final ctaLabel = trial != null
         ? 'Start ${trial.titleAdjective} Free Trial'
         : 'Subscribe to ${_selectedPlan.label}';
@@ -400,18 +400,13 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
     );
   }
 
-  /// Tile for [plan] with the store price, and the free trial when it applies.
   Widget _planTileFor(SubscriptionPlan plan) {
-    final offer = _plans[plan];
-    final trial = offer?.freeTrial;
     final isWeekly = plan == SubscriptionPlan.weekly;
     return _planTile(
       title: plan.label,
-      price: offer?.priceString ?? '',
-      period: offer == null ? '' : (isWeekly ? '/wk' : '/mo'),
-      subtitle: trial != null
-          ? '${trial.adjective} free trial · ${plan.billedLabel} · Cancel anytime'
-          : '${plan.billedLabel} · Cancel anytime',
+      price: _plans.priceString(plan),
+      period: isWeekly ? '/wk' : '/mo',
+      subtitle: '${plan.billedLabel} · Cancel anytime',
       selected: _selectedPlan == plan,
       savingsPercent: isWeekly ? null : _plans.monthlySavingsPercent,
       onTap: _isPurchasing ? null : () => setState(() => _selectedPlan = plan),
@@ -516,7 +511,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'vs paying weekly',
+                          'vs weekly plan',
                           style: GoogleFonts.outfit(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,

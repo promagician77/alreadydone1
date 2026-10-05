@@ -52,11 +52,10 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     safeSetState(() => _model.plans = plans);
   }
 
-  /// Free trial to advertise for [plan]: only to non-subscribers, and only when
-  /// the store says they would actually get it.
+  /// Free trial to advertise for [plan]; none for existing subscribers.
   FreeTrial? _trialFor(SubscriptionPlan plan) {
     if (_model.isSubscribed) return null;
-    return _model.plans[plan]?.freeTrial;
+    return _model.plans.trialFor(plan);
   }
 
   /// "3-day free trial started!" when [trial] applied, else the plain confirmation.
@@ -210,7 +209,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     final savings = _model.plans.monthlySavingsPercent;
     final String label;
     if (trial != null) {
-      label = '✨ Try it free for ${trial.duration} — cancel anytime';
+      label = '✨ Start Your ${trial.titleAdjective} Free Trial';
     } else if (savings != null) {
       label = monthlySelected
           ? '✨ Best value — Monthly plan (save $savings%)'
@@ -250,22 +249,17 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     );
   }
 
-  /// Card for [plan] with the store price, and the free trial when it applies.
   Widget _planCard(SubscriptionPlan plan, {required bool isRecommended}) {
-    final offer = _model.plans[plan];
-    final trial = _trialFor(plan);
     final savings = plan == SubscriptionPlan.monthly
         ? _model.plans.monthlySavingsPercent
         : null;
     return _buildPricingCard(
       plan: plan.label,
-      price: offer?.priceString ?? '—',
+      price: _model.plans.priceString(plan),
       period: plan.periodSuffix,
       isRecommended: isRecommended,
-      savingsLabel: [
-        if (trial != null) '${trial.adjective} free trial',
-        savings != null ? 'SAVE $savings% vs weekly' : plan.billedLabel,
-      ].join(' · '),
+      savingsLabel:
+          savings != null ? 'Save $savings% vs weekly plan' : plan.billedLabel,
       features: const [
         'Daily manifestation stories',
         'Clone your own voice',
@@ -723,19 +717,13 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildSecondaryText() {
-    final lines = <String>[];
-    for (final plan in SubscriptionPlan.values) {
-      final offer = _model.plans[plan];
-      if (offer == null) continue;
-      final price = '${offer.priceString}${plan.periodSuffix}';
-      final trial = _trialFor(plan);
-      lines.add(
-        trial != null
-            ? '${plan.label}: ${trial.duration} free, then $price.'
-            : '${plan.label}: $price.',
-      );
-    }
-    lines.add('Renews automatically until canceled. Cancel anytime in settings.');
+    final lines = <String>[
+      for (final plan in SubscriptionPlan.values)
+        _trialFor(plan) != null
+            ? '${plan.label}: ${_trialFor(plan)!.duration} free, then ${_model.plans.priceString(plan)}${plan.periodSuffix}.'
+            : '${plan.label}: ${_model.plans.priceString(plan)}${plan.periodSuffix}.',
+      'Cancel anytime in settings.',
+    ];
     return Text(
       lines.join('\n'),
       style: GoogleFonts.outfit(

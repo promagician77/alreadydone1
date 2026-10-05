@@ -574,11 +574,20 @@ enum SubscriptionPlan {
 
   /// "Billed weekly" / "Billed monthly"
   String get billedLabel => this == weekly ? 'Billed weekly' : 'Billed monthly';
+
+  /// List price (USD), shown until / unless the store returns a localized price.
+  double get listPrice => this == weekly ? 4.99 : 14.99;
+
+  /// "$4.99" / "$14.99"
+  String get listPriceString => '\$${listPrice.toStringAsFixed(2)}';
 }
 
 /// Free-trial length reported by the store, e.g. 3 days.
 class FreeTrial {
   const FreeTrial(this.count, this.unit);
+
+  /// The 3-day trial both plans are sold with. Used when the store can't be asked.
+  static const standard = FreeTrial(3, 'day');
 
   final int count;
 
@@ -637,12 +646,26 @@ class AvailablePlans {
   PlanOffer? operator [](SubscriptionPlan plan) =>
       plan == SubscriptionPlan.weekly ? weekly : monthly;
 
-  /// Whole-percent saving of the monthly plan over paying weekly for a month.
-  /// Null when either price is missing or monthly is not cheaper.
+  /// Price to display for [plan]: the store's localized price, else the list price.
+  String priceString(SubscriptionPlan plan) =>
+      this[plan]?.priceString ?? plan.listPriceString;
+
+  /// Free trial for [plan]: what the store reports for this user, else the
+  /// standard trial when the store has not answered.
+  FreeTrial? trialFor(SubscriptionPlan plan) {
+    final offer = this[plan];
+    return offer != null ? offer.freeTrial : FreeTrial.standard;
+  }
+
+  /// Whole-percent saving of the monthly plan over paying weekly for a month
+  /// (30 at list prices). Null when monthly is not cheaper.
   int? get monthlySavingsPercent {
-    final weeklyPrice = weekly?.price;
-    final monthlyPrice = monthly?.price;
-    if (weeklyPrice == null || monthlyPrice == null) return null;
+    // Only compare store prices with each other (same currency).
+    final fromStore = weekly != null && monthly != null;
+    final weeklyPrice =
+        fromStore ? weekly!.price : SubscriptionPlan.weekly.listPrice;
+    final monthlyPrice =
+        fromStore ? monthly!.price : SubscriptionPlan.monthly.listPrice;
     if (weeklyPrice <= 0 || monthlyPrice <= 0) return null;
     final weeklyCostPerMonth = weeklyPrice * 52 / 12;
     final percent = ((1 - monthlyPrice / weeklyCostPerMonth) * 100).floor();

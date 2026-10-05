@@ -38,7 +38,6 @@ class _ProfileUpgradeCardState extends State<ProfileUpgradeCard> {
 
   @override
   Widget build(BuildContext context) {
-    final monthly = _plans.monthly;
     final savings = _plans.monthlySavingsPercent;
     final textStyle = GoogleFonts.cormorantGaramond(
       fontSize: 20,
@@ -96,13 +95,11 @@ class _ProfileUpgradeCardState extends State<ProfileUpgradeCard> {
                       children: [
                         Text('SAVE $savings%', style: textStyle),
                         const ProfileUpgradeSavingsArrow(color: Colors.white),
-                        Text('vs paying weekly', style: textStyle),
+                        Text('vs weekly plan', style: textStyle),
                       ],
                     ),
                   Text(
-                    monthly != null
-                        ? '${monthly.priceString}/month'
-                        : 'One payment a month',
+                    '${_plans.priceString(SubscriptionPlan.monthly)}/month',
                     style: textStyle,
                   ),
                 ],
