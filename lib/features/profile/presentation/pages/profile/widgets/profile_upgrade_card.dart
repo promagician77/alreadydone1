@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '/features/profile/presentation/pages/profile/widgets/profile_upgrade_savings_arrow.dart';
+import '/features/subscription/data/datasources/revenuecat_service.dart';
 import '/shared/widgets/pressable.dart';
 
-class ProfileUpgradeCard extends StatelessWidget {
+/// Shown to weekly subscribers: upgrade to the monthly plan.
+class ProfileUpgradeCard extends StatefulWidget {
   const ProfileUpgradeCard({
     super.key,
     required this.isSubscribed,
@@ -15,7 +17,29 @@ class ProfileUpgradeCard extends StatelessWidget {
   final VoidCallback onUpgradeTap;
 
   @override
+  State<ProfileUpgradeCard> createState() => _ProfileUpgradeCardState();
+}
+
+class _ProfileUpgradeCardState extends State<ProfileUpgradeCard> {
+  /// Store prices for the savings line. Empty until loaded.
+  AvailablePlans _plans = const AvailablePlans();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlans();
+  }
+
+  Future<void> _loadPlans() async {
+    final plans = await RevenueCatService.instance.getAvailablePlans();
+    if (!mounted) return;
+    setState(() => _plans = plans);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final monthly = _plans.monthly;
+    final savings = _plans.monthlySavingsPercent;
     final textStyle = GoogleFonts.cormorantGaramond(
       fontSize: 20,
       fontWeight: FontWeight.w400,
@@ -52,7 +76,7 @@ class ProfileUpgradeCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'UPGRADE TO ANNUAL PLAN',
+                'UPGRADE TO MONTHLY PLAN',
                 style: GoogleFonts.outfit(
                   fontSize: 10,
                   letterSpacing: 1.5,
@@ -64,22 +88,28 @@ class ProfileUpgradeCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 0,
-                    runSpacing: 4,
-                    children: [
-                      Text('SAVE 44%', style: textStyle),
-                      const ProfileUpgradeSavingsArrow(color: Colors.white),
-                      Text('only \$8.33/month', style: textStyle),
-                    ],
+                  if (savings != null)
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 0,
+                      runSpacing: 4,
+                      children: [
+                        Text('SAVE $savings%', style: textStyle),
+                        const ProfileUpgradeSavingsArrow(color: Colors.white),
+                        Text('vs paying weekly', style: textStyle),
+                      ],
+                    ),
+                  Text(
+                    monthly != null
+                        ? '${monthly.priceString}/month'
+                        : 'One payment a month',
+                    style: textStyle,
                   ),
-                  Text('\$99.99/year', style: textStyle),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                'Billed annually · Cancel anytime',
+                'Billed monthly · Cancel anytime',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.8),
@@ -88,7 +118,7 @@ class ProfileUpgradeCard extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Pressable(
-                onTap: onUpgradeTap,
+                onTap: widget.onUpgradeTap,
                 borderRadius: BorderRadius.circular(10),
                 splashColor: Colors.white.withValues(alpha: 0.2),
                 highlightColor: Colors.white.withValues(alpha: 0.1),
@@ -104,7 +134,9 @@ class ProfileUpgradeCard extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      isSubscribed ? 'Upgrade to Annual' : 'Start Subscription',
+                      widget.isSubscribed
+                          ? 'Upgrade to Monthly'
+                          : 'Start Subscription',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

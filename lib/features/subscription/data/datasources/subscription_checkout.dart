@@ -19,23 +19,6 @@ enum SubscriptionCheckoutResult {
 class SubscriptionCheckout {
   SubscriptionCheckout._();
 
-  static Package? findPackage(Offerings? offerings, {required bool wantAnnual}) {
-    final packages = offerings?.current?.availablePackages ?? [];
-    for (final p in packages) {
-      final id = p.identifier.toLowerCase();
-      final isMonthly =
-          id.contains('monthly') || id.contains('month') || id.contains(r'$rc_monthly');
-      final isAnnual = id.contains('annual') ||
-          id.contains('yearly') ||
-          id.contains('year') ||
-          id.contains(r'$rc_annual');
-      if (wantAnnual && isAnnual) return p;
-      if (!wantAnnual && isMonthly) return p;
-    }
-    if (packages.length == 1) return packages.first;
-    return null;
-  }
-
   static Future<void> _syncBackend(int userId, CustomerInfo info) async {
     final payload =
         RevenueCatService.instance.getSubscriptionPayloadForBackend(info);
@@ -48,14 +31,15 @@ class SubscriptionCheckout {
     );
   }
 
-  /// Purchases monthly (`wantAnnual: false`) or annual (`wantAnnual: true`).
+  /// Purchases the weekly or monthly [plan]. The store applies the plan's free
+  /// trial automatically when the user is eligible.
   static Future<SubscriptionCheckoutResult> purchase({
-    required bool wantAnnual,
+    required SubscriptionPlan plan,
     required String logScope,
   }) async {
     RevenueCatService.logFlow(
       logScope,
-      'purchase: start wantAnnual=$wantAnnual',
+      'purchase: start plan=${plan.name}',
     );
 
     if (!RevenueCatService.instance.isSupported) {
@@ -72,11 +56,11 @@ class SubscriptionCheckout {
     try {
       await RevenueCatService.instance.ensureReady(appUserId: userId.toString());
       final offerings = await RevenueCatService.instance.getOfferings();
-      final package = findPackage(offerings, wantAnnual: wantAnnual);
+      final package = RevenueCatService.findPackage(offerings, plan);
       if (package == null) {
         RevenueCatService.logFlow(
           logScope,
-          'purchase: package NOT FOUND wantAnnual=$wantAnnual',
+          'purchase: package NOT FOUND plan=${plan.name}',
         );
         return SubscriptionCheckoutResult.packageNotFound;
       }

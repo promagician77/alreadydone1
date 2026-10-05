@@ -42,7 +42,27 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     super.initState();
     _model = createModel(context, () => SubscriptionModel());
     _loadSubscriptionStatus();
+    _loadPlans();
   }
+
+  /// Store prices and free-trial eligibility for the plan cards.
+  Future<void> _loadPlans() async {
+    final plans = await RevenueCatService.instance.getAvailablePlans();
+    if (!mounted) return;
+    safeSetState(() => _model.plans = plans);
+  }
+
+  /// Free trial to advertise for [plan]: only to non-subscribers, and only when
+  /// the store says they would actually get it.
+  FreeTrial? _trialFor(SubscriptionPlan plan) {
+    if (_model.isSubscribed) return null;
+    return _model.plans[plan]?.freeTrial;
+  }
+
+  /// "3-day free trial started!" when [trial] applied, else the plain confirmation.
+  String _successMessage(FreeTrial? trial) => trial != null
+      ? '${trial.adjective} free trial started!'
+      : 'Subscription active!';
 
   Future<void> _loadSubscriptionStatus() async {
     try {
@@ -185,7 +205,19 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildPlanPromoBadge() {
-    final annualSelected = _model.selectedPlan == 1;
+    final monthlySelected = _model.selectedPlan == SubscriptionPlan.monthly;
+    final trial = _trialFor(_model.selectedPlan ?? SubscriptionPlan.monthly);
+    final savings = _model.plans.monthlySavingsPercent;
+    final String label;
+    if (trial != null) {
+      label = '✨ Try it free for ${trial.duration} — cancel anytime';
+    } else if (savings != null) {
+      label = monthlySelected
+          ? '✨ Best value — Monthly plan (save $savings%)'
+          : '✨ Switch to Monthly and save $savings%';
+    } else {
+      label = '✨ Unlimited stories in your voice';
+    }
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -206,9 +238,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
           ],
         ),
         child: Text(
-          annualSelected
-              ? '✨ Best value — Yearly plan (save 44%)'
-              : '✨ Switch to Yearly and save 44%',
+          label,
           style: GoogleFonts.outfit(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -220,40 +250,39 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
     );
   }
 
+  /// Card for [plan] with the store price, and the free trial when it applies.
+  Widget _planCard(SubscriptionPlan plan, {required bool isRecommended}) {
+    final offer = _model.plans[plan];
+    final trial = _trialFor(plan);
+    final savings = plan == SubscriptionPlan.monthly
+        ? _model.plans.monthlySavingsPercent
+        : null;
+    return _buildPricingCard(
+      plan: plan.label,
+      price: offer?.priceString ?? '—',
+      period: plan.periodSuffix,
+      isRecommended: isRecommended,
+      savingsLabel: [
+        if (trial != null) '${trial.adjective} free trial',
+        savings != null ? 'SAVE $savings% vs weekly' : plan.billedLabel,
+      ].join(' · '),
+      features: const [
+        'Daily manifestation stories',
+        'Clone your own voice',
+        'Sleep Mode with theta waves',
+        'Professional voices available',
+      ],
+      isSelected: _model.selectedPlan == plan,
+      onTap: () => safeSetState(() => _model.selectedPlan = plan),
+    );
+  }
+
   Widget _buildPricingCards() {
     return Column(
       children: [
-        _buildPricingCard(
-          plan: 'Monthly',
-          price: '\$14.99',
-          period: '/month',
-          isRecommended: false,
-          savingsLabel: 'Billed monthly',
-          features: const [
-            'Daily manifestation stories',
-            'Clone your own voice',
-            'Sleep Mode with theta waves',
-            'Professional voices available',
-          ],
-          isSelected: _model.selectedPlan == 0,
-          onTap: () => safeSetState(() => _model.selectedPlan = 0),
-        ),
+        _planCard(SubscriptionPlan.weekly, isRecommended: false),
         const SizedBox(height: 12),
-        _buildPricingCard(
-          plan: 'Yearly',
-          price: '\$99.99',
-          period: '/year',
-          isRecommended: true,
-          savingsLabel: '[SAVE 44%] -> only \$8.33/month',
-          features: const [
-            'Daily manifestation stories',
-            'Clone your own voice',
-            'Sleep Mode with theta waves',
-            'Professional voices available',
-          ],
-          isSelected: _model.selectedPlan == 1,
-          onTap: () => safeSetState(() => _model.selectedPlan = 1),
-        ),
+        _planCard(SubscriptionPlan.monthly, isRecommended: true),
       ],
     );
   }
@@ -420,32 +449,20 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildCtaButton() {
-    final wantAnnual = _model.selectedPlan == 1;
-    final label = _model.isSubscribed
-        ? 'Update Plan'
-        : (wantAnnual ? 'Subscribe to Yearly' : 'Start Subscription');
+    final plan = _model.selectedPlan;
+    final trial = plan != null ? _trialFor(plan) : null;
+    final String label;
+    if (_model.isSubscribed) {
+      label = 'Update Plan';
+    } else if (trial != null) {
+      label = 'Start ${trial.titleAdjective} Free Trial';
+    } else {
+      label = plan != null ? 'Subscribe to ${plan.label}' : 'Start Subscription';
+    }
     return _ctaButton(
       label: label,
       onTap: _handleConfirmPayment,
     );
-  }
-
-  Package? _findPackage(Offerings? offerings, {required bool wantAnnual}) {
-    final packages = offerings?.current?.availablePackages ?? [];
-    for (final p in packages) {
-      final id = p.identifier.toLowerCase();
-      final isMonthly =
-          id.contains('monthly') || id.contains('month') || id.contains(r'$rc_monthly');
-      final isAnnual = id.contains('annual') ||
-          id.contains('yearly') ||
-          id.contains('year') ||
-          id.contains(r'$rc_annual');
-      if (wantAnnual && isAnnual) return p;
-      if (!wantAnnual && isMonthly) return p;
-    }
-    // Fallback: if only one plan exists, use it (dashboard may have single package)
-    if (packages.length == 1) return packages.first;
-    return null;
   }
 
   Future<void> _handleConfirmPayment() async {
@@ -464,7 +481,8 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       return;
     }
 
-    if (_model.selectedPlan == null) {
+    final plan = _model.selectedPlan;
+    if (plan == null) {
       RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: no plan selected');
       AppToast.info(context, 'Please select a plan first');
       return;
@@ -477,6 +495,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       return;
     }
 
+    final trial = _trialFor(plan);
     safeSetState(() => _model.isPaymentLoading = true);
 
     try {
@@ -487,12 +506,11 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       await RevenueCatService.instance.ensureReady(appUserId: userId.toString());
 
       final offerings = await RevenueCatService.instance.getOfferings();
-      final wantAnnual = _model.selectedPlan == 1;
-      final package = _findPackage(offerings, wantAnnual: wantAnnual);
+      final package = RevenueCatService.findPackage(offerings, plan);
       if (package == null) {
         RevenueCatService.logFlow(
           'OnboardingPay',
-          '_handleConfirmPayment: package NOT FOUND wantAnnual=$wantAnnual',
+          '_handleConfirmPayment: package NOT FOUND plan=${plan.name}',
         );
         if (!mounted) return;
         AppToast.error(
@@ -536,7 +554,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
       }
 
       RevenueCatService.logFlow('OnboardingPay', '_handleConfirmPayment: success');
-      AppToast.success(context, 'Subscription active!');
+      AppToast.success(context, _successMessage(trial));
       await OnboardingService.setOnboardingCompleted();
       if (!mounted) return;
       _goAfterSubscribe(context);
@@ -581,7 +599,7 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
                   'OnboardingPay',
                   'cancel workaround: recovered active subscription',
                 );
-                AppToast.success(context, 'Subscription active!');
+                AppToast.success(context, _successMessage(trial));
                 await OnboardingService.setOnboardingCompleted();
                 if (!mounted) return;
                 _goAfterSubscribe(context);
@@ -705,10 +723,21 @@ class _OnboardingSplashWidgetState extends State<OnboardingSplashWidget> {
   }
 
   Widget _buildSecondaryText() {
+    final lines = <String>[];
+    for (final plan in SubscriptionPlan.values) {
+      final offer = _model.plans[plan];
+      if (offer == null) continue;
+      final price = '${offer.priceString}${plan.periodSuffix}';
+      final trial = _trialFor(plan);
+      lines.add(
+        trial != null
+            ? '${plan.label}: ${trial.duration} free, then $price.'
+            : '${plan.label}: $price.',
+      );
+    }
+    lines.add('Renews automatically until canceled. Cancel anytime in settings.');
     return Text(
-      'Monthly: \$14.99.\n'
-      'Annual: \$99.99/year ([SAVE 44%] -> only \$8.33/month).\n'
-      'Cancel anytime in settings.',
+      lines.join('\n'),
       style: GoogleFonts.outfit(
         fontSize: 11,
         color: AuthTheme.inkSoft,

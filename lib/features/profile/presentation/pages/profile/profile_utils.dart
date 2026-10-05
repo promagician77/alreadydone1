@@ -67,9 +67,9 @@ abstract final class ProfileSubscriptionUtils {
             (rcPlan.contains('year') && !rcPlan.contains('week')));
     final isCanceled = rcStatus == 'canceled' || rcStatus == 'cancelled';
     final isSubscribedFromRC = rcStatus == 'active' || rcStatus == 'trial';
-    final onLowerTierPlan = isWeeklyPlan || isMonthlyPlan;
+    // Weekly is the only plan with an upgrade (to monthly); annual is legacy.
     final showUpgradeCardFromRC =
-        isSubscribedFromRC && !isCanceled && onLowerTierPlan && !isAnnualPlan;
+        isSubscribedFromRC && !isCanceled && isWeeklyPlan && !isAnnualPlan;
 
     String subscriptionRowLabel;
     if (!isSubscribedFromRC || isCanceled) {

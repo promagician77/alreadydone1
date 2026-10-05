@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '/features/subscription/data/datasources/revenuecat_service.dart';
 import '/features/subscription/data/datasources/subscription_checkout.dart';
 import '/shared/services/app_toast.dart';
 import '/shared/services/onboarding_service.dart';
@@ -50,8 +51,23 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
   static const _line = Color(0xFFE6E2D9);
   static const _bg = Color(0xFFF5F3EE);
 
-  bool _annualSelected = true;
+  SubscriptionPlan _selectedPlan = SubscriptionPlan.monthly;
   bool _isPurchasing = false;
+
+  /// Weekly / monthly store prices and free trials. Empty until loaded.
+  AvailablePlans _plans = const AvailablePlans();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlans();
+  }
+
+  Future<void> _loadPlans() async {
+    final plans = await RevenueCatService.instance.getAvailablePlans();
+    if (!mounted) return;
+    setState(() => _plans = plans);
+  }
 
   void _pop(SubscriptionUpsellOutcome outcome) {
     if (!mounted || _isPurchasing) return;
@@ -62,9 +78,9 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
     if (_isPurchasing) return;
     setState(() => _isPurchasing = true);
 
-    final wantAnnual = _annualSelected;
+    final trial = _plans[_selectedPlan]?.freeTrial;
     final result = await SubscriptionCheckout.purchase(
-      wantAnnual: wantAnnual,
+      plan: _selectedPlan,
       logScope: 'OnboardingUpsell',
     );
 
@@ -72,7 +88,12 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
 
     switch (result) {
       case SubscriptionCheckoutResult.success:
-        AppToast.success(context, 'Subscription active!');
+        AppToast.success(
+          context,
+          trial != null
+              ? '${trial.adjective} free trial started!'
+              : 'Subscription active!',
+        );
         await OnboardingService.setOnboardingCompleted();
         if (!mounted) return;
         setState(() => _isPurchasing = false);
@@ -102,8 +123,10 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final ctaLabel =
-        _annualSelected ? 'Subscribe to Yearly' : 'Subscribe to Monthly';
+    final trial = _plans[_selectedPlan]?.freeTrial;
+    final ctaLabel = trial != null
+        ? 'Start ${trial.titleAdjective} Free Trial'
+        : 'Subscribe to ${_selectedPlan.label}';
 
     return PopScope(
       canPop: !_isPurchasing,
@@ -150,28 +173,9 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
                         const SizedBox(height: 8),
                         _buildSubtitle(),
                         const SizedBox(height: 20),
-                        _planTile(
-                          title: 'Monthly',
-                          price: '\$14.99',
-                          period: '/mo',
-                          subtitle: 'Billed monthly · Cancel anytime',
-                          selected: !_annualSelected,
-                          onTap: _isPurchasing
-                              ? null
-                              : () => setState(() => _annualSelected = false),
-                        ),
+                        _planTileFor(SubscriptionPlan.weekly),
                         const SizedBox(height: 10),
-                        _planTile(
-                          title: 'Yearly',
-                          price: '\$99.99',
-                          period: '/yr',
-                          subtitle: 'Billed annually · Cancel anytime',
-                          selected: _annualSelected,
-                          showSaveBadge: true,
-                          onTap: _isPurchasing
-                              ? null
-                              : () => setState(() => _annualSelected = true),
-                        ),
+                        _planTileFor(SubscriptionPlan.monthly),
                         const SizedBox(height: 16),
                         Pressable(
                           onTap: _isPurchasing ? null : _handleSubscribe,
@@ -396,13 +400,31 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
     );
   }
 
+  /// Tile for [plan] with the store price, and the free trial when it applies.
+  Widget _planTileFor(SubscriptionPlan plan) {
+    final offer = _plans[plan];
+    final trial = offer?.freeTrial;
+    final isWeekly = plan == SubscriptionPlan.weekly;
+    return _planTile(
+      title: plan.label,
+      price: offer?.priceString ?? '',
+      period: offer == null ? '' : (isWeekly ? '/wk' : '/mo'),
+      subtitle: trial != null
+          ? '${trial.adjective} free trial · ${plan.billedLabel} · Cancel anytime'
+          : '${plan.billedLabel} · Cancel anytime',
+      selected: _selectedPlan == plan,
+      savingsPercent: isWeekly ? null : _plans.monthlySavingsPercent,
+      onTap: _isPurchasing ? null : () => setState(() => _selectedPlan = plan),
+    );
+  }
+
   Widget _planTile({
     required String title,
     required String price,
     required String period,
     required String subtitle,
     required bool selected,
-    bool showSaveBadge = false,
+    int? savingsPercent,
     VoidCallback? onTap,
   }) {
     return Pressable(
@@ -469,7 +491,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (showSaveBadge) ...[
+                  if (savingsPercent != null) ...[
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -483,7 +505,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'SAVE 44%',
+                            'SAVE $savingsPercent%',
                             style: GoogleFonts.outfit(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -494,7 +516,7 @@ class _SubscriptionUpsellModalState extends State<SubscriptionUpsellModal> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'only \$8.33/mo',
+                          'vs paying weekly',
                           style: GoogleFonts.outfit(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,

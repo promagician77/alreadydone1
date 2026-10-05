@@ -231,6 +231,7 @@ class RevenueCatService {
         isCanceled: false,
         isAnnualPlan: false,
         isMonthlyPlan: false,
+        isWeeklyPlan: false,
       );
     }
     try {
@@ -247,7 +248,10 @@ class RevenueCatService {
           productId.contains('yearly') ||
           (productId.contains('year') && !productId.contains('week'));
 
+      final isWeekly = !isAnnual && productId.contains('week');
+
       final isMonthly = !isAnnual &&
+          !isWeekly &&
           (productId.contains('monthly') ||
               productId.contains('month') ||
               productId.contains(r'$rc_monthly'));
@@ -256,7 +260,8 @@ class RevenueCatService {
 
       _log(
         'getSubscriptionStatus: computed active=$active trialing=$isTrialing '
-        'canceled=$isCanceled productId=$productId annual=$isAnnual monthly=$isMonthly',
+        'canceled=$isCanceled productId=$productId annual=$isAnnual '
+        'monthly=$isMonthly weekly=$isWeekly',
       );
 
       return RevenueCatSubscriptionStatus(
@@ -265,6 +270,7 @@ class RevenueCatService {
         isCanceled: isCanceled,
         isAnnualPlan: isAnnual,
         isMonthlyPlan: isMonthly,
+        isWeeklyPlan: isWeekly,
       );
     } catch (e, st) {
       _log('getSubscriptionStatus: FAILED', error: e, stackTrace: st);
@@ -274,6 +280,7 @@ class RevenueCatService {
         isCanceled: false,
         isAnnualPlan: false,
         isMonthlyPlan: false,
+        isWeeklyPlan: false,
       );
     }
   }
@@ -304,7 +311,7 @@ class RevenueCatService {
         );
         if (packages.isEmpty) {
           _log(
-            'getOfferings: empty packages — add \$rc_annual / \$rc_monthly '
+            'getOfferings: empty packages — add \$rc_weekly / \$rc_monthly '
             'and ensure store products are approved and linked',
           );
         }
@@ -316,53 +323,103 @@ class RevenueCatService {
     }
   }
 
+  /// Plan a package / store product identifier refers to, or null when it is not one
+  /// of the plans currently sold (e.g. the legacy annual product).
+  static SubscriptionPlan? _planFromIdentifier(String identifier) {
+    final id = identifier.toLowerCase();
+    if (id.contains('annual') || id.contains('year')) return null;
+    if (id.contains('week')) return SubscriptionPlan.weekly;
+    if (id.contains('month')) return SubscriptionPlan.monthly;
+    return null;
+  }
+
+  /// Package for [plan] in the current offering. Matches the RevenueCat package type
+  /// first, then falls back to the package / store product identifiers. Returns null
+  /// rather than another plan's package, so the user is never sold the wrong plan.
+  static Package? findPackage(Offerings? offerings, SubscriptionPlan plan) {
+    final packages = offerings?.current?.availablePackages ?? const <Package>[];
+    final wantedType = plan == SubscriptionPlan.weekly
+        ? PackageType.weekly
+        : PackageType.monthly;
+    for (final p in packages) {
+      if (p.packageType == wantedType) return p;
+    }
+    for (final p in packages) {
+      if (_planFromIdentifier(p.identifier) == plan ||
+          _planFromIdentifier(p.storeProduct.identifier) == plan) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  /// Store product ids whose intro offer this user has already used. Only the App
+  /// Store reports this; Google Play only returns offers the user is eligible for.
+  Future<Set<String>> _trialIneligibleProductIds(List<String> productIds) async {
+    if (productIds.isEmpty) return const <String>{};
+    try {
+      final result =
+          await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
+      return {
+        for (final e in result.entries)
+          if (e.value.status ==
+              IntroEligibilityStatus.introEligibilityStatusIneligible)
+            e.key,
+      };
+    } catch (e, st) {
+      _log('_trialIneligibleProductIds: FAILED', error: e, stackTrace: st);
+      return const <String>{};
+    }
+  }
+
+  /// Weekly and monthly plans with their store price and free trial, for display.
+  /// Either plan is null when unsupported or missing from the current offering.
   Future<AvailablePlans> getAvailablePlans() async {
     if (!isSupported) {
-      return const AvailablePlans(monthly: null, annual: null);
+      return const AvailablePlans();
     }
     try {
+      if (!_configured) await configure();
+      if (!_configured) return const AvailablePlans();
+
       final offerings = await getOfferings();
-      final packages = offerings?.current?.availablePackages ?? [];
+      final packages = {
+        for (final plan in SubscriptionPlan.values)
+          plan: findPackage(offerings, plan),
+      };
+      final ineligible = await _trialIneligibleProductIds([
+        for (final p in packages.values)
+          if (p != null) p.storeProduct.identifier,
+      ]);
 
-      _log(
-        'getAvailablePlans: total=${packages.length} '
-        'ids=${packages.map((p) => p.identifier).join(", ")}',
-      );
-
-      Package? annual;
-      for (final p in packages) {
-        final id = p.identifier.toLowerCase();
-        if (p.packageType == PackageType.annual ||
-            p.identifier == r'$rc_annual' ||
-            id.contains('annual') ||
-            id.contains('yearly') ||
-            (id.contains('year') && !id.contains('week'))) {
-          annual = p;
-          break;
-        }
+      PlanOffer? offerFor(SubscriptionPlan plan) {
+        final package = packages[plan];
+        if (package == null) return null;
+        final product = package.storeProduct;
+        final intro = product.introductoryPrice;
+        final freeTrial = intro != null &&
+                intro.price == 0 &&
+                !ineligible.contains(product.identifier)
+            ? FreeTrial.fromIso8601(intro.period)
+            : null;
+        return PlanOffer(plan: plan, package: package, freeTrial: freeTrial);
       }
 
-      Package? monthly;
-      for (final p in packages) {
-        final id = p.identifier.toLowerCase();
-        if (p.packageType == PackageType.monthly ||
-            p.identifier == r'$rc_monthly' ||
-            id.contains('monthly') ||
-            (id.contains('month') && !id.contains('year'))) {
-          monthly = p;
-          break;
-        }
-      }
-
-      _log(
-        'getAvailablePlans: annual=${annual != null ? summarizePackage(annual) : "NOT FOUND"} | '
-        'monthly=${monthly != null ? summarizePackage(monthly) : "NOT FOUND"}',
+      final plans = AvailablePlans(
+        weekly: offerFor(SubscriptionPlan.weekly),
+        monthly: offerFor(SubscriptionPlan.monthly),
       );
-
-      return AvailablePlans(monthly: monthly, annual: annual);
+      for (final plan in SubscriptionPlan.values) {
+        final offer = plans[plan];
+        _log(
+          'getAvailablePlans: ${plan.name}='
+          '${offer != null ? "${summarizePackage(offer.package)} freeTrial=${offer.freeTrial?.adjective}" : "NOT FOUND"}',
+        );
+      }
+      return plans;
     } catch (e, st) {
       _log('getAvailablePlans: FAILED', error: e, stackTrace: st);
-      return const AvailablePlans(monthly: null, annual: null);
+      return const AvailablePlans();
     }
   }
 
@@ -503,18 +560,94 @@ class RevenueCatService {
 // Data classes
 // ---------------------------------------------------------------------------
 
-class AvailablePlans {
-  const AvailablePlans({
-    required this.monthly,
-    required this.annual,
+/// Plans currently sold. Annual is legacy: existing subscribers keep it, but it is
+/// no longer offered.
+enum SubscriptionPlan {
+  weekly,
+  monthly;
+
+  /// "Weekly" / "Monthly"
+  String get label => this == weekly ? 'Weekly' : 'Monthly';
+
+  /// "/week" / "/month"
+  String get periodSuffix => this == weekly ? '/week' : '/month';
+
+  /// "Billed weekly" / "Billed monthly"
+  String get billedLabel => this == weekly ? 'Billed weekly' : 'Billed monthly';
+}
+
+/// Free-trial length reported by the store, e.g. 3 days.
+class FreeTrial {
+  const FreeTrial(this.count, this.unit);
+
+  final int count;
+
+  /// Singular unit: "day", "week", "month" or "year".
+  final String unit;
+
+  /// "3-day"
+  String get adjective => '$count-$unit';
+
+  /// "3-Day"
+  String get titleAdjective =>
+      '$count-${unit[0].toUpperCase()}${unit.substring(1)}';
+
+  /// "3 days"
+  String get duration => count == 1 ? '1 $unit' : '$count ${unit}s';
+
+  /// Parses an ISO 8601 period such as "P3D" or "P1W".
+  static FreeTrial? fromIso8601(String period) {
+    final match =
+        RegExp(r'^P(\d+)([DWMY])$').firstMatch(period.trim().toUpperCase());
+    if (match == null) return null;
+    final count = int.parse(match.group(1)!);
+    if (count <= 0) return null;
+    const units = {'D': 'day', 'W': 'week', 'M': 'month', 'Y': 'year'};
+    return FreeTrial(count, units[match.group(2)]!);
+  }
+}
+
+/// A purchasable plan with what the store will actually charge this user.
+class PlanOffer {
+  const PlanOffer({
+    required this.plan,
+    required this.package,
+    this.freeTrial,
   });
 
-  final Package? monthly;
-  final Package? annual;
+  final SubscriptionPlan plan;
+  final Package package;
 
-  bool get hasMonthly => monthly != null;
-  bool get hasAnnual => annual != null;
-  bool get hasAnyPlan => hasMonthly || hasAnnual;
+  /// Free trial this user gets on purchase. Null when the store product has none
+  /// or the user has already used it.
+  final FreeTrial? freeTrial;
+
+  /// Localized store price, e.g. "$4.99".
+  String get priceString => package.storeProduct.priceString;
+  double get price => package.storeProduct.price;
+  bool get hasFreeTrial => freeTrial != null;
+}
+
+class AvailablePlans {
+  const AvailablePlans({this.weekly, this.monthly});
+
+  final PlanOffer? weekly;
+  final PlanOffer? monthly;
+
+  PlanOffer? operator [](SubscriptionPlan plan) =>
+      plan == SubscriptionPlan.weekly ? weekly : monthly;
+
+  /// Whole-percent saving of the monthly plan over paying weekly for a month.
+  /// Null when either price is missing or monthly is not cheaper.
+  int? get monthlySavingsPercent {
+    final weeklyPrice = weekly?.price;
+    final monthlyPrice = monthly?.price;
+    if (weeklyPrice == null || monthlyPrice == null) return null;
+    if (weeklyPrice <= 0 || monthlyPrice <= 0) return null;
+    final weeklyCostPerMonth = weeklyPrice * 52 / 12;
+    final percent = ((1 - monthlyPrice / weeklyCostPerMonth) * 100).floor();
+    return percent > 0 ? percent : null;
+  }
 }
 
 class RevenueCatSubscriptionStatus {
@@ -524,13 +657,17 @@ class RevenueCatSubscriptionStatus {
     required this.isCanceled,
     required this.isAnnualPlan,
     required this.isMonthlyPlan,
+    required this.isWeeklyPlan,
   });
 
   final bool isSubscribed;
   final bool isTrialing;
   final bool isCanceled;
+
+  /// Legacy plan: no longer sold, but existing subscribers keep it.
   final bool isAnnualPlan;
   final bool isMonthlyPlan;
+  final bool isWeeklyPlan;
 
   bool get isActiveAndRenewing => isSubscribed && !isCanceled;
 }
