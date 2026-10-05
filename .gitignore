@@ -32,7 +32,6 @@
 /build/
 
 # Environment / secrets (Supabase keys, etc.)
-.env
 
 # Firebase – this is necessary if you use Firebase since it could otherwise 
 # lead to leaking of private certificates to your repository, which is no bueno.
@@ -51,3 +50,5 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+config.bat
+node_modules
